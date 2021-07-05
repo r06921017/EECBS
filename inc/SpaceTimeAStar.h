@@ -56,8 +56,10 @@ public:
 	// lowerbound is an underestimation of the length of the path in order to speed up the search.
 	Path findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 						const vector<Path*>& paths, int agent, int lower_bound);
+	
+	// return the path and the lowerbound
 	pair<Path, int> findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
-		const vector<Path*>& paths, int agent, int lowerbound, double w);  // return the path and the lowerbound
+		const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb=0, int other_sum_cost=0);
 
 	int getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound);
 
@@ -81,9 +83,10 @@ private:
 
 	// Updates the path datamember
 	void updatePath(const LLNode* goal, vector<PathEntry> &path);
-	void updateFocalList();
+	void updateFocalList(int other_sum_lb, int other_sum_cost);
 	inline AStarNode* popNode();
 	inline void pushNode(AStarNode* node);
 	void releaseNodes();
 
+	double upperbound;  // For FEECBS
 };

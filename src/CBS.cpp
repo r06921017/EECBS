@@ -205,7 +205,7 @@ shared_ptr<Conflict> CBS::chooseConflict(const HLNode &node) const
 void CBS::computeSecondPriorityForConflict(Conflict& conflict, const HLNode& node)
 {
 	int count[2] = {0, 0};
-	switch (conflict_seletion_rule)
+	switch (conflict_selection_rule)
 	{
 	case conflict_selection::RANDOM:
 		conflict.secondary_priority = 0;

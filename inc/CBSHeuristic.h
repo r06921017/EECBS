@@ -134,7 +134,7 @@ public:
 	bool PC; // prioritize conflicts
 
 	bool save_stats;
-	conflict_selection conflict_seletion_rule;
+	conflict_selection conflict_selection_rule;
 	node_selection node_selection_rule;
 
 	double runtime_build_dependency_graph = 0;
@@ -142,7 +142,7 @@ public:
 	uint64_t num_solve_MVC = 0;
 	uint64_t num_merge_MDDs = 0;
 	uint64_t num_solve_2agent_problems = 0;
-	uint64_t num_memoization = 0; // number of times when memeorization helps
+	uint64_t num_memoization = 0; // number of times when memorization helps
 
 	 //stats
 	list<tuple<int, int, const HLNode*, uint64_t, int> > sub_instances; 	// <agent 1, agent 2, node, number of expanded CT nodes, h value> 

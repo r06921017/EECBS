@@ -722,7 +722,7 @@ pair<int, int> CBSHeuristic::solve2Agents(int a1, int a2, const CBSNode& node, b
 	cbs.setCorridorReasoning(corridor_reasoning);
 	cbs.setTargetReasoning(target_reasoning);
 	cbs.setMutexReasoning(mutex_reasoning);
-	cbs.setConflictSelectionRule(conflict_seletion_rule);
+	cbs.setConflictSelectionRule(conflict_selection_rule);
 	cbs.setNodeSelectionRule(node_selection_rule);
 	cbs.setHighLevelSolver(high_level_solver_type::ASTAR, 1); // solve the sub problem optimally
 	cbs.setNodeLimit(node_limit);
@@ -773,7 +773,7 @@ tuple<int, int, int> CBSHeuristic::solve2Agents(int a1, int a2, const ECBSNode& 
 	cbs.setCorridorReasoning(corridor_reasoning);
 	cbs.setTargetReasoning(target_reasoning);
 	cbs.setMutexReasoning(mutex_reasoning);
-	cbs.setConflictSelectionRule(conflict_seletion_rule);
+	cbs.setConflictSelectionRule(conflict_selection_rule);
 	cbs.setNodeSelectionRule(node_selection_rule);
 	cbs.setHighLevelSolver(high_level_solver_type::ASTAR, 1); // solve the sub problem optimally
 	cbs.setNodeLimit(node_limit);
@@ -865,7 +865,7 @@ int CBSHeuristic::getEdgeWeight(int a1, int a2, CBSNode& node, bool cardinal)
 		cbs.setCorridorReasoning(corridor_reasoning);
 		cbs.setTargetReasoning(target_reasoning);
 		cbs.setMutexReasoning(mutex_reasoning);
-		cbs.setConflictSelectionRule(conflict_seletion_rule);
+		cbs.setConflictSelectionRule(conflict_selection_rule);
 		cbs.setNodeSelectionRule(node_selection_fule);
 
 		double runtime = (double)(clock() - start_time) / CLOCKS_PER_SEC;
@@ -893,7 +893,7 @@ int CBSHeuristic::getEdgeWeight(int a1, int a2, CBSNode& node, bool cardinal)
 	cbs.setCorridorReasoning(corridor_reasoning);
 	cbs.setTargetReasoning(target_reasoning);
 	cbs.setMutexReasoning(mutex_reasoning);
-	cbs.setConflictSelectionRule(conflict_seletion_rule);
+	cbs.setConflictSelectionRule(conflict_selection_rule);
 	cbs.setNodeSelectionRule(node_selection_rule);
 	cbs.setHighLevelSolver(high_level_solver_type::ASTAR, 1); // solve the sub problem optimally
 	cbs.setNodeLimit(node_limit);

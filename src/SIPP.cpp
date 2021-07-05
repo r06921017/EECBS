@@ -33,7 +33,7 @@ Path SIPP::findOptimalPath(const HLNode& node, const ConstraintTable& initial_co
 // minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).
 // lowerbound is an underestimation of the length of the path in order to speed up the search.
 pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
-	const vector<Path*>& paths, int agent, int lowerbound, double w)
+	const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb, int other_sum_cost)
 {
 	this->w = w;
 	Path path;

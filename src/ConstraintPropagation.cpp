@@ -552,11 +552,10 @@ std::pair<std::vector<Constraint>, std::vector<Constraint>> ConstraintPropagatio
   std::vector<Constraint> cons_vec_1;
 
   for (auto& it:cons_0){
-    cons_vec_0.push_back({0, it->location, -1, it->level, constraint_type::VERTEX});
-    
+    cons_vec_0.push_back(make_tuple(0, it->location, -1, it->level, constraint_type::VERTEX));
   }
   for (auto& it:cons_1){
-    cons_vec_1.push_back({1, it->location, -1, it->level, constraint_type::VERTEX});
+    cons_vec_1.push_back(make_tuple(1, it->location, -1, it->level, constraint_type::VERTEX));
   }
   if (reversed){
     return {cons_vec_1, cons_vec_0};

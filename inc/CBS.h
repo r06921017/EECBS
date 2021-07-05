@@ -62,8 +62,8 @@ public:
 	void setMutexReasoning(bool m) {mutex_reasoning = m; heuristic_helper.mutex_reasoning = m; }
 	void setDisjointSplitting(bool d) {disjoint_splitting = d; heuristic_helper.disjoint_splitting = d; }
 	void setBypass(bool b) { bypass = b; } // 2-agent solver for heuristic calculation does not need bypass strategy.
-	void setConflictSelectionRule(conflict_selection c) { conflict_seletion_rule = c; heuristic_helper.conflict_seletion_rule = c; }
-	void setNodeSelectionRule(node_selection n) { node_selection_fule = n; heuristic_helper.node_selection_rule = n; }
+	void setConflictSelectionRule(conflict_selection c) { conflict_selection_rule = c; heuristic_helper.conflict_selection_rule = c; }
+	void setNodeSelectionRule(node_selection n) { node_selection_rule = n; heuristic_helper.node_selection_rule = n; }
 	void setSavingStats(bool s) { save_stats = s; heuristic_helper.save_stats = s; }
 	void setHighLevelSolver(high_level_solver_type s, double w)
 	{
@@ -103,8 +103,8 @@ protected:
 	bool PC; // prioritize conflicts
 	bool save_stats;
 	high_level_solver_type solver_type; // the solver for the high-level search
-	conflict_selection conflict_seletion_rule;
-	node_selection node_selection_fule;
+	conflict_selection conflict_selection_rule;
+	node_selection node_selection_rule;
 
 	MDDTable mdd_helper;	
 	RectangleReasoning rectangle_helper;

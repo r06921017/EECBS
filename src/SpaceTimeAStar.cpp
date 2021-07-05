@@ -26,7 +26,7 @@ Path SpaceTimeAStar::findOptimalPath(const HLNode& node, const ConstraintTable& 
 // minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).
 // lowerbound is an underestimation of the length of the path in order to speed up the search.
 pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
-	const vector<Path*>& paths, int agent, int lowerbound, double w)
+	const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb, int other_sum_cost)
 {
 	this->w = w;
 	Path path;
@@ -59,11 +59,14 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 	start->in_openlist = true;
 	allNodes_table.insert(start);
 	min_f_val = (int) start->getFVal();
-	// lower_bound = int(w * min_f_val));
+
+	upperbound = w * (min_f_val + other_sum_lb) - other_sum_cost;
+	upperbound = max(upperbound, (double) min_f_val);
+	assert(my_heuristic[start_location] <= upperbound);
 
 	while (!open_list.empty())
 	{
-		updateFocalList(); // update FOCAL if min f-val increased
+		updateFocalList(other_sum_lb, other_sum_cost); // update FOCAL if min f-val increased
 		auto* curr = popNode();
         assert(curr->location >= 0);
 		// check if the popped node is a goal
@@ -75,6 +78,7 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 			break;
 		}
 
+		// this is for range constraint: agent should arrive at or before timestep length_max
 		if (curr->timestep >= constraint_table.length_max)
 			continue;
 
@@ -135,9 +139,9 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 					bool add_to_focal = false;  // check if it was above the focal bound before and now below (thus need to be inserted)
 					bool update_in_focal = false;  // check if it was inside the focal and needs to be updated (because f-val changed)
 					bool update_open = false;
-					if ((next_g_val + next_h_val) <= w * min_f_val)
+					if ((next_g_val + next_h_val) <= upperbound)
 					{  // if the new f-val qualify to be in FOCAL
-						if (existing_next->getFVal() > w * min_f_val)
+						if (existing_next->getFVal() > upperbound)
 							add_to_focal = true;  // and the previous f-val did not qualify to be in FOCAL then add
 						else
 							update_in_focal = true;  // and the previous f-val did qualify to be in FOCAL then update
@@ -240,23 +244,30 @@ inline void SpaceTimeAStar::pushNode(AStarNode* node)
 	node->open_handle = open_list.push(node);
 	node->in_openlist = true;
 	num_generated++;
-	if (node->getFVal() <= w * min_f_val)
+	if (node->getFVal() <= upperbound)
 		node->focal_handle = focal_list.push(node);		
 }
 
 
-void SpaceTimeAStar::updateFocalList()
+void SpaceTimeAStar::updateFocalList(int other_sum_lb, int other_sum_cost)
 {
 	auto open_head = open_list.top();
 	if (open_head->getFVal() > min_f_val)
 	{
 		int new_min_f_val = (int)open_head->getFVal();
+
+		// Get new_upper_bound
+		double new_upper_bound;
+		new_upper_bound = w * (new_min_f_val + other_sum_lb) - other_sum_cost;
+		new_upper_bound = max(new_upper_bound, (double) new_min_f_val);
+
 		for (auto n : open_list)
 		{
-			if (n->getFVal() >  w * min_f_val && n->getFVal() <= w * new_min_f_val)
+			if (n->getFVal() >  upperbound && n->getFVal() <= new_upper_bound)
 				n->focal_handle = focal_list.push(n);
 		}
 		min_f_val = new_min_f_val;
+		upperbound = new_upper_bound;
 	}
 }
 

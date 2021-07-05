@@ -39,13 +39,14 @@ int main(int argc, char** argv)
 
 		// params for CBS improvement
 		("heuristics", po::value<string>()->default_value("WDG"), "admissible heuristics for the high-level search (Zero, CG,DG, WDG)")
-		("prioritizingConflicts", po::value<bool>()->default_value(true), "conflict prioirtization. If true, conflictSelection is used as a tie-breaking rule.")
+		("prioritizingConflicts", po::value<bool>()->default_value(true), "conflict prioritization. If true, conflictSelection is used as a tie-breaking rule.")
 		("bypass", po::value<bool>()->default_value(true), "Bypass1")
 		("disjointSplitting", po::value<bool>()->default_value(false), "disjoint splitting")
 		("rectangleReasoning", po::value<bool>()->default_value(true), "rectangle reasoning")
 		("corridorReasoning", po::value<bool>()->default_value(true), "corridor reasoning")
 		("targetReasoning", po::value<bool>()->default_value(true), "target reasoning")
 		("restart", po::value<int>()->default_value(0), "rapid random restart times")
+		("flex", po::value<bool>()->default_value(false), "set true to use FEECBS")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -153,6 +154,7 @@ int main(int argc, char** argv)
         ecbs.setNodeSelectionRule(n);
         ecbs.setSavingStats(vm["stats"].as<bool>());
         ecbs.setHighLevelSolver(s, vm["suboptimality"].as<double>());
+		ecbs.setUseFlex(vm["flex"].as<bool>());
         //////////////////////////////////////////////////////////////////////
         // run
         double runtime = 0;

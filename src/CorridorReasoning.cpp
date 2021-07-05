@@ -24,7 +24,7 @@ int CorridorReasoning::findCorridor(const shared_ptr<Conflict>& conflict,
 	tie(agent, loc2, loc1, t, type) = conflict->constraint1.back();
 	if (t < 1)
 		return 0;
-	if (loc1 < 0) // vertex conflcit
+	if (loc1 < 0) // vertex conflict
 	{
 		if (search_engines[0]->instance.getDegree(loc2) != 2)
 			return 0; // not a corridor 
@@ -69,7 +69,7 @@ int CorridorReasoning::findCorridor(const shared_ptr<Conflict>& conflict,
 			}
 		}
 		else // exit the corridor without hitting endpoint2
-		{ // indicating that the two agents mvoe in the same direction
+		{ // indicating that the two agents move in the same direction
 			return 0;
 		}
 		corridor_length++;

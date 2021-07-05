@@ -273,7 +273,7 @@ bool ECBS::generateRoot()
 	// initialize paths_found_initially
 	assert(paths_found_initially.empty());
 	paths_found_initially.resize(num_of_agents);
-	//generate random permuattion of agent indices
+	//generate random permutation of agent indices
 	auto agents = shuffleAgents();
 
 	for (auto i : agents)
@@ -339,7 +339,17 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
 bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 {
 	clock_t t = clock();
-	auto new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
+	pair<Path, int> new_path;
+	if (use_flex)
+	{
+		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality, 
+			node->g_val - min_f_vals[ag], node->sum_of_costs - (int) paths[ag]->size());
+	}
+	else
+	{
+		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
+	}
+
 	num_LL_expanded += search_engines[ag]->num_expanded;
 	num_LL_generated += search_engines[ag]->num_generated;
 	runtime_build_CT += search_engines[ag]->runtime_build_CT;
@@ -348,11 +358,12 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	if (new_path.first.empty())
 		return false;
 	assert(!isSamePath(*paths[ag], new_path.first));
-	node->paths.emplace_back(ag, new_path);
-	node->g_val = node->g_val - min_f_vals[ag] + new_path.second;
+	node->g_val = node->g_val + max(new_path.second - min_f_vals[ag], 0);
 	node->sum_of_costs = node->sum_of_costs - (int) paths[ag]->size() + (int) new_path.first.size();
+	min_f_vals[ag] = max(new_path.second, min_f_vals[ag]);  // make sure the recorded lower bound is always the maximum
+	new_path = make_pair(new_path.first, min_f_vals[ag]);
+	node->paths.emplace_back(ag, new_path);
 	paths[ag] = &node->paths.back().second.first;
-	min_f_vals[ag] = new_path.second;
 	node->makespan = max(node->makespan, new_path.first.size() - 1);
 	return true;
 }

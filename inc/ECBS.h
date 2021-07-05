@@ -7,9 +7,7 @@ class ECBS : public CBS
 {
 public:
 	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {}
-
-	// ECBSNode* dummy_start = nullptr;
-	// ECBSNode* goal_node = nullptr;
+	void setUseFlex(bool _f) { use_flex = _f; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
@@ -19,6 +17,7 @@ public:
 private:
 	vector<int> min_f_vals; // lower bounds of the cost of the shortest path
 	vector< pair<Path, int> > paths_found_initially;  // contain initial paths found
+	bool use_flex;  // Whether to use FEECBS or EECBS
 
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_f> > cleanup_list; // it is called open list in ECBS
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_inadmissible_f> > open_list; // this is used for EES

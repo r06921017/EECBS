@@ -22,7 +22,7 @@ You also need to download the MAPF instances from the MAPF benchmark (https://mo
 
 Then, you are able to run the code:
 ```
-./eecbs -m random-32-32-20.map -a random-32-32-20-random-1.scen -o test.csv --outputPaths=paths.txt -k 50 -t 60 --suboptimality=1.2 
+./eecbs -m random-32-32-20.map -a random-32-32-20-random-1.scen -o test.csv --outputPaths=paths.txt -k 50 -t 60 --suboptimality=1.2 --flex false
 ```
 
 - m: the map file from the MAPF benchmark
@@ -32,6 +32,7 @@ Then, you are able to run the code:
 - k: the number of agents
 - t: the runtime limit
 - suboptimality: the suboptimality factor w
+- flex: whether to use flex (*bool*, default: false)
 
 You can find more details and explanations for all parameters with:
 ```
