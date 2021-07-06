@@ -38,6 +38,42 @@ public:
 	uint64_t num_cleanup = 0; // number of expanded nodes chosen from cleanup list
 	uint64_t num_open = 0; // number of expanded nodes chosen from open list
 	uint64_t num_focal = 0; // number of expanded nodes chsoen from focal list
+
+	// statistics for branch and every iteration
+    std::shared_ptr<vector<int>> iter_sum_lb;
+    std::shared_ptr<vector<int>> br_sum_lb;
+    std::shared_ptr<vector<int>> all_sum_lb;
+    std::shared_ptr<vector<int>> open_sum_lb;
+
+    std::shared_ptr<vector<int>> iter_sum_cost;
+    std::shared_ptr<vector<int>> br_sum_cost;
+    std::shared_ptr<vector<int>> all_sum_cost;
+    std::shared_ptr<vector<int>> open_sum_cost;
+    
+    std::shared_ptr<vector<int>> iter_num_conflicts;
+    std::shared_ptr<vector<int>> br_num_conflicts;
+    std::shared_ptr<vector<int>> all_num_conflicts;
+    std::shared_ptr<vector<int>> open_num_conflicts;
+
+    std::shared_ptr<vector<double>> iter_remained_flex;
+    std::shared_ptr<vector<double>> br_remained_flex;
+    std::shared_ptr<vector<double>> all_remained_flex;
+    std::shared_ptr<vector<double>> open_remained_flex;
+
+	std::shared_ptr<vector<double>> iter_subopt;
+    std::shared_ptr<vector<double>> br_subopt;
+    std::shared_ptr<vector<double>> all_subopt;
+
+    std::shared_ptr<vector<uint64_t>> iter_sum_ll_generate;
+    std::shared_ptr<vector<uint64_t>> br_sum_ll_generate;
+    std::shared_ptr<vector<uint64_t>> all_sum_ll_generate;
+
+    std::shared_ptr<vector<int>> iter_node_idx;
+    std::shared_ptr<vector<int>> br_node_idx;
+    std::shared_ptr<vector<int>> open_node_idx;
+    std::shared_ptr<vector<int>> all_node_idx;
+	// end of statistics for branch and every iteration
+
 	// CBSNode* dummy_start = nullptr;
 	// CBSNode* goal_node = nullptr;
 	HLNode* dummy_start = nullptr;
@@ -158,9 +194,11 @@ protected:
 	inline int getAgentLocation(int agent_id, size_t timestep) const;
 
 	vector<int> shuffleAgents() const;  //generate random permuattion of agent indices
-	bool terminate(HLNode* curr); // check the stop condition and return true if it meets
+	bool terminate(HLNode* curr, int open_head_lb=0); // check the stop condition and return true if it meets
 	void computeConflictPriority(shared_ptr<Conflict>& con, CBSNode& node); // check the conflict is cardinal, semi-cardinal or non-cardinal
 
+	void getBranchEval(HLNode* __node__, int open_head_lb);
+	void saveEval(void);
 
 private: // CBS only, cannot be used by ECBS
 	pairing_heap< CBSNode*, compare<CBSNode::compare_node_by_f> > cleanup_list; // it is called open list in ECBS

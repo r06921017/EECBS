@@ -61,7 +61,8 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 	min_f_val = (int) start->getFVal();
 
 	upperbound = w * (min_f_val + other_sum_lb) - other_sum_cost;
-	upperbound = max(upperbound, (double) min_f_val);
+	// upperbound = max(upperbound, (double) min_f_val);
+	assert(min_f_val <= upperbound);
 	assert(my_heuristic[start_location] <= upperbound);
 
 	while (!open_list.empty())

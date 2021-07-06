@@ -20,8 +20,33 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 
 	while (!cleanup_list.empty() && !solution_found)
 	{
+		auto open_head = cleanup_list.top();
+		int open_head_lb = cleanup_list.top()->getFVal();
+		if (screen == 4)
+		{		
+			open_node_idx->push_back(open_head->time_generated);
+			open_sum_lb->push_back(open_head_lb);
+			open_sum_cost->push_back(open_head->sum_of_costs);
+			open_num_conflicts->push_back(open_head->conflicts.size() + open_head->unknownConf.size());
+			open_remained_flex->push_back(suboptimality * open_head_lb - open_head->sum_of_costs);
+		}
+
 		auto curr = selectNode();
-		if (terminate(curr))
+		assert(curr->sum_of_costs <= suboptimality * curr->getFVal());
+		assert(curr->sum_of_costs <= suboptimality * open_head_lb);
+		
+		if (screen == 4)
+		{
+			iter_node_idx->push_back(curr->time_generated);
+			iter_sum_lb->push_back(curr->getFVal());
+			iter_sum_cost->push_back(curr->sum_of_costs);
+			iter_num_conflicts->push_back(curr->conflicts.size() + curr->unknownConf.size());
+			iter_remained_flex->push_back(suboptimality * curr->getFVal() - curr->sum_of_costs);
+			iter_subopt->push_back((double) curr->sum_of_costs / (double) open_head_lb);
+			iter_sum_ll_generate->push_back(curr->ll_generated);
+		}
+
+		if (terminate(curr, open_head_lb))
 			return solution_found;
 
 		if ((curr == dummy_start || curr->chosen_from == "cleanup") &&
@@ -84,19 +109,19 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 						child[i]->distance_to_go < curr->distance_to_go) // Bypass1
 					{
 						foundBypass = true;
-						for (const auto& path : child[i]->paths)
-						{
-						    /*if (path.second.first.size() != path_copy[path.first]->size()) // CBS bypassing
-                            {
-                                foundBypass = false;
-                                break;
-                            }*/
-							if ((double)path.second.first.size() - 1 > suboptimality * fmin_copy[path.first]) // Our bypassing
-							{
-								foundBypass = false;
-								break;
-							}
-						}
+						// for (const auto& path : child[i]->paths)
+						// {
+						//     /*if (path.second.first.size() != path_copy[path.first]->size()) // CBS bypassing
+                        //     {
+                        //         foundBypass = false;
+                        //         break;
+                        //     }*/
+						// 	if ((double)path.second.first.size() - 1 > suboptimality * fmin_copy[path.first]) // Our bypassing
+						// 	{
+						// 		foundBypass = false;
+						// 		break;
+						// 	}
+						// }
 						if (foundBypass)
 						{
 							adoptBypass(curr, child[i], fmin_copy);
@@ -120,6 +145,17 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 					{
 						if (solved[i])
 						{
+							if (screen == 4)
+							{
+								all_node_idx->push_back(child[i]->time_generated);
+								all_sum_lb->push_back(child[i]->getFVal());
+								all_sum_cost->push_back(child[i]->sum_of_costs);
+								all_num_conflicts->push_back(child[i]->conflicts.size() + child[i]->unknownConf.size());
+								all_remained_flex->push_back(suboptimality * child[i]->getFVal() - child[i]->sum_of_costs);
+								all_subopt->push_back((double) child[i]->sum_of_costs / (double) child[i]->getFVal());
+								all_sum_ll_generate->push_back(child[i]->ll_generated);
+							}
+
 							pushNode(child[i]);
 							curr->children.push_back(child[i]);
 							if (screen > 1)
@@ -217,7 +253,7 @@ void ECBS::adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_
 			{
 				p->second.first = path.second.first;
 				paths[p->first] = &p->second.first;
-                min_f_vals[p->first] = p->second.second;
+                min_f_vals[p->first] = p->second.second;  // back to parent lower bound
 				break;
 			}
 			++p;
@@ -293,6 +329,9 @@ bool ECBS::generateRoot()
 		num_LL_generated += search_engines[i]->num_generated;
 	}
 
+	if (screen == 4)
+		root->ll_generated = num_LL_generated;
+
 	root->h_val = 0;
 	root->depth = 0;
 	findConflicts(*root);
@@ -328,6 +367,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
 			return false;
 		}
 	}
+	assert(node->sum_of_costs <= suboptimality * node->getFVal());
 
 	findConflicts(*node);
 	heuristic_helper.computeQuickHeuristics(*node);
@@ -338,12 +378,23 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
 
 bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 {
+	// Debug
+	// int __tmp_lb__ = 0;
+	// int __tmp_cost__ = 0;
+	// for (int __ag__ = 0; __ag__ < num_of_agents; __ag__ ++)
+	// {
+	// 	__tmp_lb__ += min_f_vals[__ag__];
+	// 	__tmp_cost__ += ((int) paths[__ag__]->size() - 1);
+	// }
+	// assert(__tmp_lb__ == node->g_val);
+	// assert(__tmp_cost__ == node->sum_of_costs);
+
 	clock_t t = clock();
 	pair<Path, int> new_path;
 	if (use_flex)
 	{
 		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality, 
-			node->g_val - min_f_vals[ag], node->sum_of_costs - (int) paths[ag]->size());
+			node->g_val - min_f_vals[ag], node->sum_of_costs - (int) paths[ag]->size() + 1);
 	}
 	else
 	{
@@ -365,6 +416,12 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	node->paths.emplace_back(ag, new_path);
 	paths[ag] = &node->paths.back().second.first;
 	node->makespan = max(node->makespan, new_path.first.size() - 1);
+
+	// assert(node->getFVal() <= suboptimality * node->g_val);
+
+	if (screen == 4)
+		node->ll_generated = search_engines[ag]->num_generated;
+
 	return true;
 }
 
@@ -796,4 +853,3 @@ void ECBS::clear()
     solution_found = false;
     solution_cost = -2;
 }
-

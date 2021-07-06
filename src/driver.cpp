@@ -32,19 +32,19 @@ int main(int argc, char** argv)
 		("stats", po::value<bool>()->default_value(false), "write to files some detailed statistics")
 
 		// params for CBS node selection strategies
-		("highLevelSolver", po::value<string>()->default_value("EES"), "the high-level solver (A*, A*eps, EES, NEW)")
+		("highLevelSolver", po::value<string>()->default_value("EES"), "the high-level solver (A*, A*eps, EES, NEW)")  // ECBS: A*eps
 		("lowLevelSolver", po::value<bool>()->default_value(true), "using suboptimal solver in the low level")
-		("inadmissibleH", po::value<string>()->default_value("Global"), "inadmissible heuristics (Zero, Global, Path, Local, Conflict)")
+		("inadmissibleH", po::value<string>()->default_value("Global"), "inadmissible heuristics (Zero, Global, Path, Local, Conflict)")  // ECBS: Zero
 		("suboptimality", po::value<double>()->default_value(1.2), "suboptimality bound")
 
 		// params for CBS improvement
-		("heuristics", po::value<string>()->default_value("WDG"), "admissible heuristics for the high-level search (Zero, CG,DG, WDG)")
-		("prioritizingConflicts", po::value<bool>()->default_value(true), "conflict prioritization. If true, conflictSelection is used as a tie-breaking rule.")
-		("bypass", po::value<bool>()->default_value(true), "Bypass1")
-		("disjointSplitting", po::value<bool>()->default_value(false), "disjoint splitting")
-		("rectangleReasoning", po::value<bool>()->default_value(true), "rectangle reasoning")
-		("corridorReasoning", po::value<bool>()->default_value(true), "corridor reasoning")
-		("targetReasoning", po::value<bool>()->default_value(true), "target reasoning")
+		("heuristics", po::value<string>()->default_value("WDG"), "admissible heuristics for the high-level search (Zero, CG,DG, WDG)")  // ECBS: Zero
+		("prioritizingConflicts", po::value<bool>()->default_value(true), "conflict prioritization. If true, conflictSelection is used as a tie-breaking rule.")  // false
+		("bypass", po::value<bool>()->default_value(true), "Bypass1")  // false
+		("disjointSplitting", po::value<bool>()->default_value(false), "disjoint splitting")  // false
+		("rectangleReasoning", po::value<bool>()->default_value(true), "rectangle reasoning")  // false
+		("corridorReasoning", po::value<bool>()->default_value(true), "corridor reasoning")  // false
+		("targetReasoning", po::value<bool>()->default_value(true), "target reasoning")  // false
 		("restart", po::value<int>()->default_value(0), "rapid random restart times")
 		("flex", po::value<bool>()->default_value(false), "set true to use FEECBS")
 		;
@@ -175,12 +175,13 @@ int main(int argc, char** argv)
             ecbs.saveResults(vm["output"].as<string>(), vm["agents"].as<string>());
         if (ecbs.solution_found && vm.count("outputPaths"))
             ecbs.savePaths(vm["outputPaths"].as<string>());
-        /*size_t pos = vm["output"].as<string>().rfind('.');      // position of the file extension
+        size_t pos = vm["output"].as<string>().rfind('.');      // position of the file extension
         string output_name = vm["output"].as<string>().substr(0, pos);     // get the name without extension
-        cbs.saveCT(output_name); // for debug*/
-        if (vm["stats"].as<bool>())
-            ecbs.saveStats(vm["output"].as<string>(), vm["agents"].as<string>());
-        ecbs.clearSearchEngines();
+        // // Plot CT
+		// ecbs.saveCT(output_name); // for debug
+        // if (vm["stats"].as<bool>())
+        //     ecbs.saveStats(vm["output"].as<string>(), vm["agents"].as<string>());
+        // ecbs.clearSearchEngines();
     }
     else
     {

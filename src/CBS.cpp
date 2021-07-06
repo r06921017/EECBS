@@ -1211,7 +1211,10 @@ bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 		auto curr = selectNode();
 
 		if (terminate(curr))
+		{
+			
 			return solution_found;
+		}
 
 		if (PC) // priortize conflicts
 			classifyConflicts(*curr);
@@ -1368,7 +1371,7 @@ bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 	return solution_found;
 }
 
-bool CBS::terminate(HLNode* curr)
+bool CBS::terminate(HLNode* curr, int open_head_lb)
 {
 	if (cost_lowerbound >= cost_upperbound)
 	{
@@ -1376,6 +1379,13 @@ bool CBS::terminate(HLNode* curr)
 		solution_found = false;
         if (screen > 0) // 1 or 2
             printResults();
+
+		if (screen == 4)
+		{
+			getBranchEval(curr, open_head_lb);
+			saveEval();
+		}
+
 		return true;
 	}
 	runtime = (double)(clock() - start) / CLOCKS_PER_SEC;
@@ -1384,10 +1394,17 @@ bool CBS::terminate(HLNode* curr)
 		solution_found = true;
 		goal_node = curr;
 		solution_cost = goal_node->getFHatVal() - goal_node->cost_to_go;
+
+		if (screen == 4)
+		{
+			getBranchEval(curr, open_head_lb);
+			saveEval();
+		}
+
 		if (!validateSolution())
 		{
 			cout << "Solution invalid!!!" << endl;
-			printPaths();
+			// printPaths();
 			exit(-1);
 		}
 		if (screen > 0) // 1 or 2
@@ -1400,11 +1417,114 @@ bool CBS::terminate(HLNode* curr)
 		solution_found = false;
         if (screen > 0) // 1 or 2
             printResults();
+
+		if (screen == 4)
+		{
+			getBranchEval(curr, open_head_lb);
+			saveEval();
+		}
+
 		return true;
 	}
 	return false;
 }
 
+void CBS::saveEval(void)
+{
+	ofstream stats;
+	stats.open("iteration_data.txt", std::ios::out);
+	if (!stats.is_open())
+	{
+		cout << "Failed to open file." << endl;
+	}
+	else
+	{
+		stats << "iter_sum_lb,";
+		std::copy(iter_sum_lb->begin(), iter_sum_lb->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "iter_sum_cost,";
+		std::copy(iter_sum_cost->begin(), iter_sum_cost->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "iter_num_conflicts,";
+		std::copy(iter_num_conflicts->begin(), iter_num_conflicts->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "iter_remained_flex,";
+		std::copy(iter_remained_flex->begin(), iter_remained_flex->end(), std::ostream_iterator<double>(stats, ","));
+		stats << endl;
+		stats << "iter_subopt,";
+		std::copy(iter_subopt->begin(), iter_subopt->end(), std::ostream_iterator<double>(stats, ","));
+		stats << endl;
+		stats << "iter_sum_ll_generate,";
+		std::copy(iter_sum_ll_generate->begin(), iter_sum_ll_generate->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+		
+		stats << "br_sum_lb,";
+		std::copy(br_sum_lb->begin(), br_sum_lb->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_sum_cost,";
+		std::copy(br_sum_cost->begin(), br_sum_cost->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_num_conflicts,";
+		std::copy(br_num_conflicts->begin(), br_num_conflicts->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_remained_flex,";
+		std::copy(br_remained_flex->begin(), br_remained_flex->end(), std::ostream_iterator<double>(stats, ","));
+		stats << endl;
+		stats << "br_subopt,";
+		std::copy(br_subopt->begin(), br_subopt->end(), std::ostream_iterator<double>(stats, ","));
+		stats << endl;
+		stats << "br_sum_ll_generate,";
+		std::copy(br_sum_ll_generate->begin(), br_sum_ll_generate->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+
+		stats << "all_sum_lb,";
+		std::copy(all_sum_lb->begin(), all_sum_lb->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "all_sum_cost,";
+		std::copy(all_sum_cost->begin(), all_sum_cost->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "all_num_conflicts,";
+		std::copy(all_num_conflicts->begin(), all_num_conflicts->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "all_remained_flex,";
+		std::copy(all_remained_flex->begin(), all_remained_flex->end(), std::ostream_iterator<double>(stats, ","));
+		stats << endl;
+		stats << "all_subopt,";
+		std::copy(all_subopt->begin(), all_subopt->end(), std::ostream_iterator<double>(stats, ","));
+		stats << endl;
+		stats << "all_sum_ll_generate,";
+		std::copy(all_sum_ll_generate->begin(), all_sum_ll_generate->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+
+		stats << "open_sum_lb,";
+		std::copy(open_sum_lb->begin(), open_sum_lb->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "open_sum_cost,";
+		std::copy(open_sum_cost->begin(), open_sum_cost->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "open_num_conflicts,";
+		std::copy(open_num_conflicts->begin(), open_num_conflicts->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "open_remained_flex,";
+		std::copy(open_remained_flex->begin(), open_remained_flex->end(), std::ostream_iterator<double>(stats, ","));
+		stats << endl;
+
+		stats << "iter_node_idx,";
+		std::copy(iter_node_idx->begin(), iter_node_idx->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+
+		stats << "br_node_idx,";
+		std::copy(br_node_idx->begin(), br_node_idx->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+
+		stats << "open_node_idx,";
+		std::copy(open_node_idx->begin(), open_node_idx->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+
+		stats.close();
+	}
+	return;
+}
 
 void CBS::addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) const
 {
@@ -1704,4 +1824,35 @@ void CBS::clear()
 	goal_node = nullptr;
 	solution_found = false;
 	solution_cost = -2;
+}
+
+void CBS::getBranchEval(HLNode* __node__, int open_head_lb)
+{
+	assert(br_sum_lb->empty());
+	assert(br_sum_cost->empty());
+	assert(br_num_conflicts->empty());
+	assert(br_remained_flex->empty());
+
+	while (__node__ != nullptr)
+	{
+		br_node_idx->push_back(__node__->time_generated);
+		br_sum_lb->push_back(__node__->getFVal());
+		br_sum_cost->push_back(__node__->sum_of_costs);
+		br_num_conflicts->push_back(__node__->conflicts.size() + __node__->unknownConf.size());
+		br_remained_flex->push_back(suboptimality * __node__->getFVal() - __node__->sum_of_costs);
+		if (open_head_lb != 0)
+			br_subopt->push_back((double) __node__->sum_of_costs / (double) open_head_lb);
+		br_sum_ll_generate->push_back(__node__->ll_generated);
+		__node__ = __node__->parent;
+	}
+
+	// Reverse the vectors
+	std::reverse(br_node_idx->begin(), br_node_idx->end());
+	std::reverse(br_sum_lb->begin(), br_sum_lb->end());
+	std::reverse(br_sum_cost->begin(), br_sum_cost->end());
+	std::reverse(br_num_conflicts->begin(), br_num_conflicts->end());
+	std::reverse(br_remained_flex->begin(), br_remained_flex->end());
+	std::reverse(br_subopt->begin(), br_subopt->end());
+	std::reverse(br_sum_ll_generate->begin(), br_sum_ll_generate->end());
+	return;
 }

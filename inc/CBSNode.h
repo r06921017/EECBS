@@ -18,6 +18,8 @@ public:
 	size_t makespan = 0; // makespan over all paths
 	bool h_computed = false;
 
+	int sum_of_costs = 0;  // sum of costs of the paths, for ECBSNode
+
 	uint64_t time_expanded = 0;
 	uint64_t time_generated = 0;
 
@@ -32,6 +34,7 @@ public:
 	int f_of_best_in_focal = 0;
 	int f_hat_of_best_in_focal = 0;
 	int d_of_best_in_focal = 0;
+	int ll_generated = 0;
 
 	// conflicts in the current paths
 	list<shared_ptr<Conflict> > conflicts;

@@ -330,7 +330,7 @@ bool CBSHeuristic::computeInformedHeuristics(ECBSNode& curr, const vector<int>& 
 
 		break;
 	default:
-		cerr << "ERROR in computing informed heurisctis" << endl;
+		cerr << "ERROR in computing informed heuristics" << endl;
 	}
 	if (h < 0)
 		return false;
