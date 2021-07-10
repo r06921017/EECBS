@@ -1371,7 +1371,7 @@ bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 	return solution_found;
 }
 
-bool CBS::terminate(HLNode* curr, int open_head_lb)
+bool CBS::terminate(HLNode* curr)
 {
 	if (cost_lowerbound >= cost_upperbound)
 	{
@@ -1382,7 +1382,7 @@ bool CBS::terminate(HLNode* curr, int open_head_lb)
 
 		if (screen == 4)
 		{
-			getBranchEval(curr, open_head_lb);
+			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
 		}
 
@@ -1397,7 +1397,7 @@ bool CBS::terminate(HLNode* curr, int open_head_lb)
 
 		if (screen == 4)
 		{
-			getBranchEval(curr, open_head_lb);
+			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
 		}
 
@@ -1420,7 +1420,7 @@ bool CBS::terminate(HLNode* curr, int open_head_lb)
 
 		if (screen == 4)
 		{
-			getBranchEval(curr, open_head_lb);
+			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
 		}
 
