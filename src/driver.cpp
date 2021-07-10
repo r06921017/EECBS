@@ -47,6 +47,7 @@ int main(int argc, char** argv)
 		("targetReasoning", po::value<bool>()->default_value(true), "target reasoning")  // false
 		("restart", po::value<int>()->default_value(0), "rapid random restart times")
 		("flex", po::value<bool>()->default_value(false), "set true to use FEECBS")
+		("saveCT", po::value<bool>()->default_value(false), "set true for plotting CT")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -175,13 +176,17 @@ int main(int argc, char** argv)
             ecbs.saveResults(vm["output"].as<string>(), vm["agents"].as<string>());
         if (ecbs.solution_found && vm.count("outputPaths"))
             ecbs.savePaths(vm["outputPaths"].as<string>());
-        size_t pos = vm["output"].as<string>().rfind('.');      // position of the file extension
-        string output_name = vm["output"].as<string>().substr(0, pos);     // get the name without extension
-        // // Plot CT
-		// ecbs.saveCT(output_name); // for debug
-        // if (vm["stats"].as<bool>())
-        //     ecbs.saveStats(vm["output"].as<string>(), vm["agents"].as<string>());
-        // ecbs.clearSearchEngines();
+
+		if (vm["saveCT"].as<bool>())  // save CT
+		{
+        	size_t pos = vm["output"].as<string>().rfind('.');      // position of the file extension
+        	string output_name = vm["output"].as<string>().substr(0, pos);     // get the name without extension
+			ecbs.saveCT(output_name); // for debug
+		}
+
+        if (vm["stats"].as<bool>())
+            ecbs.saveStats(vm["output"].as<string>(), vm["agents"].as<string>());
+        ecbs.clearSearchEngines();
     }
     else
     {

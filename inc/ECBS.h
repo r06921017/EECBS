@@ -60,7 +60,7 @@ private:
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_inadmissible_f> > open_list; // this is used for EES
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_d> > focal_list; // this is ued for both ECBS and EES
 
-	void adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_copy);
+	void adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_copy, const vector<Path*>& path_copy);
 
 	// node operators
 	void pushNode(ECBSNode* node);

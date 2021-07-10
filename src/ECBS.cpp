@@ -20,20 +20,21 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 
 	while (!cleanup_list.empty() && !solution_found)
 	{
-		auto open_head = cleanup_list.top();
-		int open_head_lb = cleanup_list.top()->getFVal();
+		// Debug
+		auto cleanup_head = cleanup_list.top();
+		cleanup_head_lb = cleanup_list.top()->getFVal();
 		if (screen == 4)
-		{		
-			open_node_idx->push_back(open_head->time_generated);
-			open_sum_lb->push_back(open_head_lb);
-			open_sum_cost->push_back(open_head->sum_of_costs);
-			open_num_conflicts->push_back(open_head->conflicts.size() + open_head->unknownConf.size());
-			open_remained_flex->push_back(suboptimality * open_head_lb - open_head->sum_of_costs);
+		{
+			open_node_idx->push_back(cleanup_head->time_generated);
+			open_sum_lb->push_back(cleanup_head_lb);
+			open_sum_cost->push_back(cleanup_head->sum_of_costs);
+			open_num_conflicts->push_back(cleanup_head->conflicts.size() + cleanup_head->unknownConf.size());
+			open_remained_flex->push_back(suboptimality * cleanup_head_lb - cleanup_head->sum_of_costs);
 		}
 
-		auto curr = selectNode();
+		auto curr = selectNode();  // update focal list and select the CT node
 		assert(curr->sum_of_costs <= suboptimality * curr->getFVal());
-		assert(curr->sum_of_costs <= suboptimality * open_head_lb);
+		assert(curr->sum_of_costs <= suboptimality * cleanup_head_lb);
 		
 		if (screen == 4)
 		{
@@ -42,11 +43,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 			iter_sum_cost->push_back(curr->sum_of_costs);
 			iter_num_conflicts->push_back(curr->conflicts.size() + curr->unknownConf.size());
 			iter_remained_flex->push_back(suboptimality * curr->getFVal() - curr->sum_of_costs);
-			iter_subopt->push_back((double) curr->sum_of_costs / (double) open_head_lb);
+			iter_subopt->push_back((double) curr->sum_of_costs / (double) cleanup_head_lb);
 			iter_sum_ll_generate->push_back(curr->ll_generated);
 		}
 
-		if (terminate(curr, open_head_lb))
+		if (terminate(curr))
 			return solution_found;
 
 		if ((curr == dummy_start || curr->chosen_from == "cleanup") &&
@@ -87,7 +88,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 					cout << "	Expand " << *curr << endl << 	"	on " << *(curr->conflict) << endl;
 
 				bool solved[2] = { false, false };
-				vector<vector<PathEntry>*> path_copy(paths);
+				vector<Path*> path_copy(paths);
 				vector<int> fmin_copy(min_f_vals);
 				for (int i = 0; i < 2; i++)
 				{
@@ -109,25 +110,32 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 						child[i]->distance_to_go < curr->distance_to_go) // Bypass1
 					{
 						foundBypass = true;
-						// for (const auto& path : child[i]->paths)
-						// {
-						//     /*if (path.second.first.size() != path_copy[path.first]->size()) // CBS bypassing
-                        //     {
-                        //         foundBypass = false;
-                        //         break;
-                        //     }*/
-						// 	if ((double)path.second.first.size() - 1 > suboptimality * fmin_copy[path.first]) // Our bypassing
-						// 	{
-						// 		foundBypass = false;
-						// 		break;
-						// 	}
-						// }
+
+						for (const auto& path : child[i]->paths)
+						{
+							// path.first: agent id
+							// path.second.first: path
+							// path.second.second: lower bound of the path
+							if (use_flex && path.second.second > fmin_copy[path.first])
+							{
+								// bypassing for FEECBS
+								foundBypass = false;
+								break;
+							}
+							else if (!use_flex && (double)path.second.first.size()-1 > suboptimality * fmin_copy[path.first])
+							{
+								// bypassing for EECBS
+								foundBypass = false;
+								break;
+							}
+						}
+
 						if (foundBypass)
 						{
-							adoptBypass(curr, child[i], fmin_copy);
+							adoptBypass(curr, child[i], fmin_copy, path_copy);
 							if (screen > 1)
 								cout << "	Update " << *curr << endl;
-							break;
+							break;  // do not generate another child
 						}
 					}
 				}
@@ -234,9 +242,10 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 	return solution_found;
 }
 
-void ECBS::adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_copy)
+void ECBS::adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_copy, const vector<Path*>& path_copy)
 {
 	num_adopt_bypass++;
+	// curr->g_val = child->g_val;
 	curr->sum_of_costs = child->sum_of_costs;
 	curr->cost_to_go = child->cost_to_go;
 	curr->distance_to_go = child->distance_to_go;
@@ -249,21 +258,29 @@ void ECBS::adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_
 		auto p = curr->paths.begin();
 		while (p != curr->paths.end())
 		{
-			if (path.first == p->first)
+			if (path.first == p->first)  // if path is already stored in curr node
 			{
-				p->second.first = path.second.first;
-				paths[p->first] = &p->second.first;
-                min_f_vals[p->first] = p->second.second;  // back to parent lower bound
+				assert(fmin_copy[path.first] == p->second.second);
+				assert(path_copy[path.first]->size() - 1 == p->second.first.size() - 1);
+				assert(path_copy[path.first] == &p->second.first);
+				assert(p->second.second == fmin_copy[path.first]);
+
+				p->second.first = path.second.first;  // replace the path in curr node with path in child CT node
+				// p->second.second = max(p->second.second, path.second.second);
+				paths[p->first] = &p->second.first;  // update the new path to global paths
+                min_f_vals[p->first] = p->second.second;  // update back the old fmin to global
 				break;
 			}
 			++p;
 		}
-		if (p == curr->paths.end())
+		if (p == curr->paths.end())  // if path is not stored in curr node (e.g. root)
 		{
 			curr->paths.emplace_back(path);
+			// curr->paths.back().second.second = max(path.second.second, fmin_copy[path.first]);
 			curr->paths.back().second.second = fmin_copy[path.first];
 			paths[path.first] = &curr->paths.back().second.first;
-			min_f_vals[path.first] = fmin_copy[path.first];
+			min_f_vals[path.first] = fmin_copy[path.first];  // update back to curr fmin
+			// min_f_vals[path.first] = curr->paths.back().second.second;
 		}
 	}
 }
