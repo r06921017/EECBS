@@ -14,8 +14,8 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////
 	// stats
 	double runtime = 0;
-	double runtime_generate_child = 0; // runtimr of generating child nodes
-	double runtime_build_CT = 0; // runtimr of building constraint table
+	double runtime_generate_child = 0; // runtime of generating child nodes
+	double runtime_build_CT = 0; // runtime of building constraint table
 	double runtime_build_CAT = 0; // runtime of building conflict avoidance table
 	double runtime_path_finding = 0; // runtime of finding paths for single agents
 	double runtime_detect_conflicts = 0;
@@ -40,6 +40,7 @@ public:
 	uint64_t num_focal = 0; // number of expanded nodes chsoen from focal list
 
 	// statistics for branch and every iteration
+	int cleanup_head_lb;
     std::shared_ptr<vector<int>> iter_sum_lb;
     std::shared_ptr<vector<int>> br_sum_lb;
     std::shared_ptr<vector<int>> all_sum_lb;
@@ -194,7 +195,7 @@ protected:
 	inline int getAgentLocation(int agent_id, size_t timestep) const;
 
 	vector<int> shuffleAgents() const;  //generate random permuattion of agent indices
-	bool terminate(HLNode* curr, int open_head_lb=0); // check the stop condition and return true if it meets
+	bool terminate(HLNode* curr); // check the stop condition and return true if it meets
 	void computeConflictPriority(shared_ptr<Conflict>& con, CBSNode& node); // check the conflict is cardinal, semi-cardinal or non-cardinal
 
 	void getBranchEval(HLNode* __node__, int open_head_lb);
