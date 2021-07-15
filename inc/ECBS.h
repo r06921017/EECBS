@@ -6,7 +6,7 @@
 class ECBS : public CBS
 {
 public:
-	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {
+	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {		
 		if (screen == 4)
 		{
 			// Initialize for agents analysis
@@ -52,7 +52,6 @@ public:
     void clear(); // used for rapid random  restart
 
 private:
-	vector<int> min_f_vals; // lower bounds of the cost of the shortest path
 	vector< pair<Path, int> > paths_found_initially;  // contain initial paths found
 	bool use_flex;  // Whether to use FEECBS or EECBS
 
@@ -71,8 +70,12 @@ private:
 	bool generateChild(ECBSNode* child, ECBSNode* curr);
 	bool generateRoot();
 	bool findPathForSingleAgent(ECBSNode*  node, int ag);
+	bool findPathForMetaAgent(ECBSNode* node, const vector<int>& meta_ag);
 	void classifyConflicts(ECBSNode &node);
 	void computeConflictPriority(shared_ptr<Conflict>& con, ECBSNode& node);
+
+	// For NFECBS and NFEECBS
+	void getFlex(const vector<int>& agent);
 
 	//update information
 	void updatePaths(ECBSNode* curr);

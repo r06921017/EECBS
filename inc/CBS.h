@@ -20,6 +20,7 @@ public:
 	double runtime_path_finding = 0; // runtime of finding paths for single agents
 	double runtime_detect_conflicts = 0;
 	double runtime_preprocessing = 0; // runtime of building heuristic table for the low level
+	double runtime_solver = 0;  // runtime for using inner solver for meta-agents
 
 	uint64_t num_cardinal_conflicts = 0;
 	uint64_t num_corridor_conflicts = 0;
@@ -29,11 +30,18 @@ public:
 	uint64_t num_standard_conflicts = 0;
 
 	uint64_t num_adopt_bypass = 0; // number of times when adopting bypasses
+	uint64_t num_push_focal = 0;  // number of child CT node being pushed to FOCAL
 
 	uint64_t num_HL_expanded = 0;
 	uint64_t num_HL_generated = 0;
 	uint64_t num_LL_expanded = 0;
 	uint64_t num_LL_generated = 0;
+
+	uint64_t solver_counter;
+	uint64_t solver_num_HL_expanded = 0;
+	uint64_t solver_num_HL_generated = 0;
+	uint64_t solver_num_LL_expanded = 0;
+	uint64_t solver_num_LL_generated = 0;
 
 	uint64_t num_cleanup = 0; // number of expanded nodes chosen from cleanup list
 	uint64_t num_open = 0; // number of expanded nodes chosen from open list
@@ -108,12 +116,24 @@ public:
 		suboptimality = w;
 	}
 	void setNodeLimit(int n) { node_limit = n; }
+	void setMergeThreshold(int b) { merge_th = b; }
+	void setMergeRestart(bool mr) { mr_active = mr; }
+	void setMASolver(shared_ptr<CBS> in_solver) { inner_solver = in_solver; }
+	void setMetaAgents(vector<vector<int>> in_meta_agents) { meta_agents = in_meta_agents; }
+	void setMAVector(vector<bool> in_ma_vec) { ma_vec = in_ma_vec; }
+	void setInitialPath(int agent, Path _path) { paths_found_initially[agent] = _path; }
+	void setInitConstraints(int agent, ConstraintTable _table) {initial_constraints[agent].init(_table);}
+	void setInitSumLB (int _sum_lb) { init_sum_lb = _sum_lb; }
+	void setTimeLimit(double tl) { time_limit = tl; }
+	void setIsStart(bool _st) { is_start = _st; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
 	bool solve(double time_limit, int cost_lowerbound = 0, int cost_upperbound = MAX_COST);
 
 	int getLowerBound() const { return cost_lowerbound; }
+	Path getPath(int agent) const { return *paths[agent]; }
+	vector<Path> getPath(void) const;
 
 	CBS(const Instance& instance, bool sipp, int screen);
 	CBS(vector<SingleAgentSolver*>& search_engines,
@@ -130,6 +150,8 @@ public:
 	void clear(); // used for rapid random  restart
 
 	int getInitialPathLength(int agent) const {return (int) paths_found_initially[agent].size() - 1; }
+	int getminFVal(int agent) const { return min_f_vals[agent]; }
+
 protected:
     bool rectangle_reasoning;  // using rectangle reasoning
 	bool corridor_reasoning;  // using corridor reasoning
@@ -168,11 +190,27 @@ protected:
 
 	int num_of_agents;
 
-
 	vector<Path*> paths;
 	vector<Path> paths_found_initially;  // contain initial paths found
 	// vector<MDD*> mdds_initially;  // contain initial paths found
 	vector < SingleAgentSolver* > search_engines;  // used to find (single) agents' paths and mdd
+
+	// For nested framework
+	shared_ptr<CBS> inner_solver;  // inner (E)CBS for solving meta-agents
+	vector<vector<int>> meta_agents;
+	vector<bool> ma_vec;
+	vector<vector<int>> conflict_matrix;
+	bool is_solver = false;
+	bool mr_active = false;
+	bool is_start = false;  // This is for Merge and Restart
+	int merge_th = INT_MAX;
+	int init_sum_lb = 0;  // Obtain from outer (E)CBS, may be useless
+	double flex = 0.0;  // flex for the meta-agent
+	vector<int> min_f_vals; // lower bounds of the cost of the shortest path
+
+	vector<int> findMetaAgent(int __ag__) const;
+	bool shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode=0) const;
+	// End nested framework
 
 	void addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) const;
 	set<int> getInvalidAgents(const list<Constraint>& constraints); // return agents that violates the constraints

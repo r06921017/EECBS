@@ -46,8 +46,14 @@ int main(int argc, char** argv)
 		("corridorReasoning", po::value<bool>()->default_value(true), "corridor reasoning")  // false
 		("targetReasoning", po::value<bool>()->default_value(true), "target reasoning")  // false
 		("restart", po::value<int>()->default_value(0), "rapid random restart times")
+		
+		// params for NFEECBS
+		("mergeTh,b", po::value<int>()->default_value(INT_MAX), "set merge threshold for nested framework")
 		("flex", po::value<bool>()->default_value(false), "set true to use FEECBS")
+
+		// Statistic analysis
 		("saveCT", po::value<bool>()->default_value(false), "set true for plotting CT")
+		("nl", po::value<int>()->default_value(MAX_NODES), "Set node limit for timeout")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -156,13 +162,27 @@ int main(int argc, char** argv)
         ecbs.setSavingStats(vm["stats"].as<bool>());
         ecbs.setHighLevelSolver(s, vm["suboptimality"].as<double>());
 		ecbs.setUseFlex(vm["flex"].as<bool>());
+		if (vm["nl"].as<int>() < MAX_NODES)
+			ecbs.setNodeLimit(vm["nl"].as<int>());
+
+        //////////////////////////////////////////////////////////////////////
+		// inner solver for nested framework
+		if (vm["mergeTh"].as<int>() < INT_MAX)
+		{
+			shared_ptr<CBS> inner_solver = make_shared<CBS>(ECBS(instance, false, vm["screen"].as<int>()));
+			ecbs.setMASolver(inner_solver);
+			ecbs.setMergeThreshold(vm["mergeTh"].as<int>());
+			if (vm["mr"].as<bool>())
+				ecbs.setMergeRestart(vm["mr"].as<bool>());
+		}
+
         //////////////////////////////////////////////////////////////////////
         // run
         double runtime = 0;
         int lowerbound = 0;
         for (int i = 0; i < runs; i++)
         {
-            ecbs.clear();
+            // ecbs.clear();
             ecbs.solve(vm["cutoffTime"].as<double>() / runs, lowerbound);
             runtime += ecbs.runtime;
             if (ecbs.solution_found)
@@ -209,7 +229,7 @@ int main(int argc, char** argv)
         int lowerbound = 0;
         for (int i = 0; i < runs; i++)
         {
-            cbs.clear();
+            // cbs.clear();
             cbs.solve(vm["cutoffTime"].as<double>() / runs, lowerbound);
             runtime += cbs.runtime;
             if (cbs.solution_found)

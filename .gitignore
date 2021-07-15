@@ -5,3 +5,6 @@ build
 result_debug.csv
 iteration_data*
 run
+result_debug*
+script
+config

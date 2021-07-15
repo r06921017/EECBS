@@ -52,6 +52,10 @@ public:
 	HLNode* parent;
 	list<HLNode*> children;
 
+	// Meta-agents and ma_vec
+	vector<vector<int>> meta_agents;
+	vector<bool> ma_vec;
+
 	inline int getFVal() const { return g_val + h_val; }
 	virtual inline int  getFHatVal() const = 0;
 	virtual inline int getNumNewPaths() const = 0;

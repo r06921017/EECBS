@@ -959,7 +959,7 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 			"runtime of rectangle conflicts,runtime of corridor conflicts,runtime of mutex conflicts," <<
 			"runtime of building MDDs,runtime of building constraint tables,runtime of building CATs," <<
 			"runtime of path finding,runtime of generating child nodes," <<
-			"preprocessing runtime,solver name,instance name" << endl;
+			"preprocessing runtime,solver name,instance name,#pushFOCAL" << endl;
 		addHeads.close();
 	}
 	ofstream stats(fileName, std::ios::app);
@@ -991,7 +991,7 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 		mdd_helper.accumulated_runtime << "," << runtime_build_CT << "," << runtime_build_CAT << "," <<
 		runtime_path_finding << "," << runtime_generate_child << "," <<
 
-		runtime_preprocessing << "," << getSolverName() << "," << instanceName << endl;
+		runtime_preprocessing << "," << getSolverName() << "," << instanceName << "," << num_push_focal << endl;
 	stats.close();
 }
 
@@ -1135,6 +1135,14 @@ void CBS::savePaths(const string &fileName) const
     output.close();
 }
 
+vector<Path> CBS::getPath(void) const
+{
+	vector<Path> output_paths(num_of_agents);
+	for (const vector<int>& ma : meta_agents)
+		for (const int& ag : ma)
+			output_paths[ag] = Path(*paths[ag]);
+}
+
 void CBS::printConflicts(const HLNode &curr)
 {
 	for (const auto& conflict : curr.conflicts)
@@ -1190,6 +1198,7 @@ string CBS::getSolverName() const
 
 bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 {
+	clear();
 	this->cost_lowerbound = _cost_lowerbound;
 	this->inadmissible_cost_lowerbound = 0;
 	this->cost_upperbound = _cost_upperbound;
@@ -1216,7 +1225,7 @@ bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 			return solution_found;
 		}
 
-		if (PC) // priortize conflicts
+		if (PC) // prioritize conflicts
 			classifyConflicts(*curr);
 
 		if (!curr->h_computed) // heuristics has not been computed yet
@@ -1619,10 +1628,14 @@ CBS::CBS(const Instance& instance, bool sipp, int screen) :
 	{
 		instance.printAgents();
 	}
+
+	// Initialize for nested framework
+	ma_vec.resize(num_of_agents, false);  // checking if need to solve agent
+	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
 }
 
 
-//generate random permuattion of agent indices
+//generate random permutation of agent indices
 vector<int> CBS::shuffleAgents() const
 {
 	vector<int> agents(num_of_agents);
@@ -1855,4 +1868,47 @@ void CBS::getBranchEval(HLNode* __node__, int open_head_lb)
 	std::reverse(br_subopt->begin(), br_subopt->end());
 	std::reverse(br_sum_ll_generate->begin(), br_sum_ll_generate->end());
 	return;
+}
+
+bool CBS::shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode) const
+{
+	bool should_merge = false;
+	int counter = 0;
+	switch (mode)
+	{
+	case 0:
+		for (const int& __a1__ : __ma1__)
+			for (const int& __a2__ : __ma2__)
+				counter += conflict_matrix[__a1__][__a2__];
+		if (counter > merge_th)
+			should_merge = true;
+		break;
+	
+	default:
+		break;
+	}
+	return should_merge;
+}
+
+vector<int> CBS::findMetaAgent(int __ag__) const
+{
+	vector<int> out_list;
+	if (ma_vec[__ag__])
+	{
+		for (const auto& __ma__: meta_agents)
+		{
+			if (std::find(__ma__.begin(), __ma__.end(), __ag__) != __ma__.end())
+			{
+				out_list = __ma__;
+				break;
+			}
+		}
+		
+		if (out_list.size() == 0)
+		{
+			cout << "No such meta_agent!!!" << endl;
+			exit(1);
+		}
+	}
+	return out_list;
 }

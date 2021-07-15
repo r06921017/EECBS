@@ -3,6 +3,7 @@
 
 bool ECBS::solve(double time_limit, int _cost_lowerbound)
 {
+	clear();  // For rapid restart and nested framework
 	this->cost_lowerbound = _cost_lowerbound;
 	this->inadmissible_cost_lowerbound = 0;
 	this->time_limit = time_limit;
@@ -13,8 +14,12 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 		name.resize(35, ' ');
 		cout << name << ": ";
 	}
-	// set timer
-	start = clock();
+
+	if (!is_start)  // set timer
+	{
+		is_start = true;
+		start = clock();
+	}
 
 	generateRoot();
 
@@ -31,8 +36,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 			open_num_conflicts->push_back(cleanup_head->conflicts.size() + cleanup_head->unknownConf.size());
 			open_remained_flex->push_back(suboptimality * cleanup_head_lb - cleanup_head->sum_of_costs);
 		}
+		// End debug
 
 		auto curr = selectNode();  // update focal list and select the CT node
+
+		// Debug
 		assert(curr->sum_of_costs <= suboptimality * curr->getFVal());
 		assert(curr->sum_of_costs <= suboptimality * cleanup_head_lb);
 		
@@ -46,6 +54,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 			iter_subopt->push_back((double) curr->sum_of_costs / (double) cleanup_head_lb);
 			iter_sum_ll_generate->push_back(curr->ll_generated);
 		}
+		// End debug
 
 		if (terminate(curr))
 			return solution_found;
@@ -82,7 +91,24 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 					return solution_found;
 				foundBypass = false;
 				ECBSNode* child[2] = { new ECBSNode() , new ECBSNode() };
+
+				// TODO: choose conflict that is between two meta_agents
 				curr->conflict = chooseConflict(*curr);
+
+				// update conflict_matrix and joint meta_agent
+				vector<int> ma1 = findMetaAgent(curr->conflict->a1);
+				vector<int> ma2 = findMetaAgent(curr->conflict->a2);
+				assert(ma1 != ma2);
+
+				for (const int& a1 : ma1)
+				{
+					for (const int& a2 : ma2)
+					{
+						conflict_matrix[a1][a2] += 1;
+						conflict_matrix[a2][a1] += 1;
+					}
+				}
+
 				addConstraints(curr, child[0], child[1]);
 				if (screen > 1)
 					cout << "	Expand " << *curr << endl << 	"	on " << *(curr->conflict) << endl;
@@ -111,22 +137,26 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 					{
 						foundBypass = true;
 
-						for (const auto& path : child[i]->paths)
+						assert(curr->g_val <= child[i]->g_val);
+
+						if (use_flex)  // bypass for FECBS and FEECBS
 						{
-							// path.first: agent id
-							// path.second.first: path
-							// path.second.second: lower bound of the path
-							if (use_flex && path.second.second > fmin_copy[path.first])
-							{
-								// bypassing for FEECBS
+							if (curr->g_val < child[i]->g_val)  // do not bypass if the sum of lower bound increases
 								foundBypass = false;
-								break;
-							}
-							else if (!use_flex && (double)path.second.first.size()-1 > suboptimality * fmin_copy[path.first])
+						}
+						else  // bypass for ECBS and EECBS
+						{
+							for (const auto& path : child[i]->paths)
 							{
-								// bypassing for EECBS
-								foundBypass = false;
-								break;
+								//// path.first: agent id
+								//// path.second.first: path
+								//// path.second.second: lower bound of the path
+								if ((double)path.second.first.size()-1 > suboptimality * fmin_copy[path.first])
+								{
+									// bypassing for EECBS
+									foundBypass = false;
+									break;
+								}
 							}
 						}
 
@@ -147,7 +177,36 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 					}
                     classifyConflicts(*curr); // classify the new-detected conflicts
 				}
-				else
+
+				else if (shouldMerge(ma1, ma2)) // Should merge
+				{
+					// Update new meta-agent to global variable and curr CT node
+					meta_agents.erase(std::remove(meta_agents.begin(), meta_agents.end(), ma1), meta_agents.end());
+					meta_agents.erase(std::remove(meta_agents.begin(), meta_agents.end(), ma2), meta_agents.end());
+					vector<int> joint_ma;
+					std::merge(ma1.begin(), ma1.end(), ma2.begin(), ma2.end(), joint_ma.begin());
+					meta_agents.push_back(joint_ma);
+					curr->meta_agents = meta_agents;
+
+					// Set constraint to inner solver
+					vector<bool> _ma_vec_ = vector<bool>(num_of_agents, false);
+					for (const int& ag : joint_ma)
+					{
+						_ma_vec_[ag] = true;
+						ConstraintTable _constraint_table;
+						_constraint_table.build(*curr, ag);
+						inner_solver->setInitConstraints(ag, _constraint_table);
+					}
+
+					// Set paths for agents other than meta-agent for inner solver
+					for (int ag = 0; ag < num_of_agents; ag ++)
+						if (!_ma_vec_[ag])
+							inner_solver->setInitialPath(ag, *paths[ag]);
+					inner_solver->setMetaAgents(meta_agents);
+					inner_solver->setMAVector(_ma_vec_);
+				}
+
+				else  // expansion
 				{
 					for (int i = 0; i < 2; i++)
 					{
@@ -245,7 +304,6 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 void ECBS::adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_copy, const vector<Path*>& path_copy)
 {
 	num_adopt_bypass++;
-	// curr->g_val = child->g_val;
 	curr->sum_of_costs = child->sum_of_costs;
 	curr->cost_to_go = child->cost_to_go;
 	curr->distance_to_go = child->distance_to_go;
@@ -263,10 +321,8 @@ void ECBS::adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_
 				assert(fmin_copy[path.first] == p->second.second);
 				assert(path_copy[path.first]->size() - 1 == p->second.first.size() - 1);
 				assert(path_copy[path.first] == &p->second.first);
-				assert(p->second.second == fmin_copy[path.first]);
 
 				p->second.first = path.second.first;  // replace the path in curr node with path in child CT node
-				// p->second.second = max(p->second.second, path.second.second);
 				paths[p->first] = &p->second.first;  // update the new path to global paths
                 min_f_vals[p->first] = p->second.second;  // update back the old fmin to global
 				break;
@@ -276,11 +332,9 @@ void ECBS::adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_
 		if (p == curr->paths.end())  // if path is not stored in curr node (e.g. root)
 		{
 			curr->paths.emplace_back(path);
-			// curr->paths.back().second.second = max(path.second.second, fmin_copy[path.first]);
 			curr->paths.back().second.second = fmin_copy[path.first];
 			paths[path.first] = &curr->paths.back().second.first;
 			min_f_vals[path.first] = fmin_copy[path.first];  // update back to curr fmin
-			// min_f_vals[path.first] = curr->paths.back().second.second;
 		}
 	}
 }
@@ -323,27 +377,56 @@ bool ECBS::generateRoot()
 	mdd_helper.init(num_of_agents);
 	heuristic_helper.init();
 
-	// initialize paths_found_initially
-	assert(paths_found_initially.empty());
-	paths_found_initially.resize(num_of_agents);
-	//generate random permutation of agent indices
-	auto agents = shuffleAgents();
-
-	for (auto i : agents)
+	if (!is_solver)
 	{
-		paths_found_initially[i] = search_engines[i]->findSuboptimalPath(*root, initial_constraints[i], paths, i, 0, suboptimality);
-		if (paths_found_initially[i].first.empty())
+		// initialize paths_found_initially
+		assert(paths_found_initially.empty());
+		paths_found_initially.resize(num_of_agents);
+	}
+	
+	if (meta_agents.empty())  // initialize for outer ECBS
+	{
+		for (int ag = 0; ag < num_of_agents; ag ++)
 		{
-			cout << "No path exists for agent " << i << endl;
-			return false;
+			meta_agents.push_back(vector<int>({ag}));
+			ma_vec[ag] = true;
 		}
-		paths[i] = &paths_found_initially[i].first;
-		min_f_vals[i] = paths_found_initially[i].second;
-		root->makespan = max(root->makespan, paths[i]->size() - 1);
-		root->g_val += min_f_vals[i];
-		root->sum_of_costs += (int)paths[i]->size() - 1;
-		num_LL_expanded += search_engines[i]->num_expanded;
-		num_LL_generated += search_engines[i]->num_generated;
+	}
+	std::random_shuffle(meta_agents.begin(), meta_agents.end());  // generate random permutation of (meta-)agent indices
+	root->meta_agents = meta_agents;
+	root->ma_vec = ma_vec;
+
+	for (const vector<int>& ma : meta_agents)
+	{
+		if (ma.size() > 1)  // this is a meta agent
+		{
+			// TODO: Add mr_active
+			// shuffle agents in the meta-agent first
+			assert(mr_active);
+			continue;
+		}
+		else  // this is a single agent
+		{
+			int ag = ma.front();
+			if (paths_found_initially[ag].first.empty())
+			{
+				paths_found_initially[ag] = search_engines[ag]->findSuboptimalPath(*root, initial_constraints[ag], paths, ag, 0, suboptimality);
+				num_LL_expanded += search_engines[ag]->num_expanded;
+				num_LL_generated += search_engines[ag]->num_generated;
+			}
+							
+			if (paths_found_initially[ag].first.empty())
+			{
+				cout << "No path exists for agent " << ag << endl;
+				return false;
+			}
+
+			paths[ag] = &paths_found_initially[ag].first;
+			min_f_vals[ag] = paths_found_initially[ag].second;
+			root->makespan = max(root->makespan, paths[ag]->size() - 1);
+			root->g_val += min_f_vals[ag];
+			root->sum_of_costs += (int)paths[ag]->size() - 1;
+		}
 	}
 
 	if (screen == 4)
@@ -371,6 +454,8 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
 	node->g_val = parent->g_val;
 	node->sum_of_costs = parent->sum_of_costs;
 	node->makespan = parent->makespan;
+	node->meta_agents = parent->meta_agents;
+	node->ma_vec = parent->ma_vec;
 	node->depth = parent->depth + 1;
 	auto agents = getInvalidAgents(node->constraints);
 	assert(!agents.empty());
@@ -395,23 +480,12 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
 
 bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 {
-	// Debug
-	// int __tmp_lb__ = 0;
-	// int __tmp_cost__ = 0;
-	// for (int __ag__ = 0; __ag__ < num_of_agents; __ag__ ++)
-	// {
-	// 	__tmp_lb__ += min_f_vals[__ag__];
-	// 	__tmp_cost__ += ((int) paths[__ag__]->size() - 1);
-	// }
-	// assert(__tmp_lb__ == node->g_val);
-	// assert(__tmp_cost__ == node->sum_of_costs);
-
 	clock_t t = clock();
 	pair<Path, int> new_path;
 	if (use_flex)
 	{
 		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality, 
-			node->g_val - min_f_vals[ag], node->sum_of_costs - (int) paths[ag]->size() + 1);
+			node->getFVal() - min_f_vals[ag], node->sum_of_costs - (int) paths[ag]->size() + 1);
 	}
 	else
 	{
@@ -434,12 +508,93 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	paths[ag] = &node->paths.back().second.first;
 	node->makespan = max(node->makespan, new_path.first.size() - 1);
 
-	// assert(node->getFVal() <= suboptimality * node->g_val);
-
 	if (screen == 4)
 		node->ll_generated = search_engines[ag]->num_generated;
 
 	return true;
+}
+
+// Plan a path for the meta agent in a child node
+// Collect constraints outside the function. 
+bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
+{
+	if (inner_solver == nullptr)
+	{
+		cerr << "Failed: No solver for MetaAgent!" << endl;
+		exit(-1);
+	}
+
+	solver_counter ++;
+
+	// TODO: Determine initial flex for Inner ECBS
+
+	// Determine sum of fmin of meta-agent
+	int outer_lb = 0;
+	for (const int& ag : meta_ag)
+		outer_lb += min_f_vals[ag];
+	inner_solver->setIsStart(false);
+	inner_solver->setInitSumLB(outer_lb);  // may be useless
+	clock_t t = clock();
+	double inner_time_limit = time_limit - ((t-start) / CLOCKS_PER_SEC);
+	bool foundSol = inner_solver->solve(inner_time_limit, outer_lb);  // Run solver for meta-agent
+
+	// Update Outer ECBS parameters from Inner ECBS
+	solver_num_HL_expanded += inner_solver->num_HL_expanded;
+	solver_num_HL_generated += inner_solver->num_HL_generated;
+	solver_num_LL_expanded += inner_solver->num_LL_expanded;
+	solver_num_LL_generated += inner_solver->num_LL_generated;
+
+	runtime_solver += inner_solver->runtime;
+
+	if (foundSol)
+	{
+		int old_sum_of_costs = 0;
+		for (const int& ag : meta_ag)
+		{
+			old_sum_of_costs += (int) paths[ag]->size() - 1;
+			for (list<pair<int, pair<Path, int>>>::iterator p_it = node->paths.begin(); p_it != node->paths.end();)
+			{
+				if (ag == p_it->first)  // Delete repeated paths in node
+				{
+					paths[ag] = nullptr;
+					p_it = node->paths.erase(p_it ++);
+				}
+				else
+				{
+					++ p_it;
+				}
+			}
+		}
+
+		node->g_val = node->g_val + max(inner_solver->getLowerBound() - outer_lb, 0);
+		node->sum_of_costs = node->sum_of_costs - old_sum_of_costs + inner_solver->solution_cost;
+
+		for (const int& ag : meta_ag)
+		{
+			Path inner_path = inner_solver->getPath(ag);
+			int inner_lb = inner_solver->getminFVal(ag);
+			int ag_lb = (inner_solver->getLowerBound() >= outer_lb)? inner_lb : min_f_vals[ag];
+			node->paths.emplace_back(ag, make_pair(inner_path, ag_lb));
+			paths[ag] = &node->paths.back().second.first;
+			node->makespan = max(node->makespan, inner_path.size() - 1);
+		}
+		runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
+		return true;
+	}
+
+	else if (inner_solver->runtime > inner_time_limit)  // Timeout in solver!!!
+	{
+		assert(inner_solver->solution_cost == -1);
+		runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
+		return false;
+	}
+
+	else  // No solution for the meta-agent
+	{
+		delete node;
+		runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
+		return false;
+	}
 }
 
 
@@ -453,16 +608,25 @@ inline void ECBS::pushNode(ECBSNode* node)
 	{
 	case high_level_solver_type::ASTAREPS:  // cleanup_list is called open_list in ECBS
         if (node->sum_of_costs <= suboptimality * cost_lowerbound)
+		{
+			num_push_focal++;  // debug
             node->focal_handle = focal_list.push(node);
-            break;
+		}
+		break;
 	case high_level_solver_type::NEW:
 		if (node->getFHatVal() <= suboptimality * cost_lowerbound)
+		{
 			node->focal_handle = focal_list.push(node);
+			num_push_focal++;  // debug
+		}
 		break;
 	case high_level_solver_type::EES:
 		node->open_handle = open_list.push(node);
 		if (node->getFHatVal() <= suboptimality * inadmissible_cost_lowerbound)
+		{
 			node->focal_handle = focal_list.push(node);
+			num_push_focal++;  // debug
+		}
 		break;
 	default:
 		break;
@@ -731,7 +895,7 @@ void ECBS::classifyConflicts(ECBSNode &node)
 			}
 		}*/
 
-		// Target Reasoning
+		// Target Reasoning: highest secondary priority
 		if (con->type == conflict_type::TARGET)
 		{
 			computeSecondPriorityForConflict(*con, node);
@@ -739,7 +903,7 @@ void ECBS::classifyConflicts(ECBSNode &node)
 			continue;
 		}
 
-		// Corridor reasoning
+		// Corridor reasoning: second secondary priority
 		if (corridor_reasoning)
 		{
 			auto corridor = corridor_helper.run(con, paths, node);
@@ -753,7 +917,7 @@ void ECBS::classifyConflicts(ECBSNode &node)
 		}
 
 
-		// Rectangle reasoning
+		// Rectangle reasoning: less secondary priority
 		if (rectangle_reasoning &&
 		    (int)paths[a1]->size() - 1 == min_f_vals[a1] && // the paths for both agents are their shortest paths
 		    (int)paths[a2]->size() - 1 == min_f_vals[a2] &&
@@ -869,4 +1033,8 @@ void ECBS::clear()
     goal_node = nullptr;
     solution_found = false;
     solution_cost = -2;
+
+	// for nested framework
+	meta_agents.clear();
+	ma_vec.clear();
 }
