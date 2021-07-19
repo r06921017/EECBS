@@ -43,6 +43,14 @@ public:
 			all_node_idx = make_shared<vector<int>>();
 			open_node_idx = make_shared<vector<int>>();
 		}
+
+		if (screen == 5)
+		{
+			iter_num_focal = make_shared<vector<uint64_t>>();
+			iter_num_open = make_shared<vector<uint64_t>>();
+			iter_num_cleanup = make_shared<vector<uint64_t>>();
+			iter_node_type = make_shared<vector<int>>();
+		}
 	}
 	void setUseFlex(bool _f) { use_flex = _f; }
 

@@ -1394,6 +1394,10 @@ bool CBS::terminate(HLNode* curr)
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
 		}
+		else if (screen == 5)
+		{
+			saveNumNodesInLists();
+		}
 
 		return true;
 	}
@@ -1408,6 +1412,10 @@ bool CBS::terminate(HLNode* curr)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
+		}
+		else if (screen == 5)
+		{
+			saveNumNodesInLists();
 		}
 
 		if (!validateSolution())
@@ -1431,6 +1439,10 @@ bool CBS::terminate(HLNode* curr)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
+		}
+		else if (screen == 5)
+		{
+			saveNumNodesInLists();
 		}
 
 		return true;
@@ -1528,6 +1540,34 @@ void CBS::saveEval(void)
 
 		stats << "open_node_idx,";
 		std::copy(open_node_idx->begin(), open_node_idx->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+
+		stats.close();
+	}
+	return;
+}
+
+void CBS::saveNumNodesInLists(void)
+{
+	ofstream stats;
+	stats.open("nodes_in_list.txt", std::ios::out);
+	if (!stats.is_open())
+	{
+		cout << "Failed to open file." << endl;
+	}
+	else
+	{
+		stats << "iter_num_focal,";
+		std::copy(iter_num_focal->begin(), iter_num_focal->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+		stats << "iter_num_open,";
+		std::copy(iter_num_open->begin(), iter_num_open->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+		stats << "iter_num_cleanup,";
+		std::copy(iter_num_cleanup->begin(), iter_num_cleanup->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+		stats << "iter_node_type,";
+		std::copy(iter_node_type->begin(), iter_node_type->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
 
 		stats.close();

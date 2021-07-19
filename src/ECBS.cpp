@@ -36,6 +36,13 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 			open_num_conflicts->push_back(cleanup_head->conflicts.size() + cleanup_head->unknownConf.size());
 			open_remained_flex->push_back(suboptimality * cleanup_head_lb - cleanup_head->sum_of_costs);
 		}
+
+		if (screen == 5)  // Check the number of CT nodes in FOCAL, OPEN, and CLEANUP
+		{
+			iter_num_focal->push_back(focal_list.size());
+			iter_num_open->push_back(open_list.size());
+			iter_num_cleanup->push_back(cleanup_list.size());
+		}
 		// End debug
 
 		auto curr = selectNode();  // update focal list and select the CT node
@@ -162,6 +169,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 
 						if (foundBypass)
 						{
+							if (screen == 5)
+								iter_node_type->push_back(3);
 							adoptBypass(curr, child[i], fmin_copy, path_copy);
 							if (screen > 1)
 								cout << "	Update " << *curr << endl;
@@ -291,6 +300,17 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 			num_open++;
 		else if (curr->chosen_from == "focal")
 			num_focal++;
+		
+		if (screen == 5)  // Debug
+		{
+			if (curr->chosen_from == "cleanup")
+				iter_node_type->push_back(0);
+			else if (curr->chosen_from == "open")
+				iter_node_type->push_back(1);
+			else if (curr->chosen_from == "focal")
+				iter_node_type->push_back(2);
+		}
+
 		if (curr->conflict->priority == conflict_priority::CARDINAL)
 			num_cardinal_conflicts++;
         if (!curr->children.empty())

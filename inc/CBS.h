@@ -81,6 +81,11 @@ public:
     std::shared_ptr<vector<int>> br_node_idx;
     std::shared_ptr<vector<int>> open_node_idx;
     std::shared_ptr<vector<int>> all_node_idx;
+
+	std::shared_ptr<vector<uint64_t>> iter_num_focal;
+	std::shared_ptr<vector<uint64_t>> iter_num_open;
+	std::shared_ptr<vector<uint64_t>> iter_num_cleanup;
+	std::shared_ptr<vector<int>> iter_node_type;
 	// end of statistics for branch and every iteration
 
 	// CBSNode* dummy_start = nullptr;
@@ -238,6 +243,7 @@ protected:
 
 	void getBranchEval(HLNode* __node__, int open_head_lb);
 	void saveEval(void);
+	void saveNumNodesInLists(void);
 
 private: // CBS only, cannot be used by ECBS
 	pairing_heap< CBSNode*, compare<CBSNode::compare_node_by_f> > cleanup_list; // it is called open list in ECBS
