@@ -21,6 +21,7 @@ public:
 	double runtime_detect_conflicts = 0;
 	double runtime_preprocessing = 0; // runtime of building heuristic table for the low level
 	double runtime_solver = 0;  // runtime for using inner solver for meta-agents
+	double runtime_sort_ma = 0;  // runtime for computing priority heuristic
 
 	uint64_t num_cardinal_conflicts = 0;
 	uint64_t num_corridor_conflicts = 0;
@@ -215,6 +216,9 @@ protected:
 
 	vector<int> findMetaAgent(int __ag__) const;
 	bool shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode=0) const;
+
+	template <typename T>
+    void sortMetaAgents(const vector<T>& sort_based, bool is_ascending);
 	// End nested framework
 
 	void addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) const;
