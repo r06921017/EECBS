@@ -1952,24 +1952,3 @@ vector<int> CBS::findMetaAgent(int __ag__) const
 	}
 	return out_list;
 }
-
-template <typename T>
-void CBS::sortMetaAgents(const vector<T>& sort_based, bool is_ascending)
-{
-	assert(sort_based.size() == meta_agents.size());
-
-	clock_t t = clock();
-
-	// for (size_t ma_id = 0; ma_id < meta_agents.size(); ma_id++)
-	// 	for (const int& tmp_ag : meta_agents[ma_id])
-	// 		tmp_heu[ma_id] += search_engines[ma_id]->my_heuristic[search_engines[ma_id]->start_location];
-
-	vector<int> pri_maid = sort_indexes(sort_based, is_ascending);
-
-	vector<vector<int>> new_meta_agents;
-	for(size_t ma_id = 0; ma_id < meta_agents.size(); ma_id ++)
-		new_meta_agents.push_back(meta_agents[pri_maid[ma_id]]);
-
-	meta_agents = new_meta_agents;
-	runtime_sort_ma += (double)(clock() - t) / CLOCKS_PER_SEC;
-}

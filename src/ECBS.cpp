@@ -48,8 +48,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 		auto curr = selectNode();  // update focal list and select the CT node
 
 		// Debug
-		assert(curr->sum_of_costs <= suboptimality * curr->getFVal());
-		assert(curr->sum_of_costs <= suboptimality * cleanup_head_lb);
+		assert((double) curr->sum_of_costs <= suboptimality * curr->getFVal());
+		assert((double) curr->sum_of_costs <= suboptimality * cleanup_head_lb);
 		
 		if (screen == 4)
 		{
@@ -161,11 +161,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 								}
 							}
 						}
-						// else  // bypass condition checking for FECBS and FEECBS
-						// {
-						// 	if (curr->g_val < child[i]->g_val)  // do not bypass if the sum of lower bound increases
-						// 		foundBypass = false;
-						// }
+						else  // bypass condition checking for FECBS and FEECBS
+						{
+							if (curr->g_val < child[i]->g_val)  // do not bypass if the sum of lower bound increases
+								foundBypass = false;
+						}
 
 						if (foundBypass)
 						{
@@ -412,7 +412,25 @@ bool ECBS::generateRoot()
 			ma_vec[ag] = true;
 		}
 	}
-	std::random_shuffle(meta_agents.begin(), meta_agents.end());  // generate random permutation of (meta-)agent indices
+
+	for (const vector<int>& ma : meta_agents)
+	{
+		for (const int& ag : ma)
+		{
+			min_f_vals[ag] = search_engines[ag]->my_heuristic[search_engines[ag]->start_location];
+			root->g_val += min_f_vals[ag];
+		}
+	}
+	root->sum_of_costs = root->g_val;
+
+	// std::random_shuffle(meta_agents.begin(), meta_agents.end());  // generate random permutation of (meta-)agent indices
+	// sort agents according to the low-level heuristics
+	vector<int> sort_based = vector<int>(meta_agents.size());
+	for (size_t ma_id = 0; ma_id < meta_agents.size(); ma_id++)
+		for (const int& tmp_ag : meta_agents[ma_id])
+			sort_based[ma_id] += search_engines[ma_id]->my_heuristic[search_engines[ma_id]->start_location];
+	sortMetaAgents(sort_based, true);
+
 	root->meta_agents = meta_agents;
 	root->ma_vec = ma_vec;
 
@@ -430,7 +448,16 @@ bool ECBS::generateRoot()
 			int ag = ma.front();
 			if (paths_found_initially[ag].first.empty())
 			{
-				paths_found_initially[ag] = search_engines[ag]->findSuboptimalPath(*root, initial_constraints[ag], paths, ag, 0, suboptimality);
+				if (!use_flex)
+				{
+					paths_found_initially[ag] = search_engines[ag]->findSuboptimalPath(*root, initial_constraints[ag], paths, ag, 0, suboptimality);
+				}
+				else
+				{
+					paths_found_initially[ag] = search_engines[ag]->findSuboptimalPath(*root, initial_constraints[ag], paths, ag, 0, suboptimality, 
+						root->g_val - min_f_vals[ag], root->sum_of_costs - min_f_vals[ag]);
+				}
+
 				num_LL_expanded += search_engines[ag]->num_expanded;
 				num_LL_generated += search_engines[ag]->num_generated;
 			}
@@ -442,10 +469,11 @@ bool ECBS::generateRoot()
 			}
 
 			paths[ag] = &paths_found_initially[ag].first;
-			min_f_vals[ag] = paths_found_initially[ag].second;
 			root->makespan = max(root->makespan, paths[ag]->size() - 1);
-			root->g_val += min_f_vals[ag];
-			root->sum_of_costs += (int)paths[ag]->size() - 1;
+			root->g_val = root->g_val + max(paths_found_initially[ag].second - min_f_vals[ag], 0);
+			root->sum_of_costs = root->sum_of_costs + ((int)paths[ag]->size() - 1) - min_f_vals[ag];
+			min_f_vals[ag] = max(paths_found_initially[ag].second, min_f_vals[ag]);
+			paths_found_initially[ag].second = min_f_vals[ag];
 		}
 	}
 
