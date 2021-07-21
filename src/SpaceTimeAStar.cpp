@@ -26,7 +26,7 @@ Path SpaceTimeAStar::findOptimalPath(const HLNode& node, const ConstraintTable& 
 // minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).
 // lowerbound is an underestimation of the length of the path in order to speed up the search.
 pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
-	const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb, int other_sum_cost)
+	const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb, int other_sum_cost, int HL_h_val)
 {
 	this->w = w;
 	Path path;
@@ -58,7 +58,8 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 	start->focal_handle = focal_list.push(start);
 	start->in_openlist = true;
 	allNodes_table.insert(start);
-	min_f_val = (int) start->getFVal();
+	// min_f_val = (int) start->getFVal();
+	min_f_val = max((int) start->getFVal(), lowerbound + HL_h_val);
 
 	upperbound = w * (min_f_val + other_sum_lb) - other_sum_cost;
 	// upperbound = max(upperbound, (double) min_f_val);

@@ -146,12 +146,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 
 						assert(curr->g_val <= child[i]->g_val);
 
-						if (use_flex)  // bypass for FECBS and FEECBS
-						{
-							if (curr->g_val < child[i]->g_val)  // do not bypass if the sum of lower bound increases
-								foundBypass = false;
-						}
-						else  // bypass for ECBS and EECBS
+						if (!use_flex)  // bypass condition checking for ECBS and EECBS
 						{
 							for (const auto& path : child[i]->paths)
 							{
@@ -166,6 +161,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 								}
 							}
 						}
+						// else  // bypass condition checking for FECBS and FEECBS
+						// {
+						// 	if (curr->g_val < child[i]->g_val)  // do not bypass if the sum of lower bound increases
+						// 		foundBypass = false;
+						// }
 
 						if (foundBypass)
 						{
@@ -505,7 +505,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	if (use_flex)
 	{
 		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality, 
-			node->getFVal() - min_f_vals[ag], node->sum_of_costs - (int) paths[ag]->size() + 1);
+			node->g_val - min_f_vals[ag], node->sum_of_costs - (int) paths[ag]->size() + 1, node->h_val);
 	}
 	else
 	{
