@@ -94,7 +94,7 @@ public:
 	virtual Path findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lower_bound) = 0;
 	virtual pair<Path, int> findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
-		const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb=0, int other_sum_cost=0, int HL_h_val=0) = 0;  // return the path and the lowerbound
+		const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb=0, int other_sum_cost=0, int hl_h_val=0) = 0;  // return the path and the lowerbound
 	virtual int getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound) = 0;
 	virtual string getName() const = 0;
 

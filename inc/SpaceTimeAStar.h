@@ -59,7 +59,7 @@ public:
 	
 	// return the path and the lowerbound
 	pair<Path, int> findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
-		const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb=0, int other_sum_cost=0, int HL_h_val=0);
+		const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb=0, int other_sum_cost=0, int hl_h_val=0);
 
 	int getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound);
 
@@ -83,7 +83,7 @@ private:
 
 	// Updates the path datamember
 	void updatePath(const LLNode* goal, vector<PathEntry> &path);
-	void updateFocalList(int other_sum_lb, int other_sum_cost);
+	void updateFocalList(int other_sum_lb, int other_sum_cost, int lowerbound, int hl_h_val);
 	inline AStarNode* popNode();
 	inline void pushNode(AStarNode* node);
 	void releaseNodes();

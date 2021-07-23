@@ -500,6 +500,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
 	node->parent = parent;
 	node->HLNode::parent = parent;
 	node->g_val = parent->g_val;
+	node->h_val = parent->h_val;
 	node->sum_of_costs = parent->sum_of_costs;
 	node->makespan = parent->makespan;
 	node->meta_agents = parent->meta_agents;
@@ -515,9 +516,11 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
                 cout << "	No paths for agent " << agent << ". Node pruned." << endl;
 			runtime_generate_child += (double)(clock() - t1) / CLOCKS_PER_SEC;
 			return false;
-		}
+		}		
 	}
 	assert(node->sum_of_costs <= suboptimality * node->getFVal());
+	assert(parent->getFVal() <= node->getFVal());
+	assert(parent->g_val <= node->g_val);
 
 	findConflicts(*node);
 	heuristic_helper.computeQuickHeuristics(*node);
@@ -532,8 +535,25 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	pair<Path, int> new_path;
 	if (use_flex)
 	{
+		if (screen == 2)
+		{
+			assert((double) node->sum_of_costs <= suboptimality * node->getFVal());
+			int tmp_cost = 0;
+			int tmp_lb = 0;
+			for (const vector<int>& ma : meta_agents)
+			{
+				for (const int& ag : ma)
+				{
+					tmp_cost += (int) paths[ag]->size() - 1;
+					tmp_lb += min_f_vals[ag];
+				}
+			}
+			assert(tmp_cost == node->sum_of_costs);
+			assert(tmp_lb == node->g_val);
+		}
+
 		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality, 
-			node->g_val - min_f_vals[ag], node->sum_of_costs - (int) paths[ag]->size() + 1, node->h_val);
+			node->g_val - min_f_vals[ag], node->sum_of_costs - (int) paths[ag]->size() + 1, 0);
 	}
 	else
 	{
@@ -548,7 +568,19 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	if (new_path.first.empty())
 		return false;
 	assert(!isSamePath(*paths[ag], new_path.first));
+
+	// debug
+	int old_node_g_val = node->g_val;
+	int old_node_h_val = node->h_val;
+	int old_f_min = min_f_vals[ag];
+	int old_node_soc = node->sum_of_costs;
+	int old_path_cost = (int) paths[ag]->size() - 1;
+	int new_path_cost = (int) new_path.first.size() - 1;
+
 	node->g_val = node->g_val + max(new_path.second - min_f_vals[ag], 0);
+	if (node->parent != nullptr)
+	    node->h_val = max(0, node->parent->getFVal() - node->g_val); // pathmax
+
 	node->sum_of_costs = node->sum_of_costs - (int) paths[ag]->size() + (int) new_path.first.size();
 	min_f_vals[ag] = max(new_path.second, min_f_vals[ag]);  // make sure the recorded lower bound is always the maximum
 	new_path = make_pair(new_path.first, min_f_vals[ag]);
@@ -558,6 +590,9 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 
 	if (screen == 4)
 		node->ll_generated = search_engines[ag]->num_generated;
+
+	assert(node->sum_of_costs <= suboptimality * node->getFVal());
+	assert(node->getFVal() >= node->parent->getFVal());
 
 	return true;
 }
