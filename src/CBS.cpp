@@ -241,9 +241,9 @@ void CBS::updateConflictImpacts(const HLNode& node, const HLNode& parent)
 	}
 	else  // Update the parameters of the existing conflict impact
 	{
-		got->second.increased_flex = (got->second.increased_flex * got->second.count + increased_flex) / (got->second.count + 1);
-		got->second.increased_lb = (got->second.increased_lb * got->second.count + increased_lb) / (got->second.count + 1);
-		got->second.reduced_num_conflicts = (got->second.reduced_num_conflicts * got->second.count + reduced_num_conflicts) / (got->second.count + 1);
+		got->second.increased_flex = (got->second.increased_flex * got->second.count + increased_flex) / (double) (got->second.count + 1);
+		got->second.increased_lb = (double) (got->second.increased_lb * got->second.count + increased_lb) / (double) (got->second.count + 1);
+		got->second.reduced_num_conflicts = (double) (got->second.reduced_num_conflicts * got->second.count + reduced_num_conflicts) / (double) (got->second.count + 1);
 		got->second.count ++;
 	}
 	return;
