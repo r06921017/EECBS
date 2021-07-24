@@ -92,3 +92,9 @@ vector<int> sort_indexes(const vector<T>& v, bool _ascending)
 
     return idx;
 }
+
+struct conflict_impact
+{
+    int increased_lb = 0;
+    int reduced_num_conflict = 0;
+};

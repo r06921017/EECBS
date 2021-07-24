@@ -233,6 +233,14 @@ protected:
 	}
 	// End nested framework
 
+	// For impact-based search
+	bool use_impact;
+	unordered_map<shared_ptr<Conflict>, conflict_impact> conf_imp;
+	shared_ptr<Conflict> chooseImpactBasedConflict(const HLNode &node) const;
+	void pushConflictImpact(shared_ptr<Conflict> c_ptr, int increased_lb, int reduced_num_conflicts);
+	void printAllConflictImpacts(void) const;
+	// End impact-based search
+
 	void addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) const;
 	set<int> getInvalidAgents(const list<Constraint>& constraints); // return agents that violates the constraints
 	//conflicts

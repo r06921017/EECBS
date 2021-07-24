@@ -202,6 +202,29 @@ shared_ptr<Conflict> CBS::chooseConflict(const HLNode &node) const
 }
 
 
+shared_ptr<Conflict> CBS::chooseImpactBasedConflict(const HLNode &node) const
+{
+
+}
+
+void CBS::pushConflictImpact(shared_ptr<Conflict> c_ptr, int increased_lb, int reduced_num_conflicts)
+{
+	conflict_impact tmp_imp;
+	tmp_imp.increased_lb = increased_lb;
+	tmp_imp.reduced_num_conflict = reduced_num_conflicts;
+	conf_imp.insert(make_pair(c_ptr, tmp_imp));
+	return;
+}
+
+void CBS::printAllConflictImpacts(void) const
+{
+	for (const auto& c : conf_imp)
+		cout << *c.first << ": [" << c.second.increased_lb << ", " << c.second.reduced_num_conflict << "]" << endl;
+	return;
+}
+
+
+
 void CBS::computeSecondPriorityForConflict(Conflict& conflict, const HLNode& node)
 {
 	int count[2] = {0, 0};
