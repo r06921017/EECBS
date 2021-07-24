@@ -237,8 +237,9 @@ protected:
 	bool use_impact;
 	unordered_map<shared_ptr<Conflict>, conflict_impact> conf_imp;
 	shared_ptr<Conflict> chooseImpactBasedConflict(const HLNode &node) const;
-	void pushConflictImpact(shared_ptr<Conflict> c_ptr, int increased_lb, int reduced_num_conflicts);
+	void pushConflictImpact(shared_ptr<Conflict> c_ptr, double increased_flex, double increased_lb, double reduced_num_conflicts, int count);
 	void printAllConflictImpacts(void) const;
+	void updateConflictImpacts(const HLNode& node, const HLNode& parent);
 	// End impact-based search
 
 	void addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) const;

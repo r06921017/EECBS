@@ -95,6 +95,8 @@ vector<int> sort_indexes(const vector<T>& v, bool _ascending)
 
 struct conflict_impact
 {
-    int increased_lb = 0;
-    int reduced_num_conflict = 0;
+    double increased_lb = 0;  // Averaged by the counts
+    double reduced_num_conflicts = 0;  // Averaged by the counts
+    double increased_flex = 0;  // w * node->getFVal() - node->sum_of_costs, which is averaged by the counts
+    int count = 0;
 };

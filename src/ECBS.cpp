@@ -524,6 +524,9 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
 
 	findConflicts(*node);
 	heuristic_helper.computeQuickHeuristics(*node);
+
+	updateConflictImpacts(*node, *parent);
+
 	runtime_generate_child += (double)(clock() - t1) / CLOCKS_PER_SEC;
 	return true;
 }

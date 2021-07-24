@@ -202,16 +202,18 @@ shared_ptr<Conflict> CBS::chooseConflict(const HLNode &node) const
 }
 
 
-shared_ptr<Conflict> CBS::chooseImpactBasedConflict(const HLNode &node) const
+shared_ptr<Conflict> CBS::chooseImpactBasedConflict(const HLNode& node) const
 {
 
 }
 
-void CBS::pushConflictImpact(shared_ptr<Conflict> c_ptr, int increased_lb, int reduced_num_conflicts)
+void CBS::pushConflictImpact(shared_ptr<Conflict> c_ptr, double increased_flex, double increased_lb, double reduced_num_conflicts, int count)
 {
 	conflict_impact tmp_imp;
+	tmp_imp.increased_flex = increased_flex;
 	tmp_imp.increased_lb = increased_lb;
-	tmp_imp.reduced_num_conflict = reduced_num_conflicts;
+	tmp_imp.reduced_num_conflicts = reduced_num_conflicts;
+	tmp_imp.count = count;
 	conf_imp.insert(make_pair(c_ptr, tmp_imp));
 	return;
 }
@@ -219,10 +221,33 @@ void CBS::pushConflictImpact(shared_ptr<Conflict> c_ptr, int increased_lb, int r
 void CBS::printAllConflictImpacts(void) const
 {
 	for (const auto& c : conf_imp)
-		cout << *c.first << ": [" << c.second.increased_lb << ", " << c.second.reduced_num_conflict << "]" << endl;
+	{
+		cout << *c.first << ": [" << c.second.increased_flex << ", " << c.second.increased_lb << ", ";
+		cout << c.second.reduced_num_conflicts << ", " << c.second.count << "]" << endl;
+	}
 	return;
 }
 
+
+void CBS::updateConflictImpacts(const HLNode& node, const HLNode& parent)
+{
+	double increased_flex = (suboptimality * node.g_val - node.sum_of_costs) - (suboptimality * parent.g_val - parent.sum_of_costs);
+	int increased_lb = node.g_val - parent.g_val;  // node->g_val has been updated in findPathForSingleAgent()
+	int reduced_num_conflicts = (parent.conflicts.size() + parent.unknownConf.size()) - (node.conflicts.size() + node.unknownConf.size());
+	unordered_map<shared_ptr<Conflict>, conflict_impact>::iterator got = conf_imp.find(node.conflict);
+	if (got == conf_imp.end())  // Insert conflict to conf_imp
+	{
+		pushConflictImpact(node.conflict, increased_flex, (double) increased_lb, (double) reduced_num_conflicts, 1);
+	}
+	else  // Update the parameters of the existing conflict impact
+	{
+		got->second.increased_flex = (got->second.increased_flex * got->second.count + increased_flex) / (got->second.count + 1);
+		got->second.increased_lb = (got->second.increased_lb * got->second.count + increased_lb) / (got->second.count + 1);
+		got->second.reduced_num_conflicts = (got->second.reduced_num_conflicts * got->second.count + reduced_num_conflicts) / (got->second.count + 1);
+		got->second.count ++;
+	}
+	return;
+}
 
 
 void CBS::computeSecondPriorityForConflict(Conflict& conflict, const HLNode& node)
