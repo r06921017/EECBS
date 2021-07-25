@@ -73,9 +73,15 @@ bool isSamePath(const Path& p1, const Path& p2);
     }
 };*/
 
-template <typename T>
-vector<int> sort_indexes(const vector<T>& v, bool _ascending) 
+template <typename T, typename S>
+vector<int> sort_indexes(const vector<T>& v, bool v_ascend, const vector<S>& u, bool u_ascend) 
 {
+    if (!u.empty() && v.size() != u.size())
+    {
+        cerr << "The size of vector v should be the same a the size of the vector u" << endl;
+        exit(1);
+    }
+
     // initialize original index locations
     vector<int> idx(v.size());
     for (int i = 0; i < (int) v.size(); i++)
@@ -85,18 +91,29 @@ vector<int> sort_indexes(const vector<T>& v, bool _ascending)
     // using std::stable_sort instead of std::sort
     // to avoid unnecessary index re-orderings
     // when v contains elements of equal values 
-    if (_ascending)
-        stable_sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
-    else
-        stable_sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] > v[i2];});
+    if (!v.empty())
+    {
+        if (v_ascend)
+            stable_sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+        else
+            stable_sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] > v[i2];});
+    }
+
+    if (!u.empty())
+    {
+        if (u_ascend)
+            stable_sort(idx.begin(), idx.end(), [&u](size_t i1, size_t i2) {return u[i1] < u[i2];});
+        else
+            stable_sort(idx.begin(), idx.end(), [&u](size_t i1, size_t i2) {return u[i1] > u[i2];});
+    }
 
     return idx;
 }
 
 struct conflict_impact
 {
-    double increased_lb = 0;  // Averaged by the counts
-    double reduced_num_conflicts = 0;  // Averaged by the counts
+    int increased_lb = 0;  // Averaged by the counts
+    int reduced_num_conflicts = 0;  // Averaged by the counts
     double increased_flex = 0;  // w * node->getFVal() - node->sum_of_costs, which is averaged by the counts
     int count = 0;
 };

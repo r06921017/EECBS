@@ -13,6 +13,8 @@ enum constraint_type { LEQLENGTH, GLENGTH, RANGE, BARRIER, VERTEX, EDGE,
 
 enum conflict_selection {RANDOM, EARLIEST, CONFLICTS, MCONSTRAINTS, FCONSTRAINTS, WIDTH, SINGLETONS};
 
+enum impact_type {FLEX, LB, REDUCED_CONFLICTS};
+
 typedef std::tuple<int, int, int, int, constraint_type> Constraint;
 // <agent, loc, -1, t, VERTEX>
 // <agent, loc, -1, t, POSITIVE_VERTEX>
@@ -35,6 +37,9 @@ public:
 	conflict_type type;
 	conflict_priority priority = conflict_priority::UNKNOWN;
 	double secondary_priority = 0; // used as the tie-breaking creteria for conflict selection
+
+	vector<conflict_impact> impacts = vector<conflict_impact>(2, conflict_impact{});
+
     int getConflictId() const { return int(type); }  // int(PRIORITY_COUNT) * int(type) + int(priority); }
 
 	void vertexConflict(int a1, int a2, int v, int t)
@@ -105,6 +110,7 @@ public:
 		// TODO add constraints from mutex reasoning
 	}
 
+	double getImpactVal(int child_idx, int _mode_ = 0) const;
 
 };
 

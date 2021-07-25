@@ -217,12 +217,11 @@ protected:
 	vector<int> findMetaAgent(int __ag__) const;
 	bool shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode=0) const;
 
-	template <typename T>
-    void sortMetaAgents(const vector<T>& sort_based, bool is_ascending)
+	template <typename T, typename S>
+    void sortMetaAgents(const vector<T>& first_based, bool first_ascend, const vector<S>& second_based=vector<S>(), bool second_ascend=true)
 	{
-		assert(sort_based.size() == meta_agents.size());
 		clock_t t = clock();
-		vector<int> pri_maid = sort_indexes(sort_based, is_ascending);
+		vector<int> pri_maid = sort_indexes(first_based, first_ascend, second_based, second_ascend);
 
 		vector<vector<int>> new_meta_agents;
 		for(size_t ma_id = 0; ma_id < meta_agents.size(); ma_id ++)
@@ -235,11 +234,21 @@ protected:
 
 	// For impact-based search
 	bool use_impact;
-	unordered_map<shared_ptr<Conflict>, conflict_impact> conf_imp;
-	shared_ptr<Conflict> chooseImpactBasedConflict(const HLNode &node) const;
-	void pushConflictImpact(shared_ptr<Conflict> c_ptr, double increased_flex, double increased_lb, double reduced_num_conflicts, int count);
-	void printAllConflictImpacts(void) const;
-	void updateConflictImpacts(const HLNode& node, const HLNode& parent);
+	list<shared_ptr<Conflict>> seen_conflicts;  // conflicts being seen on other branches
+	void updateConflictImpacts(const HLNode& node, const HLNode& parent, int child_idx);
+
+	// Debug
+	uint16_t num_use_priority = 0;
+	uint16_t num_use_type = 0;
+	uint16_t num_use_second_priority = 0;
+	uint16_t num_use_increased_flex = 0;
+	uint16_t num_use_increased_lb = 0;
+	uint16_t num_use_reduced_conflicts = 0;
+	uint16_t num_tie = 0;
+	uint16_t num_has_seen_conf = 0;
+	uint16_t num_use_count = 0;
+	bool compareConflicts(shared_ptr<Conflict> conflict1, shared_ptr<Conflict> conflict2);
+	shared_ptr<Conflict> debugChooseConflict(const HLNode &node);
 	// End impact-based search
 
 	void addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) const;
@@ -281,7 +290,7 @@ private: // CBS only, cannot be used by ECBS
 	inline bool reinsertNode(CBSNode* node);
 
 		 // high level search
-	bool generateChild(CBSNode* child, CBSNode* curr);
+	bool generateChild(CBSNode* child, CBSNode* curr, int child_idx=0);
 	bool generateRoot();
 	bool findPathForSingleAgent(CBSNode*  node, int ag, int lower_bound = 0);
 	void classifyConflicts(CBSNode &parent);

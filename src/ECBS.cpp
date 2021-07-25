@@ -99,8 +99,9 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 				foundBypass = false;
 				ECBSNode* child[2] = { new ECBSNode() , new ECBSNode() };
 
-				// TODO: choose conflict that is between two meta_agents
-				curr->conflict = chooseConflict(*curr);
+				if (screen == 3)
+					debugChooseConflict(*curr);
+				curr->conflict = chooseConflict(*curr);  // TODO: choose conflict that is between two meta_agents
 
 				// update conflict_matrix and joint meta_agent
 				vector<int> ma1 = findMetaAgent(curr->conflict->a1);
@@ -130,7 +131,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 						paths = path_copy;
 						min_f_vals = fmin_copy;
 					}
-					solved[i] = generateChild(child[i], curr);
+					solved[i] = generateChild(child[i], curr, i);
 					if (!solved[i])
 					{
 						delete (child[i]);
@@ -262,7 +263,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 					paths = path_copy;
 					min_f_vals = fmin_copy;
 				}
-				solved[i] = generateChild(child[i], curr);
+				solved[i] = generateChild(child[i], curr, i);
 				if (!solved[i])
 				{
 					delete (child[i]);
@@ -389,9 +390,6 @@ void ECBS::updatePaths(ECBSNode* curr)
 
 bool ECBS::generateRoot()
 {
-	auto root = new ECBSNode();
-	root->g_val = 0;
-	root->sum_of_costs = 0;
 	paths.resize(num_of_agents, nullptr);
 	min_f_vals.resize(num_of_agents);
 	mdd_helper.init(num_of_agents);
@@ -403,7 +401,6 @@ bool ECBS::generateRoot()
 		assert(paths_found_initially.empty());
 		paths_found_initially.resize(num_of_agents);
 	}
-	
 	if (meta_agents.empty())  // initialize for outer ECBS
 	{
 		for (int ag = 0; ag < num_of_agents; ag ++)
@@ -413,88 +410,168 @@ bool ECBS::generateRoot()
 		}
 	}
 
+	int initial_g_val = 0;
+	vector<vector<int>> init_meta_agent = meta_agents;
 	for (const vector<int>& ma : meta_agents)
 	{
 		for (const int& ag : ma)
 		{
 			min_f_vals[ag] = search_engines[ag]->my_heuristic[search_engines[ag]->start_location];
-			root->g_val += min_f_vals[ag];
+			initial_g_val += min_f_vals[ag];
 		}
 	}
-	root->sum_of_costs = root->g_val;
 
-	// std::random_shuffle(meta_agents.begin(), meta_agents.end());  // generate random permutation of (meta-)agent indices
+	auto root = new ECBSNode();
+	root->g_val = initial_g_val;
+	root->sum_of_costs = initial_g_val;
+
+	// std::random_shuffle(meta_agents.begin(), meta_agents.end());  // generate random permutation of agent indices
 	// sort agents according to the low-level heuristics
-	vector<int> sort_based = vector<int>(meta_agents.size());
+	vector<vector<int>> sort_based;
+	vector<bool> sort_ascend;
+	vector<int> fmin_based = vector<int>(meta_agents.size(), 0);
+	vector<int> conf_based = vector<int>(meta_agents.size(), 0);
 	for (size_t ma_id = 0; ma_id < meta_agents.size(); ma_id++)
 		for (const int& tmp_ag : meta_agents[ma_id])
-			sort_based[ma_id] += search_engines[ma_id]->my_heuristic[search_engines[ma_id]->start_location];
-	sortMetaAgents(sort_based, true);
+			fmin_based[ma_id] += search_engines[tmp_ag]->my_heuristic[search_engines[tmp_ag]->start_location];
+	sortMetaAgents(fmin_based, false, conf_based, true);
 
-	root->meta_agents = meta_agents;
-	root->ma_vec = ma_vec;
+	// // debug
+	// cout << endl;
+	// for (const vector<int>& ma : meta_agents)
+	// {
+	// 	for (const int& ag : ma)
+	// 	{
+	// 		cout << "agent: " << ag << "-> " << fmin_based[ag] << endl;
+	// 	}
+	// }
 
-	for (const vector<int>& ma : meta_agents)
+	bool first_time = true;
+	while (true)
 	{
-		if (ma.size() > 1)  // this is a meta agent
+		auto candidate = new ECBSNode();
+		candidate->g_val = initial_g_val;
+		candidate->sum_of_costs = initial_g_val;
+		candidate->meta_agents = meta_agents;
+		candidate->ma_vec = ma_vec;
+
+		vector<pair<Path, int>> candidate_paths;
+		candidate_paths.resize(num_of_agents);
+
+		for (const vector<int>& ma : meta_agents)
 		{
-			// TODO: Add mr_active
-			// shuffle agents in the meta-agent first
-			assert(mr_active);
-			continue;
+			if (ma.size() > 1)  // this is a meta agent
+			{
+				// TODO: Add mr_active
+				// shuffle agents in the meta-agent first
+				assert(mr_active);
+				continue;
+			}
+			else  // this is a single agent
+			{
+				int ag = ma.front();
+				if (candidate_paths[ag].first.empty())
+				{
+					if (!use_flex)
+					{
+						candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
+					}
+					else
+					{
+						candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality, 
+							candidate->g_val - min_f_vals[ag], candidate->sum_of_costs - min_f_vals[ag]);
+					}
+
+					num_LL_expanded += search_engines[ag]->num_expanded;
+					num_LL_generated += search_engines[ag]->num_generated;
+				}
+								
+				if (candidate_paths[ag].first.empty())
+				{
+					cout << "No path exists for agent " << ag << endl;
+					return false;
+				}
+
+				paths[ag] = &candidate_paths[ag].first;
+				candidate->makespan = max(candidate->makespan, candidate_paths[ag].first.size() - 1);
+				candidate->g_val = candidate->g_val + max(candidate_paths[ag].second - min_f_vals[ag], 0);
+				candidate->sum_of_costs = candidate->sum_of_costs + ((int)paths[ag]->size() - 1) - min_f_vals[ag];
+				min_f_vals[ag] = max(candidate_paths[ag].second, min_f_vals[ag]);
+				candidate_paths[ag].second = min_f_vals[ag];
+			}
 		}
-		else  // this is a single agent
+
+		findConflicts(*candidate);
+
+		if (first_time || candidate->unknownConf.size() < root->unknownConf.size())
 		{
-			int ag = ma.front();
-			if (paths_found_initially[ag].first.empty())
+			first_time = (first_time)? false: first_time;
+			root = candidate;
+			paths_found_initially = candidate_paths;
+
+			if (root_replan && root->unknownConf.size() > 0)
 			{
-				if (!use_flex)
+				vector<int> conf_num = vector<int>(num_of_agents, 0);
+				for (const auto& conf : candidate->unknownConf)
 				{
-					paths_found_initially[ag] = search_engines[ag]->findSuboptimalPath(*root, initial_constraints[ag], paths, ag, 0, suboptimality);
-				}
-				else
-				{
-					paths_found_initially[ag] = search_engines[ag]->findSuboptimalPath(*root, initial_constraints[ag], paths, ag, 0, suboptimality, 
-						root->g_val - min_f_vals[ag], root->sum_of_costs - min_f_vals[ag]);
+					conf_num[conf->a1] ++;
+					conf_num[conf->a2] ++;
 				}
 
-				num_LL_expanded += search_engines[ag]->num_expanded;
-				num_LL_generated += search_engines[ag]->num_generated;
-			}
-							
-			if (paths_found_initially[ag].first.empty())
-			{
-				cout << "No path exists for agent " << ag << endl;
-				return false;
-			}
+				fill(paths.begin(), paths.end(), nullptr);
+				meta_agents = init_meta_agent;
+				conf_based = vector<int>(meta_agents.size(), 0);
+				for (size_t ma_id = 0; ma_id < meta_agents.size(); ma_id++)
+					for (const int& tmp_ag : meta_agents[ma_id])
+						conf_based[ma_id] += conf_num[tmp_ag];
+				sortMetaAgents(fmin_based, false, conf_based, false);
 
-			paths[ag] = &paths_found_initially[ag].first;
-			root->makespan = max(root->makespan, paths[ag]->size() - 1);
-			root->g_val = root->g_val + max(paths_found_initially[ag].second - min_f_vals[ag], 0);
-			root->sum_of_costs = root->sum_of_costs + ((int)paths[ag]->size() - 1) - min_f_vals[ag];
-			min_f_vals[ag] = max(paths_found_initially[ag].second, min_f_vals[ag]);
-			paths_found_initially[ag].second = min_f_vals[ag];
+				// // debug
+				// cout << endl;
+				// for (const vector<int>& ma : meta_agents)
+				// {
+				// 	for (const int& ag : ma)
+				// 	{
+				// 		cout << "agent: " << ag << "-> " << conf_based[ag] << ", " << fmin_based[ag] << endl;
+				// 	}
+				// }
+				// // end debug
+
+				for (const vector<int>& ma : meta_agents)
+					for (const int& ag : ma)
+						min_f_vals[ag] = search_engines[ag]->my_heuristic[search_engines[ag]->start_location];
+			}
+			else
+			{
+				break;
+			}
+		}
+		else
+		{
+			break;
 		}
 	}
+
+	for (const vector<int>& ma : meta_agents)
+		for (const int& ag : ma)
+			paths[ag] = &paths_found_initially[ag].first;
 
 	if (screen == 4)
 		root->ll_generated = num_LL_generated;
 
 	root->h_val = 0;
 	root->depth = 0;
-	findConflicts(*root);
     heuristic_helper.computeQuickHeuristics(*root);
 	pushNode(root);
 	dummy_start = root;
 
 	if (screen >= 2) // print start and goals
 		printPaths();
-
 	return true;
 }
 
 
-bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
+bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 {
 	clock_t t1 = clock();
 	node->parent = parent;
@@ -525,7 +602,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
 	findConflicts(*node);
 	heuristic_helper.computeQuickHeuristics(*node);
 
-	updateConflictImpacts(*node, *parent);
+	updateConflictImpacts(*node, *parent, child_idx);
 
 	runtime_generate_child += (double)(clock() - t1) / CLOCKS_PER_SEC;
 	return true;
@@ -555,8 +632,20 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 			assert(tmp_lb == node->g_val);
 		}
 
-		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality, 
-			node->g_val - min_f_vals[ag], node->sum_of_costs - (int) paths[ag]->size() + 1, 0);
+		int other_sum_lb = node->g_val - min_f_vals[ag];
+		int other_sum_cost = node->sum_of_costs - (int) paths[ag]->size() + 1;
+
+		if (suboptimality* (double) other_sum_lb - (double) other_sum_cost >= 0 && 
+			(node->parent->chosen_from == "cleanup" || node->parent->conflict->priority == conflict_priority::CARDINAL))
+		{
+			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
+		}
+
+		else
+		{
+			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
+				suboptimality, other_sum_lb, other_sum_cost, 0);	
+		}
 	}
 	else
 	{
@@ -579,6 +668,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	int old_node_soc = node->sum_of_costs;
 	int old_path_cost = (int) paths[ag]->size() - 1;
 	int new_path_cost = (int) new_path.first.size() - 1;
+	// end debug
 
 	node->g_val = node->g_val + max(new_path.second - min_f_vals[ag], 0);
 	if (node->parent != nullptr)

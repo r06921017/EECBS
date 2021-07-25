@@ -95,7 +95,31 @@ bool operator < (const Conflict& conflict1, const Conflict& conflict2) // return
 		{
 			if (conflict1.secondary_priority == conflict2.secondary_priority)
 			{
-				return rand() % 2;
+				// Get minimum increased_flex
+				double impact1 = max(conflict1.getImpactVal(0, impact_type::FLEX), conflict1.getImpactVal(1, impact_type::FLEX));
+				double impact2 = max(conflict2.getImpactVal(0, impact_type::FLEX), conflict2.getImpactVal(1, impact_type::FLEX));
+
+				if (impact1 == impact2)
+				{
+					impact1 = max(conflict1.getImpactVal(0, impact_type::LB), conflict1.getImpactVal(1, impact_type::LB));
+					impact2 = max(conflict2.getImpactVal(0, impact_type::LB), conflict2.getImpactVal(1, impact_type::LB));
+					if (impact1 == impact2)
+					{
+						impact1 = max(conflict1.getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict1.getImpactVal(1, impact_type::REDUCED_CONFLICTS));
+						impact2 = max(conflict2.getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict2.getImpactVal(1, impact_type::REDUCED_CONFLICTS));
+						if (impact1 == impact2)
+						{
+							if (max(conflict1.impacts[0].count, conflict1.impacts[1].count) == max(conflict2.impacts[0].count, conflict2.impacts[1].count))
+							{
+								return rand() % 2;
+							}
+							return max(conflict1.impacts[0].count, conflict1.impacts[1].count) > max(conflict2.impacts[0].count, conflict2.impacts[1].count);
+						}
+						return impact1 < impact2;
+					}
+					return impact1 < impact2;
+				}
+				return impact1 < impact2;
 			}
 			return conflict1.secondary_priority > conflict2.secondary_priority;
 		}
@@ -104,3 +128,28 @@ bool operator < (const Conflict& conflict1, const Conflict& conflict2) // return
 	return conflict1.priority > conflict2.priority;
 }
 
+double Conflict::getImpactVal(int child_idx, int _mode_) const
+{
+	if (impacts[child_idx].count > 0)
+	{
+		switch (_mode_)
+		{
+		case impact_type::FLEX:
+			return impacts[child_idx].increased_flex / (double) impacts[child_idx].count;
+			break;
+		case impact_type::LB:
+			return (double) impacts[child_idx].increased_lb / (double) impacts[child_idx].count;
+			break;
+		case impact_type::REDUCED_CONFLICTS:
+			return (double) impacts[child_idx].reduced_num_conflicts / (double) impacts[child_idx].count;
+			break;
+		default:
+			break;
+		}
+	}
+	else
+	{
+		assert(impacts[child_idx].count == 0);
+		return 0;
+	}
+}

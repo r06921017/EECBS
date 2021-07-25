@@ -62,6 +62,7 @@ public:
 private:
 	vector< pair<Path, int> > paths_found_initially;  // contain initial paths found
 	bool use_flex;  // Whether to use FEECBS or EECBS
+	bool root_replan = false;
 
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_f> > cleanup_list; // it is called open list in ECBS
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_inadmissible_f> > open_list; // this is used for EES
@@ -75,7 +76,7 @@ private:
 	bool reinsertNode(ECBSNode* node);
 
 	 // high level search
-	bool generateChild(ECBSNode* child, ECBSNode* curr);
+	bool generateChild(ECBSNode* child, ECBSNode* curr, int child_idx=0);
 	bool generateRoot();
 	bool findPathForSingleAgent(ECBSNode*  node, int ag);
 	bool findPathForMetaAgent(ECBSNode* node, const vector<int>& meta_ag);

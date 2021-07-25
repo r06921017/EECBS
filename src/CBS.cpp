@@ -201,51 +201,58 @@ shared_ptr<Conflict> CBS::chooseConflict(const HLNode &node) const
 	return choose;
 }
 
-
-shared_ptr<Conflict> CBS::chooseImpactBasedConflict(const HLNode& node) const
+shared_ptr<Conflict> CBS::debugChooseConflict(const HLNode &node)
 {
-
-}
-
-void CBS::pushConflictImpact(shared_ptr<Conflict> c_ptr, double increased_flex, double increased_lb, double reduced_num_conflicts, int count)
-{
-	conflict_impact tmp_imp;
-	tmp_imp.increased_flex = increased_flex;
-	tmp_imp.increased_lb = increased_lb;
-	tmp_imp.reduced_num_conflicts = reduced_num_conflicts;
-	tmp_imp.count = count;
-	conf_imp.insert(make_pair(c_ptr, tmp_imp));
-	return;
-}
-
-void CBS::printAllConflictImpacts(void) const
-{
-	for (const auto& c : conf_imp)
+	if (screen == 3)
+		printConflicts(node);
+	shared_ptr<Conflict> choose;
+	if (node.conflicts.empty() && node.unknownConf.empty())
+		return nullptr;
+	else if (!node.conflicts.empty())
 	{
-		cout << *c.first << ": [" << c.second.increased_flex << ", " << c.second.increased_lb << ", ";
-		cout << c.second.reduced_num_conflicts << ", " << c.second.count << "]" << endl;
+		choose = node.conflicts.back();
+		for (const auto& conflict : node.conflicts)
+		{
+			bool debug_compare=false;
+			if (screen == 3)
+				debug_compare = compareConflicts(choose, conflict);
+			if (*choose < *conflict)
+				choose = conflict;
+		}
 	}
-	return;
+	else
+	{
+		choose = node.unknownConf.back();
+		for (const auto& conflict : node.unknownConf)
+		{
+			if (screen == 3)
+				compareConflicts(choose, conflict);
+			if (*choose < *conflict)
+				choose = conflict;
+		}
+	}
+	
+	if (find(seen_conflicts.begin(), seen_conflicts.end(), choose) == seen_conflicts.end())
+		seen_conflicts.push_back(choose);
+	else
+		num_has_seen_conf ++;
+
+	return choose;
 }
 
 
-void CBS::updateConflictImpacts(const HLNode& node, const HLNode& parent)
+void CBS::updateConflictImpacts(const HLNode& node, const HLNode& parent, int child_idx)
 {
 	double increased_flex = (suboptimality * node.g_val - node.sum_of_costs) - (suboptimality * parent.g_val - parent.sum_of_costs);
 	int increased_lb = node.g_val - parent.g_val;  // node->g_val has been updated in findPathForSingleAgent()
 	int reduced_num_conflicts = (parent.conflicts.size() + parent.unknownConf.size()) - (node.conflicts.size() + node.unknownConf.size());
-	unordered_map<shared_ptr<Conflict>, conflict_impact>::iterator got = conf_imp.find(node.conflict);
-	if (got == conf_imp.end())  // Insert conflict to conf_imp
-	{
-		pushConflictImpact(node.conflict, increased_flex, (double) increased_lb, (double) reduced_num_conflicts, 1);
-	}
-	else  // Update the parameters of the existing conflict impact
-	{
-		got->second.increased_flex = (got->second.increased_flex * got->second.count + increased_flex) / (double) (got->second.count + 1);
-		got->second.increased_lb = (double) (got->second.increased_lb * got->second.count + increased_lb) / (double) (got->second.count + 1);
-		got->second.reduced_num_conflicts = (double) (got->second.reduced_num_conflicts * got->second.count + reduced_num_conflicts) / (double) (got->second.count + 1);
-		got->second.count ++;
-	}
+	
+	// Current conflict being resolved
+	parent.conflict->impacts[child_idx].increased_flex = increased_flex;
+	parent.conflict->impacts[child_idx].increased_lb = increased_lb;
+	parent.conflict->impacts[child_idx].reduced_num_conflicts = reduced_num_conflicts;
+	parent.conflict->impacts[child_idx].count ++;
+
 	return;
 }
 
@@ -497,7 +504,7 @@ bool CBS::findPathForSingleAgent(CBSNode*  node, int ag, int lowerbound)
 	}
 }
 
-bool CBS::generateChild(CBSNode*  node, CBSNode* parent)
+bool CBS::generateChild(CBSNode*  node, CBSNode* parent, int child_idx)
 {
 	clock_t t1 = clock();
 	node->parent = parent;
@@ -1007,7 +1014,8 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 			"runtime of rectangle conflicts,runtime of corridor conflicts,runtime of mutex conflicts," <<
 			"runtime of building MDDs,runtime of building constraint tables,runtime of building CATs," <<
 			"runtime of path finding,runtime of generating child nodes," <<
-			"preprocessing runtime,solver name,instance name,#pushFOCAL" << endl;
+			"preprocessing runtime,solver name,instance name,#pushFOCAL," <<
+			"#use pri,#use_type,#use second pri,#use increased flex,#use increased lb,#use reduced conf,#use count,#tie,#has seen conf" << endl;
 		addHeads.close();
 	}
 	ofstream stats(fileName, std::ios::app);
@@ -1039,7 +1047,9 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 		mdd_helper.accumulated_runtime << "," << runtime_build_CT << "," << runtime_build_CAT << "," <<
 		runtime_path_finding << "," << runtime_generate_child << "," <<
 
-		runtime_preprocessing << "," << getSolverName() << "," << instanceName << "," << num_push_focal << endl;
+		runtime_preprocessing << "," << getSolverName() << "," << instanceName << "," << num_push_focal << "," <<
+		num_use_priority << "," << num_use_type << "," << num_use_second_priority << "," << num_use_increased_flex << "," << 
+		num_use_increased_lb << "," << num_use_reduced_conflicts << "," << num_use_count << "," << num_tie << "," << num_has_seen_conf << endl;
 	stats.close();
 }
 
@@ -1999,4 +2009,53 @@ vector<int> CBS::findMetaAgent(int __ag__) const
 		}
 	}
 	return out_list;
+}
+
+bool CBS::compareConflicts(shared_ptr<Conflict> conflict1, shared_ptr<Conflict> conflict2)
+{
+	if (conflict1->priority == conflict2->priority)
+	{
+		if (conflict1->type == conflict2->type)
+		{
+			if (conflict1->secondary_priority == conflict2->secondary_priority)
+			{
+				// Get minimum increased_flex
+				double impact1 = max(conflict1->getImpactVal(0, impact_type::FLEX), conflict1->getImpactVal(1, impact_type::FLEX));
+				double impact2 = max(conflict2->getImpactVal(0, impact_type::FLEX), conflict2->getImpactVal(1, impact_type::FLEX));
+
+				if (impact1 == impact2)
+				{
+					impact1 = max(conflict1->getImpactVal(0, impact_type::LB), conflict1->getImpactVal(1, impact_type::LB));
+					impact2 = max(conflict2->getImpactVal(0, impact_type::LB), conflict2->getImpactVal(1, impact_type::LB));
+					if (impact1 == impact2)
+					{
+						impact1 = max(conflict1->getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict1->getImpactVal(1, impact_type::REDUCED_CONFLICTS));
+						impact2 = max(conflict2->getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict2->getImpactVal(1, impact_type::REDUCED_CONFLICTS));
+						if (impact1 == impact2)
+						{
+							if (max(conflict1->impacts[0].count, conflict1->impacts[1].count) == max(conflict2->impacts[0].count, conflict2->impacts[1].count))
+							{
+								num_tie ++;
+								return rand() % 2;
+							}
+							num_use_count ++;
+							return max(conflict1->impacts[0].count, conflict1->impacts[1].count) > max(conflict2->impacts[0].count, conflict2->impacts[1].count);
+						}
+						num_use_reduced_conflicts ++;
+						return impact1 < impact2;
+					}
+					num_use_increased_lb ++;
+					return impact1 < impact2;
+				}
+				num_use_increased_flex ++;
+				return impact1 < impact2;
+			}
+			num_use_second_priority ++;
+			return conflict1->secondary_priority > conflict2->secondary_priority;
+		}
+		num_use_type ++;
+		return conflict1->type > conflict2->type;
+	}
+	num_use_priority ++;
+	return conflict1->priority > conflict2->priority;
 }
