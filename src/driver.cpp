@@ -50,6 +50,10 @@ int main(int argc, char** argv)
 		// params for NFEECBS
 		("mergeTh,b", po::value<int>()->default_value(INT_MAX), "set merge threshold for nested framework")
 		("flex", po::value<bool>()->default_value(false), "set true to use FEECBS")
+		("randomInit", po::value<bool>()->default_value(false), "set true to use random ordering as initialization")
+		("rp", po::value<bool>()->default_value(false), "set true to use root replanning")
+		("fa", po::value<bool>()->default_value(false), "set true to sort agents at root in ascending fmin value")
+		("ca", po::value<bool>()->default_value(false), "set true to sort agents at root in ascending conflicts value")
 
 		// Statistic analysis
 		("saveCT", po::value<bool>()->default_value(false), "set true for plotting CT")
@@ -162,6 +166,8 @@ int main(int argc, char** argv)
         ecbs.setSavingStats(vm["stats"].as<bool>());
         ecbs.setHighLevelSolver(s, vm["suboptimality"].as<double>());
 		ecbs.setUseFlex(vm["flex"].as<bool>());
+		ecbs.setRootReplan(vm["rp"].as<bool>(), vm["fa"].as<bool>(), vm["ca"].as<bool>());
+		ecbs.setRandomInit(vm["randomInit"].as<bool>());
 		if (vm["nl"].as<int>() < MAX_NODES)
 			ecbs.setNodeLimit(vm["nl"].as<int>());
 

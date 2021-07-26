@@ -27,7 +27,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 	{
 		// Debug
 		auto cleanup_head = cleanup_list.top();
-		cleanup_head_lb = cleanup_list.top()->getFVal();
+		cleanup_head_lb = cleanup_list.top()->g_val;
 		if (screen == 4)
 		{
 			open_node_idx->push_back(cleanup_head->time_generated);
@@ -49,7 +49,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 
 		// Debug
 		assert((double) curr->sum_of_costs <= suboptimality * curr->getFVal());
-		assert((double) curr->sum_of_costs <= suboptimality * cleanup_head_lb);
+		assert((double) curr->sum_of_costs <= suboptimality * cleanup_head->getFVal());
+		assert(cleanup_head_lb <= curr->sum_of_costs);
 		
 		if (screen == 4)
 		{
@@ -425,8 +426,6 @@ bool ECBS::generateRoot()
 	root->g_val = initial_g_val;
 	root->sum_of_costs = initial_g_val;
 
-	// std::random_shuffle(meta_agents.begin(), meta_agents.end());  // generate random permutation of agent indices
-	// sort agents according to the low-level heuristics
 	vector<vector<int>> sort_based;
 	vector<bool> sort_ascend;
 	vector<int> fmin_based = vector<int>(meta_agents.size(), 0);
@@ -434,7 +433,11 @@ bool ECBS::generateRoot()
 	for (size_t ma_id = 0; ma_id < meta_agents.size(); ma_id++)
 		for (const int& tmp_ag : meta_agents[ma_id])
 			fmin_based[ma_id] += search_engines[tmp_ag]->my_heuristic[search_engines[tmp_ag]->start_location];
-	sortMetaAgents(fmin_based, false, conf_based, true);
+
+	if (random_init)
+		std::random_shuffle(meta_agents.begin(), meta_agents.end());  // generate random permutation of agent indices
+	else
+		sortMetaAgents(fmin_based, fmin_ascend, conf_based, conf_ascend);  // sort according to the low-level heuristics
 
 	// // debug
 	// cout << endl;
@@ -524,7 +527,7 @@ bool ECBS::generateRoot()
 				for (size_t ma_id = 0; ma_id < meta_agents.size(); ma_id++)
 					for (const int& tmp_ag : meta_agents[ma_id])
 						conf_based[ma_id] += conf_num[tmp_ag];
-				sortMetaAgents(fmin_based, false, conf_based, false);
+				sortMetaAgents(fmin_based, fmin_ascend, conf_based, conf_ascend);
 
 				// // debug
 				// cout << endl;
@@ -537,6 +540,7 @@ bool ECBS::generateRoot()
 				// }
 				// // end debug
 
+				// Initialize min_f_vals
 				for (const vector<int>& ma : meta_agents)
 					for (const int& ag : ma)
 						min_f_vals[ag] = search_engines[ag]->my_heuristic[search_engines[ag]->start_location];
@@ -553,8 +557,13 @@ bool ECBS::generateRoot()
 	}
 
 	for (const vector<int>& ma : meta_agents)
+	{
 		for (const int& ag : ma)
+		{
 			paths[ag] = &paths_found_initially[ag].first;
+			min_f_vals[ag] = paths_found_initially[ag].second;
+		}
+	}
 
 	if (screen == 4)
 		root->ll_generated = num_LL_generated;
@@ -598,6 +607,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 	assert(node->sum_of_costs <= suboptimality * node->getFVal());
 	assert(parent->getFVal() <= node->getFVal());
 	assert(parent->g_val <= node->g_val);
+	assert(cleanup_head_lb <= node->sum_of_costs);
 
 	findConflicts(*node);
 	heuristic_helper.computeQuickHeuristics(*node);

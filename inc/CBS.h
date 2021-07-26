@@ -230,6 +230,21 @@ protected:
 		meta_agents = new_meta_agents;
 		runtime_sort_ma += (double)(clock() - t) / CLOCKS_PER_SEC;
 	}
+
+	template <typename T>
+    void sortMetaAgents(const vector<T>& sort_based, bool is_ascending)
+	{
+		assert(sort_based.size() == meta_agents.size());
+		clock_t t = clock();
+		vector<int> pri_maid = sort_indexes(sort_based, is_ascending);
+
+		vector<vector<int>> new_meta_agents;
+		for(size_t ma_id = 0; ma_id < meta_agents.size(); ma_id ++)
+			new_meta_agents.push_back(meta_agents[pri_maid[ma_id]]);
+
+		meta_agents = new_meta_agents;
+		runtime_sort_ma += (double)(clock() - t) / CLOCKS_PER_SEC;
+	}
 	// End nested framework
 
 	// For impact-based search

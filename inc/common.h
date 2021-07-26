@@ -110,6 +110,26 @@ vector<int> sort_indexes(const vector<T>& v, bool v_ascend, const vector<S>& u, 
     return idx;
 }
 
+template <typename T>
+vector<int> sort_indexes(const vector<T>& v, bool _ascending) 
+{
+    // initialize original index locations
+    vector<int> idx(v.size());
+    for (int i = 0; i < (int) v.size(); i++)
+        idx[i] = i;
+
+    // sort indexes based on comparing values in v
+    // using std::stable_sort instead of std::sort
+    // to avoid unnecessary index re-orderings
+    // when v contains elements of equal values 
+    if (_ascending)
+        stable_sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+    else
+        stable_sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] > v[i2];});
+
+    return idx;
+}
+
 struct conflict_impact
 {
     int increased_lb = 0;  // Averaged by the counts

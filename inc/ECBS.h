@@ -53,6 +53,8 @@ public:
 		}
 	}
 	void setUseFlex(bool _f) { use_flex = _f; }
+	void setRandomInit(bool _r) {random_init = _r;}
+	void setRootReplan(bool _r, bool _f_asc, bool _c_asc) {root_replan = _r; fmin_ascend = _f_asc; conf_ascend = _c_asc;}
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
@@ -62,7 +64,10 @@ public:
 private:
 	vector< pair<Path, int> > paths_found_initially;  // contain initial paths found
 	bool use_flex;  // Whether to use FEECBS or EECBS
-	bool root_replan = false;
+	bool random_init;
+	bool root_replan;
+	bool fmin_ascend;
+	bool conf_ascend;
 
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_f> > cleanup_list; // it is called open list in ECBS
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_inadmissible_f> > open_list; // this is used for EES
