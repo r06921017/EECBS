@@ -485,7 +485,7 @@ bool ECBS::generateRoot()
 					else
 					{
 						candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality, 
-							candidate->g_val - min_f_vals[ag], candidate->sum_of_costs - min_f_vals[ag]);
+							candidate->g_val - min_f_vals[ag], candidate->sum_of_costs - min_f_vals[ag], init_sum_lb, flex);
 					}
 
 					num_LL_expanded += search_engines[ag]->num_expanded;
@@ -660,7 +660,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 		else
 		{
 			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
-				suboptimality, other_sum_lb, other_sum_cost, init_sum_lb);	
+				suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
 		}
 	}
 	else

@@ -62,7 +62,7 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 	min_f_val = (int) start->getFVal();
 
 	// upperbound = w * (max(min_f_val, lowerbound + hl_h_val) + other_sum_lb) - other_sum_cost;
-	upperbound = w * (max(outer_sum_lb, max(min_f_val, lowerbound + hl_h_val) + other_sum_lb)) - other_sum_cost + single_flex;
+	upperbound = w * max(outer_sum_lb, min_f_val + other_sum_lb) - other_sum_cost + single_flex;
 	assert(min_f_val <= upperbound);
 	assert(my_heuristic[start_location] <= upperbound);
 
@@ -262,7 +262,7 @@ void SpaceTimeAStar::updateFocalList(int lowerbound, int other_sum_lb, int other
 
 		// Get new_upper_bound
 		double new_upper_bound;
-		new_upper_bound = w * max(outer_sum_lb, max(new_min_f_val, lowerbound + hl_h_val) + other_sum_lb) - other_sum_cost + single_flex;
+		new_upper_bound = w * max(outer_sum_lb, new_min_f_val + other_sum_lb) - other_sum_cost + single_flex;
 		assert(new_min_f_val <= new_upper_bound);
 		for (auto n : open_list)
 		{
