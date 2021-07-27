@@ -199,22 +199,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 					meta_agents.push_back(joint_ma);
 					curr->meta_agents = meta_agents;
 
-					// Set constraint to inner solver
-					vector<bool> _ma_vec_ = vector<bool>(num_of_agents, false);
-					for (const int& ag : joint_ma)
-					{
-						_ma_vec_[ag] = true;
-						ConstraintTable _constraint_table;
-						_constraint_table.build(*curr, ag);
-						inner_solver->setInitConstraints(ag, _constraint_table);
-					}
-
-					// Set paths for agents other than meta-agent for inner solver
-					for (int ag = 0; ag < num_of_agents; ag ++)
-						if (!_ma_vec_[ag])
-							inner_solver->setInitialPath(ag, *paths[ag]);
-					inner_solver->setMetaAgents(meta_agents);
-					inner_solver->setMAVector(_ma_vec_);
+					findPathForMetaAgent(curr, joint_ma);
 				}
 
 				else  // expansion
@@ -396,12 +381,6 @@ bool ECBS::generateRoot()
 	mdd_helper.init(num_of_agents);
 	heuristic_helper.init();
 
-	if (!is_solver)
-	{
-		// initialize paths_found_initially
-		assert(paths_found_initially.empty());
-		paths_found_initially.resize(num_of_agents);
-	}
 	if (meta_agents.empty())  // initialize for outer ECBS
 	{
 		for (int ag = 0; ag < num_of_agents; ag ++)
@@ -411,20 +390,37 @@ bool ECBS::generateRoot()
 		}
 	}
 
+	if (!path_initialize)
+	{
+		// initialize paths_found_initially
+		assert(paths_found_initially.empty());
+		paths_found_initially.clear();
+		paths_found_initially.resize(num_of_agents);
+	}
+
+
 	int initial_g_val = 0;
+	int initial_soc = 0;
 	vector<vector<int>> init_meta_agent = meta_agents;
 	for (const vector<int>& ma : meta_agents)
 	{
 		for (const int& ag : ma)
 		{
-			min_f_vals[ag] = search_engines[ag]->my_heuristic[search_engines[ag]->start_location];
+			if (path_initialize)
+			{
+				// already initialize min_f_val at findPathForMetaAgent
+				assert(search_engines[ag]->my_heuristic[search_engines[ag]->start_location] <= min_f_vals[ag]);
+				paths_found_initially[ag].second = min_f_vals[ag];
+				initial_soc += paths_found_initially[ag].first.size() - 1;
+			}
+			else
+			{ 
+				min_f_vals[ag] = search_engines[ag]->my_heuristic[search_engines[ag]->start_location];
+			}
+
 			initial_g_val += min_f_vals[ag];
 		}
 	}
-
-	auto root = new ECBSNode();
-	root->g_val = initial_g_val;
-	root->sum_of_costs = initial_g_val;
 
 	vector<vector<int>> sort_based;
 	vector<bool> sort_ascend;
@@ -432,7 +428,7 @@ bool ECBS::generateRoot()
 	vector<int> conf_based = vector<int>(meta_agents.size(), 0);
 	for (size_t ma_id = 0; ma_id < meta_agents.size(); ma_id++)
 		for (const int& tmp_ag : meta_agents[ma_id])
-			fmin_based[ma_id] += search_engines[tmp_ag]->my_heuristic[search_engines[tmp_ag]->start_location];
+			fmin_based[ma_id] += min_f_vals[tmp_ag];
 
 	if (random_init)
 		std::random_shuffle(meta_agents.begin(), meta_agents.end());  // generate random permutation of agent indices
@@ -449,9 +445,16 @@ bool ECBS::generateRoot()
 	// 	}
 	// }
 
+	auto root = new ECBSNode();
+	root->g_val = initial_g_val;
+	root->sum_of_costs = (path_initialize)? initial_soc : initial_g_val;
+
 	bool first_time = true;
 	while (true)
 	{
+		if (path_initialize)  // Already initialize paths at outer solver
+			break;
+
 		auto candidate = new ECBSNode();
 		candidate->g_val = initial_g_val;
 		candidate->sum_of_costs = initial_g_val;
@@ -561,9 +564,11 @@ bool ECBS::generateRoot()
 		for (const int& ag : ma)
 		{
 			paths[ag] = &paths_found_initially[ag].first;
-			min_f_vals[ag] = paths_found_initially[ag].second;
+			if (!path_initialize)
+				min_f_vals[ag] = paths_found_initially[ag].second;
 		}
 	}
+	path_initialize = true;
 
 	if (screen == 4)
 		root->ll_generated = num_LL_generated;
@@ -648,13 +653,14 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 		if (suboptimality* (double) other_sum_lb - (double) other_sum_cost >= 0 && 
 			(node->parent->chosen_from == "cleanup" || node->parent->conflict->priority == conflict_priority::CARDINAL))
 		{
+			// Not use flex if the CT node is from cleanup or the conflict is cardinal
 			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
 		}
 
 		else
 		{
 			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
-				suboptimality, other_sum_lb, other_sum_cost, 0);	
+				suboptimality, other_sum_lb, other_sum_cost, init_sum_lb);	
 		}
 	}
 	else
@@ -712,14 +718,45 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 
 	solver_counter ++;
 
-	// TODO: Determine initial flex for Inner ECBS
-
-	// Determine sum of fmin of meta-agent
+	// Set constraint to inner solver
+	vector<bool> _ma_vec_ = vector<bool>(num_of_agents, false);
 	int outer_lb = 0;
 	for (const int& ag : meta_ag)
-		outer_lb += min_f_vals[ag];
+	{
+		_ma_vec_[ag] = true;
+		outer_lb += min_f_vals[ag];  // Determine sum of fmin of the meta-agent
+		ConstraintTable _constraint_table;
+		_constraint_table.build(*node, ag);
+		inner_solver->setInitConstraints(ag, _constraint_table);
+	}
+
+	inner_solver->setMetaAgents(meta_ag);  // Set the meta-agent for inner solver
+	inner_solver->setMAVector(_ma_vec_);
+	inner_solver->setInitSumLB(outer_lb);
+
+	double outer_flex = 0.0;
+	for (const vector<int>& _ma_ : meta_agents)  // Set paths and outer flex for inner solver
+	{
+		for (const int& _ag_ : _ma_)
+		{
+			if (paths[_ag_] != nullptr)
+			{
+				if (!_ma_vec_[_ag_])  // Add flex from other agents outside the meta-agent
+					outer_flex += suboptimality * min_f_vals[_ag_] - (paths[_ag_]->size() - 1);
+				inner_solver->setInitialPath(_ag_, *paths[_ag_]);  // Initialize paths for inner solver
+				inner_solver->setMinFVal(_ag_, min_f_vals[_ag_]);  // Initialize min_f_val for inner solver
+			}
+			else
+			{
+				if (!_ma_vec_[_ag_])  // Add flex from other agents outside the meta-agent
+					outer_flex += suboptimality * min_f_vals[_ag_] - (paths[_ag_]->size() - 1);
+			}
+			
+		}
+	}
+	inner_solver->setFlex(outer_flex);		
 	inner_solver->setIsStart(false);
-	inner_solver->setInitSumLB(outer_lb);  // may be useless
+	inner_solver->path_initialize = true;
 	clock_t t = clock();
 	double inner_time_limit = time_limit - ((t-start) / CLOCKS_PER_SEC);
 	bool foundSol = inner_solver->solve(inner_time_limit, outer_lb);  // Run solver for meta-agent
@@ -728,16 +765,19 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	solver_num_HL_expanded += inner_solver->num_HL_expanded;
 	solver_num_HL_generated += inner_solver->num_HL_generated;
 	solver_num_LL_expanded += inner_solver->num_LL_expanded;
-	solver_num_LL_generated += inner_solver->num_LL_generated;
+	solver_num_LL_generated += inner_solver->num_LL_generated; 
 
 	runtime_solver += inner_solver->runtime;
 
 	if (foundSol)
 	{
 		int old_sum_of_costs = 0;
+		int new_sum_lb = 0;
 		for (const int& ag : meta_ag)
 		{
 			old_sum_of_costs += (int) paths[ag]->size() - 1;
+			new_sum_lb += inner_solver->getminFVal(ag);
+
 			for (list<pair<int, pair<Path, int>>>::iterator p_it = node->paths.begin(); p_it != node->paths.end();)
 			{
 				if (ag == p_it->first)  // Delete repeated paths in node
@@ -752,18 +792,22 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 			}
 		}
 
-		node->g_val = node->g_val + max(inner_solver->getLowerBound() - outer_lb, 0);
+		node->g_val = node->g_val + max(new_sum_lb - outer_lb, 0);
 		node->sum_of_costs = node->sum_of_costs - old_sum_of_costs + inner_solver->solution_cost;
 
-		for (const int& ag : meta_ag)
+		for (const int& ag : meta_ag)  // Update the paths and the lower bounds of the meta-agent
 		{
 			Path inner_path = inner_solver->getPath(ag);
 			int inner_lb = inner_solver->getminFVal(ag);
-			int ag_lb = (inner_solver->getLowerBound() >= outer_lb)? inner_lb : min_f_vals[ag];
+			int ag_lb = (new_sum_lb < outer_lb)? min_f_vals[ag] : inner_lb;
 			node->paths.emplace_back(ag, make_pair(inner_path, ag_lb));
 			paths[ag] = &node->paths.back().second.first;
 			node->makespan = max(node->makespan, inner_path.size() - 1);
 		}
+		
+		inner_solver->setInitSumLB(0);  // Reset sum of fmin
+		inner_solver->setFlex(0);  // Reset flex
+
 		runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
 		return true;
 	}

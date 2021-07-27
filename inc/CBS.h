@@ -10,6 +10,7 @@ class CBS
 {
 public:
 	bool randomRoot = false; // randomize the order of the agents in the root CT node
+	bool path_initialize = false;  // Check if the paths are initialized by the outer solver
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// stats
@@ -125,13 +126,20 @@ public:
 	void setMergeThreshold(int b) { merge_th = b; }
 	void setMergeRestart(bool mr) { mr_active = mr; }
 	void setMASolver(shared_ptr<CBS> in_solver) { inner_solver = in_solver; }
-	void setMetaAgents(vector<vector<int>> in_meta_agents) { meta_agents = in_meta_agents; }
-	void setMAVector(vector<bool> in_ma_vec) { ma_vec = in_ma_vec; }
-	void setInitialPath(int agent, Path _path) { paths_found_initially[agent] = _path; }
+	void setMAVector(vector<bool> in_ma_vec) { ma_vec = in_ma_vec; }	
+	void setMinFVal(int agent, int val) { min_f_vals[agent] = val; }
 	void setInitConstraints(int agent, ConstraintTable _table) {initial_constraints[agent].init(_table);}
 	void setInitSumLB (int _sum_lb) { init_sum_lb = _sum_lb; }
+	void setFlex(double val) {flex = val;}
 	void setTimeLimit(double tl) { time_limit = tl; }
 	void setIsStart(bool _st) { is_start = _st; }
+	void setMetaAgents(vector<int> in_ma)
+	{
+		meta_agents.clear();
+		for (const int& _ag_ : in_ma)
+			meta_agents.push_back(vector<int>({_ag_}));
+	}
+	virtual void setInitialPath(int agent, Path _path) { paths_found_initially[agent] = _path; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
@@ -210,7 +218,7 @@ protected:
 	bool mr_active = false;
 	bool is_start = false;  // This is for Merge and Restart
 	int merge_th = INT_MAX;
-	int init_sum_lb = 0;  // Obtain from outer (E)CBS, may be useless
+	int init_sum_lb = 0;  // Obtain from outer (E)CBS, the initial cost_lower bound
 	double flex = 0.0;  // flex for the meta-agent
 	vector<int> min_f_vals; // lower bounds of the cost of the shortest path
 
