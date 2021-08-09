@@ -631,7 +631,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	pair<Path, int> new_path;
 	if (use_flex)
 	{
-		if (screen == 2)
+		if (screen >= 2)
 		{
 			assert((double) node->sum_of_costs <= suboptimality * node->getFVal());
 			int tmp_cost = 0;
@@ -714,6 +714,13 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 
 	assert(node->sum_of_costs <= suboptimality * node->getFVal());
 	assert(node->getFVal() >= node->parent->getFVal());
+	// if (!cleanup_list.empty())
+	// {
+	// 	cout << "cleanup_head_lb: " << cleanup_head_lb << endl;
+	// 	cout << "cleanup_list.top()->g_val: " << cleanup_list.top()->g_val << endl;
+	// 	assert(cleanup_head_lb == cleanup_list.top()->g_val);
+	// }
+	// assert(cleanup_head_lb <= node->sum_of_costs);
 
 	return true;
 }
