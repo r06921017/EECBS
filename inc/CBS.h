@@ -88,6 +88,10 @@ public:
 	std::shared_ptr<vector<uint64_t>> iter_num_open;
 	std::shared_ptr<vector<uint64_t>> iter_num_cleanup;
 	std::shared_ptr<vector<int>> iter_node_type;
+
+	std::shared_ptr<vector<bool>> iter_use_flex;
+	std::shared_ptr<vector<bool>> iter_no_more_flex;
+	std::shared_ptr<vector<bool>> iter_cannot_use_flex;
 	// end of statistics for branch and every iteration
 
 	// CBSNode* dummy_start = nullptr;

@@ -50,6 +50,9 @@ public:
 			iter_num_open = make_shared<vector<uint64_t>>();
 			iter_num_cleanup = make_shared<vector<uint64_t>>();
 			iter_node_type = make_shared<vector<int>>();
+			iter_use_flex = make_shared<vector<bool>>();
+			iter_no_more_flex = make_shared<vector<bool>>();
+			iter_cannot_use_flex = make_shared<vector<bool>>();
 		}
 	}
 	void setUseFlex(bool _f) { use_flex = _f; }

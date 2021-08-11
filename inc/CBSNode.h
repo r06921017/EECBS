@@ -35,6 +35,9 @@ public:
 	int f_hat_of_best_in_focal = 0;
 	int d_of_best_in_focal = 0;
 	int ll_generated = 0;
+	bool use_flex = false;
+	bool no_more_flex = false;
+	bool cannot_use_flex = false;
 
 	// conflicts in the current paths
 	list<shared_ptr<Conflict> > conflicts;

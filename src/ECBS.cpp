@@ -27,9 +27,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 	{
 		// Debug
 		auto cleanup_head = cleanup_list.top();
+		// cleanup_head_lb = cleanup_list.top()->getFVal();
 		cleanup_head_lb = cleanup_list.top()->g_val;
 		if (screen == 4)
 		{
+			cout << *cleanup_head << endl;
 			open_node_idx->push_back(cleanup_head->time_generated);
 			open_sum_lb->push_back(cleanup_head_lb);
 			open_sum_cost->push_back(cleanup_head->sum_of_costs);
@@ -50,7 +52,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 		// Debug
 		assert((double) curr->sum_of_costs <= suboptimality * curr->getFVal());
 		assert((double) curr->sum_of_costs <= suboptimality * cleanup_head->getFVal());
-		assert(cleanup_head_lb <= curr->sum_of_costs);
+		// assert(cleanup_head_lb <= curr->sum_of_costs);
 		
 		if (screen == 4)
 		{
@@ -171,8 +173,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 
 						if (foundBypass)
 						{
-							if (screen == 5)
-								iter_node_type->push_back(3);
+							// if (screen == 5)
+							// 	iter_node_type->push_back(3);
 							adoptBypass(curr, child[i], fmin_copy, path_copy);
 							if (screen > 1)
 								cout << "	Update " << *curr << endl;
@@ -296,6 +298,10 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 				iter_node_type->push_back(1);
 			else if (curr->chosen_from == "focal")
 				iter_node_type->push_back(2);
+
+			iter_use_flex->push_back(curr->use_flex);
+			iter_no_more_flex->push_back(curr->no_more_flex);
+			iter_cannot_use_flex->push_back(curr->cannot_use_flex);
 		}
 
 		if (curr->conflict->priority == conflict_priority::CARDINAL)
@@ -613,7 +619,6 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 	assert(node->sum_of_costs <= suboptimality * node->getFVal());
 	assert(parent->getFVal() <= node->getFVal());
 	assert(parent->g_val <= node->g_val);
-	assert(cleanup_head_lb <= node->sum_of_costs);
 
 	findConflicts(*node);
 	heuristic_helper.computeQuickHeuristics(*node);
@@ -660,19 +665,27 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 		{
 			not_use_flex = node->parent->chosen_from == "cleanup" || 
 				node->parent->conflict->priority == conflict_priority::CARDINAL || 
-				node->parent->parent->g_val < node->parent->g_val;
+				node->parent->g_val < node->g_val;
 		}
 
 		if (suboptimality* (double) other_sum_lb - (double) other_sum_cost >= 0 && not_use_flex)
 		{
 			// Not use flex if the CT node is from cleanup or the conflict is cardinal
 			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
+
+			node->use_flex = false;
+			if (not_use_flex)
+				node->cannot_use_flex = true;
 		}
 
 		else
 		{
 			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
 				suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
+
+			node->use_flex = true;
+			if (suboptimality* (double) other_sum_lb - (double) other_sum_cost < 0)
+				node->no_more_flex = true;
 		}
 	}
 	else
@@ -760,14 +773,14 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 		{
 			if (paths[_ag_] != nullptr)
 			{
-				if (!_ma_vec_[_ag_])  // Add flex from other agents outside the meta-agent
+				if (!_ma_vec_[_ag_] && use_flex)  // Add flex from other agents outside the meta-agent
 					outer_flex += suboptimality * min_f_vals[_ag_] - (paths[_ag_]->size() - 1);
 				inner_solver->setInitialPath(_ag_, *paths[_ag_]);  // Initialize paths for inner solver
 				inner_solver->setMinFVal(_ag_, min_f_vals[_ag_]);  // Initialize min_f_val for inner solver
 			}
 			else
 			{
-				if (!_ma_vec_[_ag_])  // Add flex from other agents outside the meta-agent
+				if (!_ma_vec_[_ag_] && use_flex)  // Add flex from other agents outside the meta-agent
 					outer_flex += suboptimality * min_f_vals[_ag_] - (paths[_ag_]->size() - 1);
 			}
 			
