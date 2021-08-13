@@ -1452,12 +1452,9 @@ bool CBS::terminate(HLNode* curr)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
+			if (screen == 5)
+				saveNumNodesInLists();
 		}
-		else if (screen == 5)
-		{
-			saveNumNodesInLists();
-		}
-
 		return true;
 	}
 	runtime = (double)(clock() - start) / CLOCKS_PER_SEC;
@@ -1471,10 +1468,8 @@ bool CBS::terminate(HLNode* curr)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
-		}
-		else if (screen == 5)
-		{
-			saveNumNodesInLists();
+			if (screen == 5)
+				saveNumNodesInLists();
 		}
 
 		if (!validateSolution())
@@ -1498,10 +1493,8 @@ bool CBS::terminate(HLNode* curr)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
-		}
-		else if (screen == 5)
-		{
-			saveNumNodesInLists();
+			if (screen == 5)
+				saveNumNodesInLists();
 		}
 
 		return true;
