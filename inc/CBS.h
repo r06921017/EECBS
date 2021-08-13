@@ -4,7 +4,7 @@
 #include "CorridorReasoning.h"
 #include "MutexReasoning.h"
 
-enum high_level_solver_type { ASTAR, ASTAREPS, NEW, EES, CLEANUP };
+enum high_level_solver_type { ASTAR, ASTAREPS, NEW, EES, CLEANUP, CLEANUP_ASTAREPS};
 
 class CBS
 {
@@ -56,6 +56,11 @@ public:
     std::shared_ptr<vector<int>> all_sum_lb;
     std::shared_ptr<vector<int>> open_sum_lb;
 
+	std::shared_ptr<vector<int>> iter_sum_fval;
+    std::shared_ptr<vector<int>> br_sum_fval;
+    std::shared_ptr<vector<int>> all_sum_fval;
+    std::shared_ptr<vector<int>> open_sum_fval;
+
     std::shared_ptr<vector<int>> iter_sum_cost;
     std::shared_ptr<vector<int>> br_sum_cost;
     std::shared_ptr<vector<int>> all_sum_cost;
@@ -92,6 +97,12 @@ public:
 	std::shared_ptr<vector<bool>> iter_use_flex;
 	std::shared_ptr<vector<bool>> iter_no_more_flex;
 	std::shared_ptr<vector<bool>> iter_cannot_use_flex;
+
+	std::shared_ptr<vector<vector<int>>> iter_ag_lb;
+	std::shared_ptr<vector<vector<int>>> br_ag_lb;
+
+	std::shared_ptr<vector<vector<int>>> iter_ag_cost;
+	std::shared_ptr<vector<vector<int>>> br_ag_cost;
 	// end of statistics for branch and every iteration
 
 	// CBSNode* dummy_start = nullptr;
@@ -144,6 +155,8 @@ public:
 			meta_agents.push_back(vector<int>({_ag_}));
 	}
 	virtual void setInitialPath(int agent, Path _path) { paths_found_initially[agent] = _path; }
+	virtual int getInitialPathLength(int agent) const {return (int) paths_found_initially[agent].size() - 1; }
+	int getminFVal(int agent) const { return min_f_vals[agent]; }
 	void setCleanupTh(int cth) {cleanup_th = cth;}
 
 	////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,9 +180,6 @@ public:
 	void saveCT(const string &fileName) const; // write the CT to a file
     void savePaths(const string &fileName) const; // write the paths to a file
 	void clear(); // used for rapid random  restart
-
-	int getInitialPathLength(int agent) const {return (int) paths_found_initially[agent].size() - 1; }
-	int getminFVal(int agent) const { return min_f_vals[agent]; }
 
 protected:
     bool rectangle_reasoning;  // using rectangle reasoning
@@ -226,6 +236,7 @@ protected:
 	int init_sum_lb = 0;  // Obtain from outer (E)CBS, the initial cost_lower bound
 	double flex = 0.0;  // flex for the meta-agent
 	vector<int> min_f_vals; // lower bounds of the cost of the shortest path
+	vector<int> init_min_f_vals; // lower bounds of the cost of the shortest path at the root CT node
 
 	// For CLEANUP node slection
 	int cleanup_th;

@@ -86,6 +86,8 @@ int main(int argc, char** argv)
 		s = high_level_solver_type::NEW;
 	else if (vm["highLevelSolver"].as<string>() == "CLEANUP")
 		s = high_level_solver_type::CLEANUP;
+	else if (vm["highLevelSolver"].as<string>() == "CLEANUP_ASTAREPS")
+		s = high_level_solver_type::CLEANUP_ASTAREPS;
 	else
 	{
 		cout << "WRONG high level solver!" << endl;
@@ -98,7 +100,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	if (s == high_level_solver_type::CLEANUP && vm["cth"].as<int>() < 0)
+	if ((s == high_level_solver_type::CLEANUP || s == high_level_solver_type::CLEANUP_ASTAREPS) && vm["cth"].as<int>() < 0)
 	{
 		cerr << "cleanup thresholg should be non-negative for CLEANUP node selection." << endl;
 		return -1;

@@ -144,6 +144,7 @@ double Conflict::getImpactVal(int child_idx, int _mode_) const
 			return (double) impacts[child_idx].reduced_num_conflicts / (double) impacts[child_idx].count;
 			break;
 		default:
+			return 0;
 			break;
 		}
 	}

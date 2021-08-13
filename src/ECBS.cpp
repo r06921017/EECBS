@@ -27,13 +27,13 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 	{
 		// Debug
 		auto cleanup_head = cleanup_list.top();
-		// cleanup_head_lb = cleanup_list.top()->getFVal();
 		cleanup_head_lb = cleanup_list.top()->g_val;
-		if (screen == 4)
+		if (screen > 3)
 		{
 			cout << *cleanup_head << endl;
 			open_node_idx->push_back(cleanup_head->time_generated);
 			open_sum_lb->push_back(cleanup_head_lb);
+			open_sum_fval->push_back(cleanup_head->getFVal());
 			open_sum_cost->push_back(cleanup_head->sum_of_costs);
 			open_num_conflicts->push_back(cleanup_head->conflicts.size() + cleanup_head->unknownConf.size());
 			open_remained_flex->push_back(suboptimality * cleanup_head_lb - cleanup_head->sum_of_costs);
@@ -52,17 +52,26 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 		// Debug
 		assert((double) curr->sum_of_costs <= suboptimality * curr->getFVal());
 		assert((double) curr->sum_of_costs <= suboptimality * cleanup_head->getFVal());
-		// assert(cleanup_head_lb <= curr->sum_of_costs);
-		
-		if (screen == 4)
+
+		if (screen > 3)
 		{
 			iter_node_idx->push_back(curr->time_generated);
-			iter_sum_lb->push_back(curr->getFVal());
+			iter_sum_lb->push_back(curr->g_val);
+			iter_sum_fval->push_back(curr->getFVal());
 			iter_sum_cost->push_back(curr->sum_of_costs);
 			iter_num_conflicts->push_back(curr->conflicts.size() + curr->unknownConf.size());
-			iter_remained_flex->push_back(suboptimality * curr->getFVal() - curr->sum_of_costs);
+			iter_remained_flex->push_back(suboptimality * curr->g_val - curr->sum_of_costs);
 			iter_subopt->push_back((double) curr->sum_of_costs / (double) cleanup_head_lb);
 			iter_sum_ll_generate->push_back(curr->ll_generated);
+
+			for (const vector<int>& ma : meta_agents)
+			{
+				for (const int& ag : ma)
+				{
+					iter_ag_lb->at(ag).push_back(min_f_vals[ag]);
+					iter_ag_cost->at(ag).push_back(paths[ag]->size()-1);
+				}
+			}
 		}
 		// End debug
 
@@ -210,10 +219,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 					{
 						if (solved[i])
 						{
-							if (screen == 4)
+							if (screen > 3)
 							{
 								all_node_idx->push_back(child[i]->time_generated);
-								all_sum_lb->push_back(child[i]->getFVal());
+								all_sum_lb->push_back(child[i]->g_val);
+								all_sum_fval->push_back(child[i]->getFVal());
 								all_sum_cost->push_back(child[i]->sum_of_costs);
 								all_num_conflicts->push_back(child[i]->conflicts.size() + child[i]->unknownConf.size());
 								all_remained_flex->push_back(suboptimality * child[i]->getFVal() - child[i]->sum_of_costs);
@@ -384,6 +394,7 @@ bool ECBS::generateRoot()
 {
 	paths.resize(num_of_agents, nullptr);
 	min_f_vals.resize(num_of_agents);
+	init_min_f_vals.resize(num_of_agents);
 	mdd_helper.init(num_of_agents);
 	heuristic_helper.init();
 
@@ -572,12 +583,20 @@ bool ECBS::generateRoot()
 		{
 			paths[ag] = &paths_found_initially[ag].first;
 			if (!path_initialize)
+			{
 				min_f_vals[ag] = paths_found_initially[ag].second;
+				init_min_f_vals[ag] = paths_found_initially[ag].second;
+			}
+			else
+			{
+				init_min_f_vals[ag] = min_f_vals[ag];
+			}
+			
 		}
 	}
 	path_initialize = true;
 
-	if (screen == 4)
+	if (screen > 3)
 		root->ll_generated = num_LL_generated;
 
 	root->h_val = 0;
@@ -722,18 +741,11 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	paths[ag] = &node->paths.back().second.first;
 	node->makespan = max(node->makespan, new_path.first.size() - 1);
 
-	if (screen == 4)
+	if (screen > 3)
 		node->ll_generated = search_engines[ag]->num_generated;
 
 	assert(node->sum_of_costs <= suboptimality * node->getFVal());
 	assert(node->getFVal() >= node->parent->getFVal());
-	// if (!cleanup_list.empty())
-	// {
-	// 	cout << "cleanup_head_lb: " << cleanup_head_lb << endl;
-	// 	cout << "cleanup_list.top()->g_val: " << cleanup_list.top()->g_val << endl;
-	// 	assert(cleanup_head_lb == cleanup_list.top()->g_val);
-	// }
-	// assert(cleanup_head_lb <= node->sum_of_costs);
 
 	return true;
 }
@@ -898,6 +910,13 @@ inline void ECBS::pushNode(ECBSNode* node)
 			num_push_focal++;  // debug
 		}
 		break;
+	case high_level_solver_type::CLEANUP_ASTAREPS:
+		if (node->sum_of_costs <= suboptimality * cost_lowerbound)
+		{
+			num_push_focal++;  // debug
+            node->focal_handle = focal_list.push(node);
+		}
+		break;
 	default:
 		break;
 	}
@@ -932,6 +951,11 @@ inline bool ECBS::reinsertNode(ECBSNode* node)
 		if (node->getFHatVal() <= suboptimality * inadmissible_cost_lowerbound)
 			node->focal_handle = focal_list.push(node);
 		break;
+	case high_level_solver_type::CLEANUP_ASTAREPS:
+		if (node->sum_of_costs <= suboptimality * cost_lowerbound)
+            return false;
+        node->cleanup_handle = cleanup_list.push(node);
+        break;
 	default:
 		break;
 	}
@@ -1195,6 +1219,59 @@ ECBSNode* ECBS::selectNode()
 				focal_list.erase(curr->focal_handle);
 		}
 		break;
+	case high_level_solver_type::CLEANUP_ASTAREPS:
+		// update the focal list if necessary
+		if (cleanup_list.top()->getFVal() > cost_lowerbound)
+		{
+			if (screen == 3)
+			{
+				cout << "  Note -- FOCAL UPDATE!! from |FOCAL|=" << focal_list.size() << " with |OPEN|=" << cleanup_list.size() << " to |FOCAL|=";
+			}
+			double old_focal_list_threshold = suboptimality * cost_lowerbound;
+
+			node_cnt = 0;  // Update node counter node_cnt
+			cost_lowerbound = max(cost_lowerbound, cleanup_list.top()->getFVal());
+			double new_focal_list_threshold = suboptimality * cost_lowerbound;
+			for (auto n : cleanup_list)
+			{
+				if (n->sum_of_costs > old_focal_list_threshold && n->sum_of_costs <= new_focal_list_threshold)
+					n->focal_handle = focal_list.push(n);
+			}
+			if (screen == 3)
+			{
+				cout << focal_list.size() << endl;
+			}
+		}
+		else
+		{
+			node_cnt ++;
+		}
+		
+	
+		if (node_cnt < cleanup_th)  // Keep expanding from CLEANUP to increase the min f value
+		{
+			curr = cleanup_list.top();
+			curr->chosen_from = "cleanup";
+			cleanup_list.pop();
+			if (curr->getFVal() <= suboptimality * cost_lowerbound)
+				focal_list.erase(curr->focal_handle);
+		}
+		else
+		{
+			// choose best d in the focal list
+			curr = focal_list.top();
+			curr->chosen_from = "focal";
+			/*curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
+			curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
+			curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+			curr->f_of_best_in_focal = focal_list.top()->getFVal();
+			curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
+			curr->d_of_best_in_focal = focal_list.top()->distance_to_go;*/
+			focal_list.pop();
+			cleanup_list.erase(curr->cleanup_handle);
+		}
+		
+		break;
 	default:
 		break;
 	}
@@ -1391,6 +1468,7 @@ void ECBS::clear()
     paths.clear();
     paths_found_initially.clear();
     min_f_vals.clear();
+	init_min_f_vals.clear();
 
     open_list.clear();
     cleanup_list.clear();

@@ -7,13 +7,18 @@ class ECBS : public CBS
 {
 public:
 	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {		
-		if (screen == 4)
+		if (screen > 3)
 		{
 			// Initialize for agents analysis
 			iter_sum_lb = make_shared<vector<int>>();
 			br_sum_lb = make_shared<vector<int>>();
     		all_sum_lb = make_shared<vector<int>>();
 			open_sum_lb = make_shared<vector<int>>();
+
+			iter_sum_fval = make_shared<vector<int>>();
+			br_sum_fval = make_shared<vector<int>>();
+    		all_sum_fval = make_shared<vector<int>>();
+			open_sum_fval = make_shared<vector<int>>();
 
     		iter_sum_cost = make_shared<vector<int>>();
     		br_sum_cost = make_shared<vector<int>>();
@@ -42,6 +47,12 @@ public:
 			br_node_idx = make_shared<vector<int>>();
 			all_node_idx = make_shared<vector<int>>();
 			open_node_idx = make_shared<vector<int>>();
+
+			iter_ag_lb = make_shared<vector<vector<int>>>(num_of_agents);
+			br_ag_lb = make_shared<vector<vector<int>>>(num_of_agents);
+
+			iter_ag_cost = make_shared<vector<vector<int>>>(num_of_agents);
+			br_ag_cost = make_shared<vector<vector<int>>>(num_of_agents);
 		}
 
 		if (screen == 5)
@@ -59,6 +70,7 @@ public:
 	void setRandomInit(bool _r) {random_init = _r;}
 	void setRootReplan(bool _r, bool _f_asc, bool _c_asc) {root_replan = _r; fmin_ascend = _f_asc; conf_ascend = _c_asc;}
 	virtual void setInitialPath(int agent, Path _path) { paths_found_initially[agent].first = _path; }
+	virtual int getInitialPathLength(int agent) const {return (int) paths_found_initially[agent].first.size() - 1; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
@@ -84,7 +96,7 @@ private:
 	ECBSNode* selectNode();
 	bool reinsertNode(ECBSNode* node);
 
-	 // high level search
+	// high level search
 	bool generateChild(ECBSNode* child, ECBSNode* curr, int child_idx=0);
 	bool generateRoot();
 	bool findPathForSingleAgent(ECBSNode*  node, int ag);

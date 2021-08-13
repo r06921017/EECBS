@@ -1199,6 +1199,7 @@ vector<Path> CBS::getPath(void) const
 	for (const vector<int>& ma : meta_agents)
 		for (const int& ag : ma)
 			output_paths[ag] = Path(*paths[ag]);
+	return output_paths;
 }
 
 void CBS::printConflicts(const HLNode &curr)
@@ -1447,7 +1448,7 @@ bool CBS::terminate(HLNode* curr)
         if (screen > 0) // 1 or 2
             printResults();
 
-		if (screen == 4)
+		if (screen > 3)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
@@ -1466,7 +1467,7 @@ bool CBS::terminate(HLNode* curr)
 		goal_node = curr;
 		solution_cost = goal_node->getFHatVal() - goal_node->cost_to_go;
 
-		if (screen == 4)
+		if (screen > 3)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
@@ -1493,7 +1494,7 @@ bool CBS::terminate(HLNode* curr)
         if (screen > 0) // 1 or 2
             printResults();
 
-		if (screen == 4)
+		if (screen > 3)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
@@ -1521,6 +1522,9 @@ void CBS::saveEval(void)
 		stats << "iter_sum_lb,";
 		std::copy(iter_sum_lb->begin(), iter_sum_lb->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
+		stats << "iter_sum_fval,";
+		std::copy(iter_sum_fval->begin(), iter_sum_fval->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
 		stats << "iter_sum_cost,";
 		std::copy(iter_sum_cost->begin(), iter_sum_cost->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
@@ -1539,6 +1543,9 @@ void CBS::saveEval(void)
 		
 		stats << "br_sum_lb,";
 		std::copy(br_sum_lb->begin(), br_sum_lb->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_sum_fval,";
+		std::copy(br_sum_fval->begin(), br_sum_fval->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
 		stats << "br_sum_cost,";
 		std::copy(br_sum_cost->begin(), br_sum_cost->end(), std::ostream_iterator<int>(stats, ","));
@@ -1559,6 +1566,9 @@ void CBS::saveEval(void)
 		stats << "all_sum_lb,";
 		std::copy(all_sum_lb->begin(), all_sum_lb->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
+		stats << "all_sum_fval,";
+		std::copy(all_sum_fval->begin(), all_sum_fval->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
 		stats << "all_sum_cost,";
 		std::copy(all_sum_cost->begin(), all_sum_cost->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
@@ -1578,6 +1588,9 @@ void CBS::saveEval(void)
 		stats << "open_sum_lb,";
 		std::copy(open_sum_lb->begin(), open_sum_lb->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
+		stats << "open_sum_fval,";
+		std::copy(open_sum_fval->begin(), open_sum_fval->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
 		stats << "open_sum_cost,";
 		std::copy(open_sum_cost->begin(), open_sum_cost->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
@@ -1591,14 +1604,41 @@ void CBS::saveEval(void)
 		stats << "iter_node_idx,";
 		std::copy(iter_node_idx->begin(), iter_node_idx->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
-
 		stats << "br_node_idx,";
 		std::copy(br_node_idx->begin(), br_node_idx->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
-
 		stats << "open_node_idx,";
 		std::copy(open_node_idx->begin(), open_node_idx->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
+
+		stats << "iter_ag_lb," << endl;
+		for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
+		{
+			stats << __ag__ << ",";
+			std::copy(iter_ag_lb->at(__ag__).begin(), iter_ag_lb->at(__ag__).end(), std::ostream_iterator<int>(stats, ","));
+			stats << endl;
+		}
+		stats << "iter_ag_cost," << endl;
+		for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
+		{
+			stats << __ag__ << ",";
+			std::copy(iter_ag_cost->at(__ag__).begin(), iter_ag_cost->at(__ag__).end(), std::ostream_iterator<int>(stats, ","));
+			stats << endl;
+		}
+		stats << "br_ag_lb," << endl;
+		for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
+		{
+			stats << __ag__ << ",";
+			std::copy(br_ag_lb->at(__ag__).begin(), br_ag_lb->at(__ag__).end(), std::ostream_iterator<int>(stats, ","));
+			stats << endl;
+		}
+		stats << "br_ag_cost," << endl;
+		for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
+		{
+			stats << __ag__ << ",";
+			std::copy(br_ag_cost->at(__ag__).begin(), br_ag_cost->at(__ag__).end(), std::ostream_iterator<int>(stats, ","));
+			stats << endl;
+		}
 
 		stats.close();
 	}
@@ -1949,21 +1989,56 @@ void CBS::clear()
 void CBS::getBranchEval(HLNode* __node__, int open_head_lb)
 {
 	assert(br_sum_lb->empty());
+	assert(br_sum_fval->empty());
 	assert(br_sum_cost->empty());
 	assert(br_num_conflicts->empty());
 	assert(br_remained_flex->empty());
 
+	int node_cnt = 0;
 	while (__node__ != nullptr)
 	{
 		br_node_idx->push_back(__node__->time_generated);
-		br_sum_lb->push_back(__node__->getFVal());
+		br_sum_lb->push_back(__node__->g_val);
+		br_sum_fval->push_back(__node__->getFVal());
 		br_sum_cost->push_back(__node__->sum_of_costs);
 		br_num_conflicts->push_back(__node__->conflicts.size() + __node__->unknownConf.size());
-		br_remained_flex->push_back(suboptimality * __node__->getFVal() - __node__->sum_of_costs);
+		br_remained_flex->push_back(suboptimality * __node__->g_val - __node__->sum_of_costs);
 		if (open_head_lb != 0)
 			br_subopt->push_back((double) __node__->sum_of_costs / (double) open_head_lb);
+
+		vector<bool> set_val = vector<bool>(num_of_agents, false);
+		list<pair<int, int>> tmp_ag_lb = __node__->getLBs();
+		for (const auto& tmp_lb : tmp_ag_lb)
+		{
+			br_ag_lb->at(tmp_lb.first).push_back(tmp_lb.second);
+			set_val[tmp_lb.first] = true;
+		}
+		for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
+			if (!set_val[__ag__])
+				br_ag_lb->at(__ag__).push_back(-1);
+
+		set_val = vector<bool>(num_of_agents, false);
+		list<pair<int, int>> tmp_ag_cost = __node__->getCosts();
+		for (const auto& tmp_cost : tmp_ag_cost)
+		{
+			br_ag_cost->at(tmp_cost.first).push_back(tmp_cost.second);
+			set_val[tmp_cost.first] = true;
+		}
+		for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
+			if (!set_val[__ag__])
+				br_ag_cost->at(__ag__).push_back(-1);
+
 		br_sum_ll_generate->push_back(__node__->ll_generated);
 		__node__ = __node__->parent;
+		node_cnt ++;
+	}
+
+	// Push back initial lowerbounds and costs of agents
+	node_cnt ++;
+	for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
+	{
+		br_ag_lb->at(__ag__).push_back(init_min_f_vals[__ag__]);
+		br_ag_cost->at(__ag__).push_back(getInitialPathLength(__ag__));
 	}
 
 	// Reverse the vectors
@@ -1974,6 +2049,22 @@ void CBS::getBranchEval(HLNode* __node__, int open_head_lb)
 	std::reverse(br_remained_flex->begin(), br_remained_flex->end());
 	std::reverse(br_subopt->begin(), br_subopt->end());
 	std::reverse(br_sum_ll_generate->begin(), br_sum_ll_generate->end());
+	for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
+	{
+		std::reverse(br_ag_lb->at(__ag__).begin(), br_ag_lb->at(__ag__).end());
+		std::reverse(br_ag_cost->at(__ag__).begin(), br_ag_cost->at(__ag__).end());
+	}
+
+	// Fill the lowerbound and costs of agents
+	for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
+		for (int i = 0; i < br_ag_lb->at(__ag__).size()-1; i++)
+			if (br_ag_lb->at(__ag__).at(i+1) == -1)
+				br_ag_lb->at(__ag__).at(i+1) = br_ag_lb->at(__ag__).at(i);
+	for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
+		for (int i = 0; i < br_ag_cost->at(__ag__).size()-1; i++)
+			if (br_ag_cost->at(__ag__).at(i+1) == -1)
+				br_ag_cost->at(__ag__).at(i+1) = br_ag_cost->at(__ag__).at(i);
+
 	return;
 }
 

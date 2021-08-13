@@ -84,4 +84,20 @@ public:
 			rst.push_back(path.first);
 		return rst;
 	}
+	
+	// Get LBs and costs of its paths
+	list<pair<int, int>> getLBs() const
+	{
+		list<pair<int, int>> outputs;
+		for (const auto& p : paths)
+			outputs.push_back(make_pair(get<0>(p), get<1>(get<1>(p))));
+		return outputs;
+	}
+	list<pair<int, int>> getCosts() const
+	{
+		list<pair<int, int>> outputs;
+		for (const auto& p : paths)
+			outputs.push_back(make_pair(get<0>(p), get<0>(get<1>(p)).size()-1));
+		return outputs;
+	}
 };

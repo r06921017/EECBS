@@ -64,6 +64,8 @@ public:
 	virtual inline int getNumNewPaths() const = 0;
 	virtual list<int> getReplannedAgents() const = 0;
 	virtual inline string getName() const = 0;
+	virtual list<pair<int, int>> getLBs() const = 0;  // <agent, lowerbound>
+	virtual list<pair<int, int>> getCosts() const = 0;  // <agent, cost>
 	void clear();
 	// void printConflictGraph(int num_of_agents) const;
 	void updateDistanceToGo();
@@ -180,6 +182,21 @@ public:
 		for (const auto& path : paths)
 			rst.push_back(path.first);
 		return rst;
+	}
+
+	list<pair<int, int>> getLBs() const override
+	{
+		list<pair<int, int>> outputs;
+		for (const auto& p : paths)
+			outputs.push_back(make_pair(get<0>(p), get<1>(p).size()-1));
+		return outputs;
+	}
+	list<pair<int, int>> getCosts() const override
+	{
+		list<pair<int, int>> outputs;
+		for (const auto& p : paths)
+			outputs.push_back(make_pair(get<0>(p), get<1>(p).size()-1));
+		return outputs;
 	}
 };
 
