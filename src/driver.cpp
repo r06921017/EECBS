@@ -36,6 +36,7 @@ int main(int argc, char** argv)
 		("lowLevelSolver", po::value<bool>()->default_value(true), "using suboptimal solver in the low level")
 		("inadmissibleH", po::value<string>()->default_value("Global"), "inadmissible heuristics (Zero, Global, Path, Local, Conflict)")  // ECBS: Zero
 		("suboptimality", po::value<double>()->default_value(1.2), "suboptimality bound")
+		("cth", po::value<int>()->default_value(-1), "Threshold of non-increasing lowerbound in CLEANUP node slection")
 
 		// params for CBS improvement
 		("heuristics", po::value<string>()->default_value("WDG"), "admissible heuristics for the high-level search (Zero, CG,DG, WDG)")  // ECBS: Zero
@@ -83,6 +84,8 @@ int main(int argc, char** argv)
 		s = high_level_solver_type::EES;
 	else if (vm["highLevelSolver"].as<string>() == "NEW")
 		s = high_level_solver_type::NEW;
+	else if (vm["highLevelSolver"].as<string>() == "CLEANUP")
+		s = high_level_solver_type::CLEANUP;
 	else
 	{
 		cout << "WRONG high level solver!" << endl;
@@ -92,6 +95,12 @@ int main(int argc, char** argv)
 	if (s == high_level_solver_type::ASTAR && vm["suboptimality"].as<double>() > 1)
 	{
 		cerr << "A* cannot perform suboptimal search!" << endl;
+		return -1;
+	}
+
+	if (s == high_level_solver_type::CLEANUP && vm["cth"].as<int>() < 0)
+	{
+		cerr << "cleanup thresholg should be non-negative for CLEANUP node selection." << endl;
 		return -1;
 	}
 
@@ -181,6 +190,8 @@ int main(int argc, char** argv)
 			if (vm["mr"].as<bool>())
 				ecbs.setMergeRestart(vm["mr"].as<bool>());
 		}
+		if (vm["cth"].as<int>() -1)
+			ecbs.setCleanupTh(vm["cth"].as<int>());
 
         //////////////////////////////////////////////////////////////////////
         // run

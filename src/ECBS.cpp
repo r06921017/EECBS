@@ -890,6 +890,14 @@ inline void ECBS::pushNode(ECBSNode* node)
 			num_push_focal++;  // debug
 		}
 		break;
+	case high_level_solver_type::CLEANUP:
+		node->open_handle = open_list.push(node);
+		if (node->getFHatVal() <= suboptimality * inadmissible_cost_lowerbound)
+		{
+			node->focal_handle = focal_list.push(node);
+			num_push_focal++;  // debug
+		}
+		break;
 	default:
 		break;
 	}
@@ -913,6 +921,12 @@ inline bool ECBS::reinsertNode(ECBSNode* node)
         node->cleanup_handle = cleanup_list.push(node);
 		break;
 	case high_level_solver_type::EES:
+        node->cleanup_handle = cleanup_list.push(node);
+		node->open_handle = open_list.push(node);
+		if (node->getFHatVal() <= suboptimality * inadmissible_cost_lowerbound)
+			node->focal_handle = focal_list.push(node);
+		break;
+	case high_level_solver_type::CLEANUP:
         node->cleanup_handle = cleanup_list.push(node);
 		node->open_handle = open_list.push(node);
 		if (node->getFHatVal() <= suboptimality * inadmissible_cost_lowerbound)
@@ -1085,6 +1099,100 @@ ECBSNode* ECBS::selectNode()
 			curr->d_of_best_in_focal = focal_list.top()->distance_to_go;*/
 			focal_list.pop();
 			cleanup_list.erase(curr->cleanup_handle);
+		}
+		break;
+	case high_level_solver_type::CLEANUP:
+		// update the focal list if necessary
+		if (open_list.top()->getFHatVal() != inadmissible_cost_lowerbound)
+		{
+			inadmissible_cost_lowerbound = open_list.top()->getFHatVal();
+			double focal_list_threshold = suboptimality * inadmissible_cost_lowerbound;
+			focal_list.clear();
+			for (auto n : open_list)
+			{
+				if (n->getFHatVal() <= focal_list_threshold)
+					n->focal_handle = focal_list.push(n);
+			}
+		}
+
+		// choose the best node
+		if (screen > 1 && cleanup_list.top()->getFVal() > cost_lowerbound)
+			cout << "Lowerbound increases from " << cost_lowerbound << " to " << cleanup_list.top()->getFVal() << endl;
+		
+		// Update node counter node_cnt
+		if (cleanup_list.top()->getFVal() > cost_lowerbound)
+			node_cnt = 0;
+		else
+			node_cnt ++;
+	
+		cost_lowerbound = max(cleanup_list.top()->getFVal(), cost_lowerbound);
+
+		if (node_cnt < cleanup_th)  // Keep expanding from CLEANUP to increase the min f value
+		{
+			curr = cleanup_list.top();
+			curr->chosen_from = "cleanup";
+			cleanup_list.pop();
+			open_list.erase(curr->open_handle);
+			if (curr->getFHatVal() <= suboptimality * inadmissible_cost_lowerbound)
+				focal_list.erase(curr->focal_handle);
+		}
+		else if (focal_list.top()->sum_of_costs <= suboptimality * cost_lowerbound)
+		{ // return best d
+			if (screen > 1)
+			{
+				cout << "node_cnt: " << node_cnt << endl;
+				cout << "cleanup_list.top()->getFVal(): " << cleanup_list.top()->getFVal() << endl;
+				cout << "cost_lowerbound: " << cost_lowerbound << endl;
+			}
+			curr = focal_list.top();
+			curr->chosen_from = "focal";
+			/*curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
+			curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
+			curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+			curr->f_of_best_in_open = open_list.top()->getFVal();
+			curr->f_hat_of_best_in_open = open_list.top()->getFHatVal();
+			curr->d_of_best_in_open = open_list.top()->distance_to_go;
+			curr->f_of_best_in_focal = focal_list.top()->getFVal();
+			curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
+			curr->d_of_best_in_focal = focal_list.top()->distance_to_go; */
+			focal_list.pop();
+			cleanup_list.erase(curr->cleanup_handle);
+			open_list.erase(curr->open_handle);
+		}
+		else if (open_list.top()->sum_of_costs <= suboptimality * cost_lowerbound)
+		{ // return best f_hat
+			curr = open_list.top();
+			curr->chosen_from = "open";
+			/*curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
+			curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
+			curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+			curr->f_of_best_in_open = open_list.top()->getFVal();
+			curr->f_hat_of_best_in_open = open_list.top()->getFHatVal();
+			curr->d_of_best_in_open = open_list.top()->distance_to_go;
+			curr->f_of_best_in_focal = focal_list.top()->getFVal();
+			curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
+			curr->d_of_best_in_focal = focal_list.top()->distance_to_go;*/
+			open_list.pop();
+			cleanup_list.erase(curr->cleanup_handle);
+			focal_list.erase(curr->focal_handle);
+		}
+		else
+		{ // return best f
+			curr = cleanup_list.top();
+			curr->chosen_from = "cleanup";
+			/*curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
+			curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
+			curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+			curr->f_of_best_in_open = open_list.top()->getFVal();
+			curr->f_hat_of_best_in_open = open_list.top()->getFHatVal();
+			curr->d_of_best_in_open = open_list.top()->distance_to_go;
+			curr->f_of_best_in_focal = focal_list.top()->getFVal();
+			curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
+			curr->d_of_best_in_focal = focal_list.top()->distance_to_go;*/
+			cleanup_list.pop();
+			open_list.erase(curr->open_handle);
+			if (curr->getFHatVal() <= suboptimality * inadmissible_cost_lowerbound)
+				focal_list.erase(curr->focal_handle);
 		}
 		break;
 	default:

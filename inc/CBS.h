@@ -4,7 +4,7 @@
 #include "CorridorReasoning.h"
 #include "MutexReasoning.h"
 
-enum high_level_solver_type { ASTAR, ASTAREPS, NEW, EES };
+enum high_level_solver_type { ASTAR, ASTAREPS, NEW, EES, CLEANUP };
 
 class CBS
 {
@@ -144,6 +144,7 @@ public:
 			meta_agents.push_back(vector<int>({_ag_}));
 	}
 	virtual void setInitialPath(int agent, Path _path) { paths_found_initially[agent] = _path; }
+	void setCleanupTh(int cth) {cleanup_th = cth;}
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
@@ -225,6 +226,10 @@ protected:
 	int init_sum_lb = 0;  // Obtain from outer (E)CBS, the initial cost_lower bound
 	double flex = 0.0;  // flex for the meta-agent
 	vector<int> min_f_vals; // lower bounds of the cost of the shortest path
+
+	// For CLEANUP node slection
+	int cleanup_th;
+	int node_cnt = 0;
 
 	vector<int> findMetaAgent(int __ag__) const;
 	bool shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode=0) const;
