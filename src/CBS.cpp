@@ -1669,6 +1669,9 @@ void CBS::saveNumNodesInLists(void)
 		stats << "iter_cannot_use_flex,";
 		std::copy(iter_cannot_use_flex->begin(), iter_cannot_use_flex->end(), std::ostream_iterator<int>(stats, ","));
 		stats << endl;
+		stats << "iter_node_idx,";
+		std::copy(iter_node_idx->begin(), iter_node_idx->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
 
 		stats.close();
 	}

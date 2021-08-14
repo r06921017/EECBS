@@ -72,6 +72,19 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 					iter_ag_cost->at(ag).push_back(paths[ag]->size()-1);
 				}
 			}
+			
+			if (screen == 5)  // Debug
+			{
+				iter_use_flex->push_back(curr->use_flex);
+				iter_no_more_flex->push_back(curr->no_more_flex);
+				iter_cannot_use_flex->push_back(curr->cannot_use_flex);
+				if (curr->chosen_from == "cleanup")
+					iter_node_type->push_back(0);
+				else if (curr->chosen_from == "open")
+					iter_node_type->push_back(1);
+				else if (curr->chosen_from == "focal")
+					iter_node_type->push_back(2);
+			}
 		}
 		// End debug
 
@@ -182,8 +195,6 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 
 						if (foundBypass)
 						{
-							// if (screen == 5)
-							// 	iter_node_type->push_back(3);
 							adoptBypass(curr, child[i], fmin_copy, path_copy);
 							if (screen > 1)
 								cout << "	Update " << *curr << endl;
@@ -219,6 +230,12 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 					{
 						if (solved[i])
 						{
+							pushNode(child[i]);
+							curr->children.push_back(child[i]);
+							if (screen > 1)
+							{
+								cout << "		Generate " << *child[i] << endl;
+							}
 							if (screen > 3)
 							{
 								all_node_idx->push_back(child[i]->time_generated);
@@ -229,13 +246,6 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 								all_remained_flex->push_back(suboptimality * child[i]->getFVal() - child[i]->sum_of_costs);
 								all_subopt->push_back((double) child[i]->sum_of_costs / (double) child[i]->getFVal());
 								all_sum_ll_generate->push_back(child[i]->ll_generated);
-							}
-
-							pushNode(child[i]);
-							curr->children.push_back(child[i]);
-							if (screen > 1)
-							{
-								cout << "		Generate " << *child[i] << endl;
 							}
 						}
 					}
@@ -271,6 +281,17 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 				curr->children.push_back(child[i]);
 				if (screen > 1)
 					cout << "		Generate " << *child[i] << endl;
+				if (screen > 3)
+				{
+					all_node_idx->push_back(child[i]->time_generated);
+					all_sum_lb->push_back(child[i]->g_val);
+					all_sum_fval->push_back(child[i]->getFVal());
+					all_sum_cost->push_back(child[i]->sum_of_costs);
+					all_num_conflicts->push_back(child[i]->conflicts.size() + child[i]->unknownConf.size());
+					all_remained_flex->push_back(suboptimality * child[i]->getFVal() - child[i]->sum_of_costs);
+					all_subopt->push_back((double) child[i]->sum_of_costs / (double) child[i]->getFVal());
+					all_sum_ll_generate->push_back(child[i]->ll_generated);
+				}
 			}
 		}
 		switch (curr->conflict->type)
@@ -299,20 +320,6 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 			num_open++;
 		else if (curr->chosen_from == "focal")
 			num_focal++;
-		
-		if (screen == 5)  // Debug
-		{
-			if (curr->chosen_from == "cleanup")
-				iter_node_type->push_back(0);
-			else if (curr->chosen_from == "open")
-				iter_node_type->push_back(1);
-			else if (curr->chosen_from == "focal")
-				iter_node_type->push_back(2);
-
-			iter_use_flex->push_back(curr->use_flex);
-			iter_no_more_flex->push_back(curr->no_more_flex);
-			iter_cannot_use_flex->push_back(curr->cannot_use_flex);
-		}
 
 		if (curr->conflict->priority == conflict_priority::CARDINAL)
 			num_cardinal_conflicts++;
@@ -655,7 +662,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	pair<Path, int> new_path;
 	if (use_flex)
 	{
-		if (screen >= 2)
+		if (screen > 1)
 		{
 			assert((double) node->sum_of_costs <= suboptimality * node->getFVal());
 			int tmp_cost = 0;
@@ -727,7 +734,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	int old_f_min = min_f_vals[ag];
 	int old_node_soc = node->sum_of_costs;
 	int old_path_cost = (int) paths[ag]->size() - 1;
-	int new_path_cost = (int) new_path.first.size() - 1;
+	int new_path_cost = (int) new_path.first.size() - 1;	
 	// end debug
 
 	node->g_val = node->g_val + max(new_path.second - min_f_vals[ag], 0);
@@ -742,7 +749,19 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	node->makespan = max(node->makespan, new_path.first.size() - 1);
 
 	if (screen > 3)
+	{
 		node->ll_generated = search_engines[ag]->num_generated;
+		if (((double) new_path_cost / (double) min_f_vals[ag]) > suboptimality)
+		{
+			cout << "agent: " << ag << endl;
+			cout << "node->parent: " << node->parent->time_generated << endl;
+			cout << "node: " << node->time_generated << endl;
+			cout << "node->use_flex: " << node->use_flex << endl;
+			cout << "node->no_more_flex: " << node->no_more_flex << endl;
+			cout << "node->cannot_use_flex: " << node->cannot_use_flex << endl;
+			cout << endl;
+		}
+	}
 
 	assert(node->sum_of_costs <= suboptimality * node->getFVal());
 	assert(node->getFVal() >= node->parent->getFVal());
