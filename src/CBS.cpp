@@ -137,6 +137,13 @@ void CBS::findConflicts(HLNode& curr)
 		copyConflicts(curr.parent->conflicts, curr.conflicts, new_agents);
 		copyConflicts(curr.parent->unknownConf, curr.unknownConf, new_agents);
 
+		if (screen == 3)  // To debug NECBS, should be no conflicts between two agents in the same meta-agent
+		{
+			printAllAgents();
+			printConflicts(curr);
+			cout << endl;
+		}
+
 		// detect new conflicts
 		for (auto it = new_agents.begin(); it != new_agents.end(); ++it)
 		{
@@ -167,8 +174,23 @@ void CBS::findConflicts(HLNode& curr)
 				findConflicts(curr, a1, a2);
 			}
 		}
+
+		// vector<bool> detected(num_of_agents, false);
+		// for (int a1 = 0; a1 < num_of_agents; a1++)
+		// {
+		// 	detected[a1] = true;
+		// 	if (ma_vec[a1])
+		// 	{
+		// 		for (int a2 = 0; a2 < num_of_agents; a2 ++)
+		// 		{
+		// 			if (ma_vec[a2] && !detected[a2] && findMetaAgent(a1) != findMetaAgent(a2))
+		// 				findConflicts(curr, a1, a2);
+		// 			else
+		// 				continue;
+		// 		}
+		// 	}
+		// }			
 	}
-	// curr.distance_to_go = (int)(curr.unknownConf.size() + curr.conflicts.size());
 	runtime_detect_conflicts += (double)(clock() - t) / CLOCKS_PER_SEC;
 }
 
@@ -410,6 +432,9 @@ void CBS::classifyConflicts(CBSNode &node)
 			if (corridor != nullptr)
 			{
 				corridor->priority = con->priority;
+				corridor->loc1 = con->loc1;
+				corridor->loc2 = con->loc2;
+				corridor->timestep = con->timestep;
 				computeSecondPriorityForConflict(*corridor, node);
 				node.conflicts.push_back(corridor);
 				continue;
@@ -428,6 +453,9 @@ void CBS::classifyConflicts(CBSNode &node)
 			auto rectangle = rectangle_helper.run(paths, timestep, a1, a2, mdd1, mdd2);
 			if (rectangle != nullptr)
 			{
+				rectangle->loc1 = con->loc1;
+				rectangle->loc2 = con->loc2;
+				rectangle->timestep = con->timestep;
 				computeSecondPriorityForConflict(*rectangle, node);
 				node.conflicts.push_back(rectangle);
 				continue;
@@ -1720,6 +1748,46 @@ void CBS::addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) con
 	{
 		child1->constraints = curr->conflict->constraint1;
 		child2->constraints = curr->conflict->constraint2;
+
+		// vector<int> conf_ma1 = findMetaAgent(curr->conflict->a1);
+		// if (conf_ma1.size() == 1)
+		// {
+		// 	child1->constraints = curr->conflict->constraint1;
+		// }
+		// else
+		// {
+		// 	constraint_type type;
+		// 	if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
+		// 		type = constraint_type::VERTEX;
+		// 	else  // Meta-agent edge constraint
+		// 		type = constraint_type::EDGE;
+
+		// 	for (const int& _ag_ : conf_ma1)
+		// 	{
+		// 		child1->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
+		// 			curr->conflict->timestep, type);
+		// 	}
+		// }
+
+		// vector<int> conf_ma2 = findMetaAgent(curr->conflict->a2);
+		// if (conf_ma2.size() == 1)
+		// {
+		// 	child2->constraints = curr->conflict->constraint2;
+		// }
+		// else
+		// {
+		// 	constraint_type type;
+		// 	if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
+		// 		type = constraint_type::VERTEX;
+		// 	else  // Meta-agent edge constraint
+		// 		type = constraint_type::EDGE;
+
+		// 	for (const int& _ag_ : conf_ma2)
+		// 	{
+		// 		child2->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
+		// 			curr->conflict->timestep, type);
+		// 	}
+		// }
 	}
 }
 
@@ -2105,6 +2173,17 @@ vector<int> CBS::findMetaAgent(int __ag__) const
 		}
 	}
 	return out_list;
+}
+
+void CBS::printAllAgents(void) const
+{
+	for (const vector<int>& _ma_ : meta_agents)
+	{
+		for (const int& _ag_ : _ma_)
+			cout << _ag_ << ", ";
+		cout << "|";
+	}
+	cout << endl;
 }
 
 bool CBS::compareConflicts(shared_ptr<Conflict> conflict1, shared_ptr<Conflict> conflict2)

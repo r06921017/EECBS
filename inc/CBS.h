@@ -23,6 +23,7 @@ public:
 	double runtime_preprocessing = 0; // runtime of building heuristic table for the low level
 	double runtime_solver = 0;  // runtime for using inner solver for meta-agents
 	double runtime_sort_ma = 0;  // runtime for computing priority heuristic
+	double runtime_merge = 0;  // runtime for merging the agents
 
 	uint64_t num_cardinal_conflicts = 0;
 	uint64_t num_corridor_conflicts = 0;
@@ -142,26 +143,40 @@ public:
 	void setMergeRestart(bool mr) { mr_active = mr; }
 	void setMASolver(shared_ptr<CBS> in_solver) { inner_solver = in_solver; }
 	void setMAVector(vector<bool> in_ma_vec) { ma_vec = in_ma_vec; }	
-	void setMinFVal(int agent, int val) { min_f_vals[agent] = val; }
 	void setInitConstraints(int agent, ConstraintTable _table) {initial_constraints[agent].init(_table);}
 	void setInitSumLB (int _sum_lb) { init_sum_lb = _sum_lb; }
 	void setFlex(double val) {flex = val;}
 	void setTimeLimit(double tl) { time_limit = tl; }
 	void setIsStart(bool _st) { is_start = _st; }
+	void setIsSolver(bool s) {is_solver = s;}
 	void setMetaAgents(vector<int> in_ma)
 	{
 		meta_agents.clear();
 		for (const int& _ag_ : in_ma)
 			meta_agents.push_back(vector<int>({_ag_}));
 	}
-	virtual void setInitialPath(int agent, Path _path) { paths_found_initially[agent] = _path; }
+	void setMinFVal(int agent, int val)
+	{
+		if (min_f_vals.empty())
+			min_f_vals.resize(num_of_agents);
+		min_f_vals[agent] = val; 
+	}
+	virtual void setInitialPath(int agent, Path _path)
+	{ 
+		if (paths_found_initially.empty())
+			paths_found_initially.resize(num_of_agents);
+		paths_found_initially[agent] = _path; 
+	}
 	virtual int getInitialPathLength(int agent) const {return (int) paths_found_initially[agent].size() - 1; }
 	int getminFVal(int agent) const { return min_f_vals[agent]; }
 	void setCleanupTh(int cth) {cleanup_th = cth;}
+	void setUseFlex(bool _f) { use_flex = _f; }
+	void setRandomInit(bool _r) {random_init = _r;}
+	void setRootReplan(bool _r, bool _f_asc, bool _c_asc) {root_replan = _r; fmin_ascend = _f_asc; conf_ascend = _c_asc;}
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
-	bool solve(double time_limit, int cost_lowerbound = 0, int cost_upperbound = MAX_COST);
+	virtual bool solve(double time_limit, int _cost_lowerbound = 0, int _cost_upperbound = MAX_COST);
 
 	int getLowerBound() const { return cost_lowerbound; }
 	Path getPath(int agent) const { return *paths[agent]; }
@@ -179,7 +194,7 @@ public:
 	void saveStats(const string &fileName, const string &instanceName);
 	void saveCT(const string &fileName) const; // write the CT to a file
     void savePaths(const string &fileName) const; // write the paths to a file
-	void clear(); // used for rapid random  restart
+	virtual void clear(); // used for rapid random  restart
 
 protected:
     bool rectangle_reasoning;  // using rectangle reasoning
@@ -220,7 +235,6 @@ protected:
 	int num_of_agents;
 
 	vector<Path*> paths;
-	vector<Path> paths_found_initially;  // contain initial paths found
 	// vector<MDD*> mdds_initially;  // contain initial paths found
 	vector < SingleAgentSolver* > search_engines;  // used to find (single) agents' paths and mdd
 
@@ -238,11 +252,18 @@ protected:
 	vector<int> min_f_vals; // lower bounds of the cost of the shortest path
 	vector<int> init_min_f_vals; // lower bounds of the cost of the shortest path at the root CT node
 
+	bool use_flex;  // Whether to use FEECBS or EECBS
+	bool random_init;
+	bool root_replan;
+	bool fmin_ascend;
+	bool conf_ascend;
+
 	// For CLEANUP node slection
 	int cleanup_th;
 	int node_cnt = 0;
 
 	vector<int> findMetaAgent(int __ag__) const;
+	void printAllAgents(void) const;
 	bool shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode=0) const;
 
 	template <typename T, typename S>
@@ -323,6 +344,7 @@ protected:
 	void saveNumNodesInLists(void);
 
 private: // CBS only, cannot be used by ECBS
+	vector<Path> paths_found_initially;  // contain initial paths found
 	pairing_heap< CBSNode*, compare<CBSNode::compare_node_by_f> > cleanup_list; // it is called open list in ECBS
 	pairing_heap< CBSNode*, compare<CBSNode::compare_node_by_inadmissible_f> > open_list; // this is used for EES
 	pairing_heap< CBSNode*, compare<CBSNode::compare_node_by_d> > focal_list; // this is ued for both ECBS and EES

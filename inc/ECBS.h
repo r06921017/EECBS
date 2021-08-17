@@ -66,25 +66,22 @@ public:
 			iter_cannot_use_flex = make_shared<vector<bool>>();
 		}
 	}
-	void setUseFlex(bool _f) { use_flex = _f; }
-	void setRandomInit(bool _r) {random_init = _r;}
-	void setRootReplan(bool _r, bool _f_asc, bool _c_asc) {root_replan = _r; fmin_ascend = _f_asc; conf_ascend = _c_asc;}
-	virtual void setInitialPath(int agent, Path _path) { paths_found_initially[agent].first = _path; }
-	virtual int getInitialPathLength(int agent) const {return (int) paths_found_initially[agent].first.size() - 1; }
+	void setInitialPath(int agent, Path _path) override
+	{ 
+		if (paths_found_initially.empty())
+			paths_found_initially.resize(num_of_agents);
+		paths_found_initially[agent].first = _path;
+		cout << paths_found_initially[agent].first << endl;
+	}
+	int getInitialPathLength(int agent) const override {return (int) paths_found_initially[agent].first.size() - 1; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
-	bool solve(double time_limit, int cost_lowerbound = 0);
-    void clear(); // used for rapid random  restart
+	bool solve(double time_limit, int _cost_lowerbound = 0, int _cost_upperbound = MAX_COST) override;
+    void clear() override; // used for rapid random  restart
 
 private:
 	vector< pair<Path, int> > paths_found_initially;  // contain initial paths found
-	bool use_flex;  // Whether to use FEECBS or EECBS
-	bool random_init;
-	bool root_replan;
-	bool fmin_ascend;
-	bool conf_ascend;
-
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_f> > cleanup_list; // it is called open list in ECBS
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_inadmissible_f> > open_list; // this is used for EES
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_d> > focal_list; // this is ued for both ECBS and EES

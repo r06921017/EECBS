@@ -32,7 +32,7 @@ int main(int argc, char** argv)
 		("stats", po::value<bool>()->default_value(false), "write to files some detailed statistics")
 
 		// params for CBS node selection strategies
-		("highLevelSolver", po::value<string>()->default_value("EES"), "the high-level solver (A*, A*eps, EES, NEW)")  // ECBS: A*eps
+		("highLevelSolver", po::value<string>()->default_value("EES"), "the high-level solver (A*, A*eps, EES, NEW, CLEANUP, CLEANUP_ASTAREPS)")  // ECBS: A*eps
 		("lowLevelSolver", po::value<bool>()->default_value(true), "using suboptimal solver in the low level")
 		("inadmissibleH", po::value<string>()->default_value("Global"), "inadmissible heuristics (Zero, Global, Path, Local, Conflict)")  // ECBS: Zero
 		("suboptimality", po::value<double>()->default_value(1.2), "suboptimality bound")
@@ -55,6 +55,7 @@ int main(int argc, char** argv)
 		("rp", po::value<bool>()->default_value(false), "set true to use root replanning")
 		("fa", po::value<bool>()->default_value(false), "set true to sort agents at root in ascending fmin value")
 		("ca", po::value<bool>()->default_value(false), "set true to sort agents at root in ascending conflicts value")
+		("mr", po::value<bool>()->default_value(false), "set true to use the merage and restart technique")
 
 		// Statistic analysis
 		("saveCT", po::value<bool>()->default_value(false), "set true for plotting CT")
@@ -186,7 +187,24 @@ int main(int argc, char** argv)
 		// inner solver for nested framework
 		if (vm["mergeTh"].as<int>() < INT_MAX)
 		{
-			shared_ptr<CBS> inner_solver = make_shared<CBS>(ECBS(instance, false, vm["screen"].as<int>()));
+			shared_ptr<CBS> inner_solver = make_shared<ECBS>(ECBS(instance, false, vm["screen"].as<int>()));
+			inner_solver->setIsSolver(true);
+			inner_solver->setPrioritizeConflicts(vm["prioritizingConflicts"].as<bool>());
+			inner_solver->setDisjointSplitting(vm["disjointSplitting"].as<bool>());
+			inner_solver->setBypass(vm["bypass"].as<bool>());
+			inner_solver->setRectangleReasoning(vm["rectangleReasoning"].as<bool>());
+			inner_solver->setCorridorReasoning(vm["corridorReasoning"].as<bool>());
+			inner_solver->setHeuristicType(h, h_hat);
+			inner_solver->setTargetReasoning(vm["targetReasoning"].as<bool>());
+			inner_solver->setMutexReasoning(false);
+			inner_solver->setConflictSelectionRule(conflict);
+			inner_solver->setNodeSelectionRule(n);
+			inner_solver->setSavingStats(vm["stats"].as<bool>());
+			inner_solver->setHighLevelSolver(s, vm["suboptimality"].as<double>());
+			inner_solver->setUseFlex(vm["flex"].as<bool>());
+			inner_solver->setRootReplan(vm["rp"].as<bool>(), vm["fa"].as<bool>(), vm["ca"].as<bool>());
+			inner_solver->setRandomInit(vm["randomInit"].as<bool>());
+
 			ecbs.setMASolver(inner_solver);
 			ecbs.setMergeThreshold(vm["mergeTh"].as<int>());
 			if (vm["mr"].as<bool>())
@@ -201,7 +219,7 @@ int main(int argc, char** argv)
         int lowerbound = 0;
         for (int i = 0; i < runs; i++)
         {
-            // ecbs.clear();
+            ecbs.clear();
             ecbs.solve(vm["cutoffTime"].as<double>() / runs, lowerbound);
             runtime += ecbs.runtime;
             if (ecbs.solution_found)

@@ -32,6 +32,9 @@ class Conflict
 public:
 	int a1;
 	int a2;
+	int loc1;
+	int loc2;
+	int timestep;
 	list<Constraint> constraint1;
 	list<Constraint> constraint2;
 	conflict_type type;
@@ -48,6 +51,9 @@ public:
         constraint2.clear();
 		this->a1 = a1;
 		this->a2 = a2;
+		this->loc1 = v;
+		this->loc2 = -1;
+		this->timestep = t;
 		this->constraint1.emplace_back(a1, v, -1, t, constraint_type::VERTEX);
 		this->constraint2.emplace_back(a2, v, -1, t, constraint_type::VERTEX);
 		type = conflict_type::STANDARD;
@@ -59,6 +65,9 @@ public:
         constraint2.clear();
 		this->a1 = a1;
 		this->a2 = a2;
+		this->loc1 = v1;
+		this->loc2 = v2;
+		this->timestep = t;
 		this->constraint1.emplace_back(a1, v1, v2, t, constraint_type::EDGE);
 		this->constraint2.emplace_back(a2, v2, v1, t, constraint_type::EDGE);
 		type = conflict_type::STANDARD;
@@ -93,6 +102,9 @@ public:
         constraint2.clear();
 		this->a1 = a1;
 		this->a2 = a2;
+		this->loc1 = v;
+		this->loc2 = -1;
+		this->timestep = t;
 		this->constraint1.emplace_back(a1, v, -1, t, constraint_type::LEQLENGTH);
 		this->constraint2.emplace_back(a1, v, -1, t, constraint_type::GLENGTH);
 		type = conflict_type::TARGET;
