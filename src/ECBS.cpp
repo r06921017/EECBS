@@ -89,6 +89,12 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		if (terminate(curr))
 			return solution_found;
 
+		if (use_flex && curr->chosen_from == "cleanup")  // Early replanning for FEECBS
+		{
+			restart = true;
+			break;
+		}
+
 		if ((curr == dummy_start || curr->chosen_from == "cleanup") &&
 		     !curr->h_computed) // heuristics has not been computed yet
 		{
@@ -421,6 +427,16 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		curr->clear();
 	}  // end of while loop
 
+	clock_t curr_t = clock();
+	if (restart && runtime < time_limit)
+	{
+		assert(use_flex);
+		use_flex = false;
+		clear();
+		bool debug_foundSol = solve(time_limit, 0);
+		assert(debug_foundSol == solution_found);
+	}
+
 	return solution_found;
 }
 
@@ -508,9 +524,9 @@ bool ECBS::generateRoot()
 	if (!path_initialize)
 	{
 		// initialize paths_found_initially
-		assert(paths_found_initially.empty());
 		paths_found_initially.clear();
 		paths_found_initially.resize(num_of_agents);
+		min_f_vals.clear();
 		min_f_vals.resize(num_of_agents);
 	}
 
@@ -1622,6 +1638,7 @@ void ECBS::clear()
         delete node;
     allNodes_table.clear();
 
+	path_initialize = false;
     dummy_start = nullptr;
     goal_node = nullptr;
     solution_found = false;
@@ -1630,4 +1647,7 @@ void ECBS::clear()
 	// for nested framework
 	meta_agents.clear();
 	ma_vec.clear();
+	ma_vec.resize(num_of_agents, false);  // checking if need to solve agent
+	conflict_matrix.clear();
+	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
 }

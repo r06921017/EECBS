@@ -252,7 +252,8 @@ protected:
 	vector<int> min_f_vals; // lower bounds of the cost of the shortest path
 	vector<int> init_min_f_vals; // lower bounds of the cost of the shortest path at the root CT node
 
-	bool use_flex;  // Whether to use FEECBS or EECBS
+	bool use_flex = false;  // Whether to use FEECBS or EECBS
+	bool restart = false;
 	bool random_init;
 	bool root_replan;
 	bool fmin_ascend;

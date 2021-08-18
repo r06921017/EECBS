@@ -1941,6 +1941,8 @@ inline void CBS::releaseNodes()
 	for (auto& node : allNodes_table)
 		delete node;
 	allNodes_table.clear();
+	path_initialize = false;
+	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
 }
 
 
@@ -2044,6 +2046,7 @@ void CBS::clear()
 	releaseNodes();
 	paths.clear();
 	paths_found_initially.clear();
+	path_initialize = false;
 	dummy_start = nullptr;
 	goal_node = nullptr;
 	solution_found = false;
