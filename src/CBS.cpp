@@ -137,13 +137,6 @@ void CBS::findConflicts(HLNode& curr)
 		copyConflicts(curr.parent->conflicts, curr.conflicts, new_agents);
 		copyConflicts(curr.parent->unknownConf, curr.unknownConf, new_agents);
 
-		if (screen == 3)  // To debug NECBS, should be no conflicts between two agents in the same meta-agent
-		{
-			printAllAgents();
-			printConflicts(curr);
-			cout << endl;
-		}
-
 		// detect new conflicts
 		for (auto it = new_agents.begin(); it != new_agents.end(); ++it)
 		{
@@ -1043,7 +1036,7 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 			"runtime of building MDDs,runtime of building constraint tables,runtime of building CATs," <<
 			"runtime of path finding,runtime of generating child nodes," <<
 			"preprocessing runtime,solver name,instance name,#pushFOCAL," <<
-			"#use pri,#use_type,#use second pri,#use increased flex,#use increased lb,#use reduced conf,#use count,#tie,#has seen conf" << endl;
+			"#use pri,#use_type,#use second pri,#use increased flex,#use increased lb,#use reduced conf,#use count,#tie,#has seen conf,restart_cnt,restart_th" << endl;
 		addHeads.close();
 	}
 	ofstream stats(fileName, std::ios::app);
@@ -1077,7 +1070,7 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 
 		runtime_preprocessing << "," << getSolverName() << "," << instanceName << "," << num_push_focal << "," <<
 		num_use_priority << "," << num_use_type << "," << num_use_second_priority << "," << num_use_increased_flex << "," << 
-		num_use_increased_lb << "," << num_use_reduced_conflicts << "," << num_use_count << "," << num_tie << "," << num_has_seen_conf << endl;
+		num_use_increased_lb << "," << num_use_reduced_conflicts << "," << num_use_count << "," << num_tie << "," << num_has_seen_conf << "," << restart_cnt << "," << restart_th << endl;
 	stats.close();
 }
 

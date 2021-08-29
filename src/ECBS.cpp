@@ -35,13 +35,13 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 			open_sum_cost->push_back(cleanup_head->sum_of_costs);
 			open_num_conflicts->push_back(cleanup_head->conflicts.size() + cleanup_head->unknownConf.size());
 			open_remained_flex->push_back(suboptimality * cleanup_head_lb - cleanup_head->sum_of_costs);
-		}
-
-		if (screen == 5)  // Check the number of CT nodes in FOCAL, OPEN, and CLEANUP
-		{
-			iter_num_focal->push_back(focal_list.size());
-			iter_num_open->push_back(open_list.size());
-			iter_num_cleanup->push_back(cleanup_list.size());
+			
+			if (screen == 5)  // Check the number of CT nodes in FOCAL, OPEN, and CLEANUP
+			{
+				iter_num_focal->push_back(focal_list.size());
+				iter_num_open->push_back(open_list.size());
+				iter_num_cleanup->push_back(cleanup_list.size());
+			}
 		}
 		// End debug
 
@@ -91,8 +91,12 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 
 		if (use_flex && curr->chosen_from == "cleanup")  // Early replanning for FEECBS
 		{
-			restart = true;
-			break;
+			restart_cnt ++;
+			if (restart_cnt > restart_th && restart_th > -1)
+			{
+				restart = true;
+				break;
+			}
 		}
 
 		if ((curr == dummy_start || curr->chosen_from == "cleanup") &&
@@ -128,8 +132,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 				foundBypass = false;
 				ECBSNode* child[2] = { new ECBSNode() , new ECBSNode() };
 
-				if (screen == 3)
-					debugChooseConflict(*curr);
+				// if (screen == 3)
+				// 	debugChooseConflict(*curr);
 				curr->conflict = chooseConflict(*curr);  // TODO: choose conflict that is between two meta_agents
 
 				// update conflict_matrix and joint meta_agent
@@ -424,15 +428,29 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 			num_cardinal_conflicts++;
         if (!curr->children.empty())
             heuristic_helper.updateOnlineHeuristicErrors(*curr); // update online heuristic errors
+		
+		// if (screen == 5 && curr->time_generated == 144)
+		// {
+		// 	cout << *curr << endl;
+		// 	for (const auto& child : curr->children)
+		// 	{
+		// 		cout << *child << endl;
+		// 		cout << endl;
+		// 	}
+		// }
 		curr->clear();
 	}  // end of while loop
 
+	// Restart from FEECBS to EECBS
 	clock_t curr_t = clock();
 	if (restart && runtime < time_limit)
 	{
+		vector<pair<Path,int>> backup_initial_paths = paths_found_initially;  // We do not want to clear initial paths
+		clear();
+
 		assert(use_flex);
 		use_flex = false;
-		clear();
+		srand(0);
 		bool debug_foundSol = solve(time_limit, 0);
 		assert(debug_foundSol == solution_found);
 	}
@@ -610,16 +628,16 @@ bool ECBS::generateRoot()
 				int ag = ma.front();
 				if (candidate_paths[ag].first.empty())
 				{
-					candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
-					// if (!use_flex)
-					// {
-					// 	candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
-					// }
-					// else
-					// {
-					// 	candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality, 
-					// 		candidate->g_val - min_f_vals[ag], candidate->sum_of_costs - min_f_vals[ag], init_sum_lb, flex);
-					// }
+					// candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
+					if (use_flex)
+					{
+						candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality, 
+							candidate->g_val - min_f_vals[ag], candidate->sum_of_costs - min_f_vals[ag], init_sum_lb, flex);
+					}
+					else
+					{
+						candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
+					}
 
 					num_LL_expanded += search_engines[ag]->num_expanded;
 					num_LL_generated += search_engines[ag]->num_generated;
@@ -704,7 +722,7 @@ bool ECBS::generateRoot()
 			}
 		}
 	}
-	else  // Inner
+	else  // Inner or restart from root
 	{
 		for (int ag = 0; ag < num_of_agents; ag++)
 		{
@@ -811,6 +829,10 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 		int other_sum_lb = node->g_val - min_f_vals[ag];
 		int other_sum_cost = node->sum_of_costs - (int) paths[ag]->size() + 1;
 
+		// new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
+		// 	suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
+
+		// Flex restriction
 		bool not_use_flex;
 		if (node == dummy_start || node->parent == dummy_start)
 		{
@@ -842,6 +864,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 			if (suboptimality* (double) other_sum_lb - (double) other_sum_cost < 0)
 				node->no_more_flex = true;
 		}
+		// End Flex restrictions
 	}
 	else
 	{
@@ -857,15 +880,6 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 		return false;
 	assert(!isSamePath(*paths[ag], new_path.first));
 
-	// debug
-	int old_node_g_val = node->g_val;
-	int old_node_h_val = node->h_val;
-	int old_f_min = min_f_vals[ag];
-	int old_node_soc = node->sum_of_costs;
-	int old_path_cost = (int) paths[ag]->size() - 1;
-	int new_path_cost = (int) new_path.first.size() - 1;	
-	// end debug
-
 	node->g_val = node->g_val + max(new_path.second - min_f_vals[ag], 0);
 	if (node->parent != nullptr)
 	    node->h_val = max(0, node->parent->getFVal() - node->g_val); // pathmax
@@ -876,21 +890,6 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	node->paths.emplace_back(ag, new_path);
 	paths[ag] = &node->paths.back().second.first;
 	node->makespan = max(node->makespan, new_path.first.size() - 1);
-
-	if (screen > 3)
-	{
-		node->ll_generated = search_engines[ag]->num_generated;
-		if (((double) new_path_cost / (double) min_f_vals[ag]) > suboptimality)
-		{
-			cout << "agent: " << ag << endl;
-			cout << "node->parent: " << node->parent->time_generated << endl;
-			cout << "node: " << node->time_generated << endl;
-			cout << "node->use_flex: " << node->use_flex << endl;
-			cout << "node->no_more_flex: " << node->no_more_flex << endl;
-			cout << "node->cannot_use_flex: " << node->cannot_use_flex << endl;
-			cout << endl;
-		}
-	}
 
 	assert(node->sum_of_costs <= suboptimality * node->getFVal());
 	assert(node->getFVal() >= node->parent->getFVal());
@@ -1648,6 +1647,7 @@ void ECBS::clear()
 	meta_agents.clear();
 	ma_vec.clear();
 	ma_vec.resize(num_of_agents, false);  // checking if need to solve agent
+
 	conflict_matrix.clear();
 	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
 }

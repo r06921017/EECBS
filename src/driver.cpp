@@ -37,6 +37,7 @@ int main(int argc, char** argv)
 		("inadmissibleH", po::value<string>()->default_value("Global"), "inadmissible heuristics (Zero, Global, Path, Local, Conflict)")  // ECBS: Zero
 		("suboptimality", po::value<double>()->default_value(1.2), "suboptimality bound")
 		("cth", po::value<int>()->default_value(-1), "Threshold of non-increasing lowerbound in CLEANUP node slection")
+		("rth", po::value<int>()->default_value(50), "Threshold of when to restart FEECBS after visiting certain number of nodes from CLEANUP")
 
 		// params for CBS improvement
 		("heuristics", po::value<string>()->default_value("WDG"), "admissible heuristics for the high-level search (Zero, CG,DG, WDG)")  // ECBS: Zero
@@ -212,6 +213,8 @@ int main(int argc, char** argv)
 		}
 		if (vm["cth"].as<int>() -1)
 			ecbs.setCleanupTh(vm["cth"].as<int>());
+		if (vm["rth"].as<int>() -1)
+			ecbs.setRestartTh(vm["rth"].as<int>());
 
         //////////////////////////////////////////////////////////////////////
         // run

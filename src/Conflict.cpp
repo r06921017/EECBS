@@ -95,6 +95,8 @@ bool operator < (const Conflict& conflict1, const Conflict& conflict2) // return
 		{
 			if (conflict1.secondary_priority == conflict2.secondary_priority)
 			{
+				// return rand() % 2;  // If not using Impact-Based Search
+
 				// Get minimum increased_flex
 				double impact1 = max(conflict1.getImpactVal(0, impact_type::FLEX), conflict1.getImpactVal(1, impact_type::FLEX));
 				double impact2 = max(conflict2.getImpactVal(0, impact_type::FLEX), conflict2.getImpactVal(1, impact_type::FLEX));

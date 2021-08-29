@@ -169,7 +169,8 @@ public:
 	}
 	virtual int getInitialPathLength(int agent) const {return (int) paths_found_initially[agent].size() - 1; }
 	int getminFVal(int agent) const { return min_f_vals[agent]; }
-	void setCleanupTh(int cth) {cleanup_th = cth;}
+	void setCleanupTh(int th) {cleanup_th = th;}
+	void setRestartTh(int th) {restart_th = th;}
 	void setUseFlex(bool _f) { use_flex = _f; }
 	void setRandomInit(bool _r) {random_init = _r;}
 	void setRootReplan(bool _r, bool _f_asc, bool _c_asc) {root_replan = _r; fmin_ascend = _f_asc; conf_ascend = _c_asc;}
@@ -262,6 +263,8 @@ protected:
 	// For CLEANUP node slection
 	int cleanup_th;
 	int node_cnt = 0;
+	int restart_th;
+	int restart_cnt = 0;
 
 	vector<int> findMetaAgent(int __ag__) const;
 	void printAllAgents(void) const;
