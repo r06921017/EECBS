@@ -71,7 +71,6 @@ public:
 		if (paths_found_initially.empty())
 			paths_found_initially.resize(num_of_agents);
 		paths_found_initially[agent].first = _path;
-		cout << paths_found_initially[agent].first << endl;
 	}
 	int getInitialPathLength(int agent) const override {return (int) paths_found_initially[agent].first.size() - 1; }
 

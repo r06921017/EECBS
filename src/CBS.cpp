@@ -140,11 +140,17 @@ void CBS::findConflicts(HLNode& curr)
 		// detect new conflicts
 		for (auto it = new_agents.begin(); it != new_agents.end(); ++it)
 		{
-			int a1 = *it;
+			int a1 = *it; assert(ma_vec[a1]);
 			for (int a2 = 0; a2 < num_of_agents; a2++)
 			{
-				if (a1 == a2)
+				if (a1 == a2 || !ma_vec[a2])  // only choose conflicts that is corresponding to the meta-agents
 					continue;
+				else
+				{
+					assert(findMetaAgent(a1).size() > 0 && findMetaAgent(a2).size() > 0);
+					if (findMetaAgent(a1) == findMetaAgent(a2))
+						continue;
+				}
 				bool skip = false;
 				for (auto it2 = new_agents.begin(); it2 != it; ++it2)
 				{
@@ -162,8 +168,14 @@ void CBS::findConflicts(HLNode& curr)
 	{
 		for (int a1 = 0; a1 < num_of_agents; a1++)
 		{
+			if (!ma_vec[a1])
+				continue;
 			for (int a2 = a1 + 1; a2 < num_of_agents; a2++)
 			{
+				if (!ma_vec[a2])
+					continue;
+				else if (findMetaAgent(a1) == findMetaAgent(a2))
+					continue;
 				findConflicts(curr, a1, a2);
 			}
 		}
@@ -1761,48 +1773,52 @@ void CBS::addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) con
 	}
 	else
 	{
-		child1->constraints = curr->conflict->constraint1;
-		child2->constraints = curr->conflict->constraint2;
+		// // For EECBS and FEECBS
+		// child1->constraints = curr->conflict->constraint1;
+		// child2->constraints = curr->conflict->constraint2;
+		// // End for EECBS and FEECBS
 
-		// vector<int> conf_ma1 = findMetaAgent(curr->conflict->a1);
-		// if (conf_ma1.size() == 1)
-		// {
-		// 	child1->constraints = curr->conflict->constraint1;
-		// }
-		// else
-		// {
-		// 	constraint_type type;
-		// 	if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
-		// 		type = constraint_type::VERTEX;
-		// 	else  // Meta-agent edge constraint
-		// 		type = constraint_type::EDGE;
+		// For NFEECBS, need to change back to vertex/edge constraints for meta-agents
+		vector<int> conf_ma1 = findMetaAgent(curr->conflict->a1);
+		if (conf_ma1.size() == 1)
+		{
+			child1->constraints = curr->conflict->constraint1;
+		}
+		else
+		{
+			constraint_type type;
+			if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
+				type = constraint_type::VERTEX;
+			else  // Meta-agent edge constraint
+				type = constraint_type::EDGE;
 
-		// 	for (const int& _ag_ : conf_ma1)
-		// 	{
-		// 		child1->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
-		// 			curr->conflict->timestep, type);
-		// 	}
-		// }
+			for (const int& _ag_ : conf_ma1)
+			{
+				child1->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
+					curr->conflict->timestep, type);
+			}
+		}
 
-		// vector<int> conf_ma2 = findMetaAgent(curr->conflict->a2);
-		// if (conf_ma2.size() == 1)
-		// {
-		// 	child2->constraints = curr->conflict->constraint2;
-		// }
-		// else
-		// {
-		// 	constraint_type type;
-		// 	if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
-		// 		type = constraint_type::VERTEX;
-		// 	else  // Meta-agent edge constraint
-		// 		type = constraint_type::EDGE;
+		vector<int> conf_ma2 = findMetaAgent(curr->conflict->a2);
+		if (conf_ma2.size() == 1)
+		{
+			child2->constraints = curr->conflict->constraint2;
+		}
+		else
+		{
+			constraint_type type;
+			if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
+				type = constraint_type::VERTEX;
+			else  // Meta-agent edge constraint
+				type = constraint_type::EDGE;
 
-		// 	for (const int& _ag_ : conf_ma2)
-		// 	{
-		// 		child2->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
-		// 			curr->conflict->timestep, type);
-		// 	}
-		// }
+			for (const int& _ag_ : conf_ma2)
+			{
+				child2->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
+					curr->conflict->timestep, type);
+			}
+		}
+		// End for NFEECBS
 	}
 }
 
@@ -1999,9 +2015,13 @@ bool CBS::validateSolution() const
 	size_t soc = 0;
 	for (int a1 = 0; a1 < num_of_agents; a1++)
 	{
+		if (!ma_vec[a1])
+			continue;
 		soc += paths[a1]->size() - 1;
 		for (int a2 = a1 + 1; a2 < num_of_agents; a2++)
 		{
+			if (!ma_vec[a2])
+				continue;
 			size_t min_path_length = paths[a1]->size() < paths[a2]->size() ? paths[a1]->size() : paths[a2]->size();
 			for (size_t timestep = 0; timestep < min_path_length; timestep++)
 			{

@@ -748,7 +748,10 @@ bool ECBS::generateRoot()
 	dummy_start = root;
 
 	if (screen >= 2) // print start and goals
+	{
 		printPaths();
+		printConflicts(*dummy_start);
+	}
 	return true;
 }
 
@@ -947,10 +950,16 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 			else
 			{
 				if (!_ma_vec_[_ag_] && use_flex)  // Add flex from other agents outside the meta-agent
-					outer_flex += suboptimality * min_f_vals[_ag_] - (paths[_ag_]->size() - 1);
+					outer_flex += suboptimality * min_f_vals[_ag_] - min_f_vals[_ag_];
 			}
 			
 		}
+	}
+	if (screen == 2)
+	{
+		cout << "conflict of original CT ndoe" << endl;
+		printConflicts(*node);
+		cout << "chosen onflict: " << *node->conflict << endl;
 	}
 	if (screen > 3)
 	{
@@ -1515,6 +1524,8 @@ void ECBS::classifyConflicts(ECBSNode &node)
 			auto corridor = corridor_helper.run(con, paths, node);
 			if (corridor != nullptr)
 			{
+				corridor->loc1 = con->loc1;
+				corridor->loc2 = con->loc2;
 				corridor->priority = con->priority;
 				computeSecondPriorityForConflict(*corridor, node);
 				node.conflicts.push_back(corridor);
@@ -1529,8 +1540,8 @@ void ECBS::classifyConflicts(ECBSNode &node)
 		    (int)paths[a2]->size() - 1 == min_f_vals[a2] &&
             min_f_vals[a1] > timestep &&  //conflict happens before both agents reach their goal locations
 			min_f_vals[a2] > timestep &&
-			findMetaAgent(a1).size() == 1 &&
-			findMetaAgent(a2).size() == 1 &&
+			// findMetaAgent(a1).size() == 1 &&  // maybe not needed if we change the constraint after finding out the agents are meta-agent
+			// findMetaAgent(a2).size() == 1 &&
 			type == constraint_type::VERTEX) // vertex conflict
 		{
 			// TODO: memorize the conflicts location for meta-agent to view it as vertex conflict
@@ -1542,6 +1553,8 @@ void ECBS::classifyConflicts(ECBSNode &node)
                 if (!PC)
                     rectangle->priority = conflict_priority::UNKNOWN;
 				computeSecondPriorityForConflict(*rectangle, node);
+				rectangle->loc1 = con->loc1;
+				rectangle->loc2 = con->loc2;
 				node.conflicts.push_back(rectangle);
 				continue;
 			}
