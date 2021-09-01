@@ -95,33 +95,34 @@ bool operator < (const Conflict& conflict1, const Conflict& conflict2) // return
 		{
 			if (conflict1.secondary_priority == conflict2.secondary_priority)
 			{
-				// return rand() % 2;  // If not using Impact-Based Search
+				return rand() % 2;  // If not using Impact-Based Search
 
-				// Get minimum increased_flex
-				double impact1 = max(conflict1.getImpactVal(0, impact_type::FLEX), conflict1.getImpactVal(1, impact_type::FLEX));
-				double impact2 = max(conflict2.getImpactVal(0, impact_type::FLEX), conflict2.getImpactVal(1, impact_type::FLEX));
+				// if (max(conflict1.impacts[0].count, conflict1.impacts[1].count) == 0 && max(conflict2.impacts[0].count, conflict2.impacts[1].count) != 0)
+				// 	return false;
+				// else if (max(conflict1.impacts[0].count, conflict1.impacts[1].count) != 0 && max(conflict2.impacts[0].count, conflict2.impacts[1].count) == 0)
+				// 	return true;
 
-				if (impact1 == impact2)
-				{
-					impact1 = max(conflict1.getImpactVal(0, impact_type::LB), conflict1.getImpactVal(1, impact_type::LB));
-					impact2 = max(conflict2.getImpactVal(0, impact_type::LB), conflict2.getImpactVal(1, impact_type::LB));
-					if (impact1 == impact2)
-					{
-						impact1 = max(conflict1.getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict1.getImpactVal(1, impact_type::REDUCED_CONFLICTS));
-						impact2 = max(conflict2.getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict2.getImpactVal(1, impact_type::REDUCED_CONFLICTS));
-						if (impact1 == impact2)
-						{
-							if (max(conflict1.impacts[0].count, conflict1.impacts[1].count) == max(conflict2.impacts[0].count, conflict2.impacts[1].count))
-							{
-								return rand() % 2;
-							}
-							return max(conflict1.impacts[0].count, conflict1.impacts[1].count) > max(conflict2.impacts[0].count, conflict2.impacts[1].count);
-						}
-						return impact1 < impact2;
-					}
-					return impact1 < impact2;
-				}
-				return impact1 < impact2;
+				// // Get minimum increased_flex
+				// double impact1 = max(conflict1.getImpactVal(0, impact_type::FLEX), conflict1.getImpactVal(1, impact_type::FLEX));
+				// double impact2 = max(conflict2.getImpactVal(0, impact_type::FLEX), conflict2.getImpactVal(1, impact_type::FLEX));
+
+				// if (impact1 == impact2)
+				// {
+				// 	impact1 = max(conflict1.getImpactVal(0, impact_type::LB), conflict1.getImpactVal(1, impact_type::LB));
+				// 	impact2 = max(conflict2.getImpactVal(0, impact_type::LB), conflict2.getImpactVal(1, impact_type::LB));
+				// 	if (impact1 == impact2)
+				// 	{
+				// 		impact1 = max(conflict1.getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict1.getImpactVal(1, impact_type::REDUCED_CONFLICTS));
+				// 		impact2 = max(conflict2.getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict2.getImpactVal(1, impact_type::REDUCED_CONFLICTS));
+				// 		if (impact1 == impact2)
+				// 		{
+				// 			return rand() % 2;
+				// 		}
+				// 		return impact1 < impact2;
+				// 	}
+				// 	return impact1 < impact2;
+				// }
+				// return impact1 < impact2;
 			}
 			return conflict1.secondary_priority > conflict2.secondary_priority;
 		}

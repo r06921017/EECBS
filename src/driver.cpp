@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 		("inadmissibleH", po::value<string>()->default_value("Global"), "inadmissible heuristics (Zero, Global, Path, Local, Conflict)")  // ECBS: Zero
 		("suboptimality", po::value<double>()->default_value(1.2), "suboptimality bound")
 		("cth", po::value<int>()->default_value(-1), "Threshold of non-increasing lowerbound in CLEANUP node slection")
-		("rth", po::value<int>()->default_value(50), "Threshold of when to restart FEECBS after visiting certain number of nodes from CLEANUP")
+		("rth", po::value<int>()->default_value(-1), "Threshold of when to restart FEECBS after visiting certain number of nodes from CLEANUP")
 
 		// params for CBS improvement
 		("heuristics", po::value<string>()->default_value("WDG"), "admissible heuristics for the high-level search (Zero, CG,DG, WDG)")  // ECBS: Zero
@@ -52,7 +52,7 @@ int main(int argc, char** argv)
 		// params for NFEECBS
 		("mergeTh,b", po::value<int>()->default_value(INT_MAX), "set merge threshold for nested framework")
 		("flex", po::value<bool>()->default_value(false), "set true to use FEECBS")
-		("randomInit", po::value<bool>()->default_value(false), "set true to use random ordering as initialization")
+		("randomInit", po::value<bool>()->default_value(true), "set true to use random ordering as initialization")
 		("rp", po::value<bool>()->default_value(false), "set true to use root replanning")
 		("fa", po::value<bool>()->default_value(false), "set true to sort agents at root in ascending fmin value")
 		("ca", po::value<bool>()->default_value(false), "set true to sort agents at root in ascending conflicts value")

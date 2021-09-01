@@ -190,8 +190,8 @@ void CBS::findConflicts(HLNode& curr)
 
 shared_ptr<Conflict> CBS::chooseConflict(const HLNode &node) const
 {
-	if (screen == 3)
-		printConflicts(node);
+	// if (screen == 3)
+	// 	printConflicts(node);
 	shared_ptr<Conflict> choose;
 	if (node.conflicts.empty() && node.unknownConf.empty())
 		return nullptr;
@@ -200,6 +200,28 @@ shared_ptr<Conflict> CBS::chooseConflict(const HLNode &node) const
 		choose = node.conflicts.back();
 		for (const auto& conflict : node.conflicts)
 		{
+			// if (screen == 3 && conflict->priority == choose->priority && conflict->type == choose->type &&
+			// 	conflict->secondary_priority == choose->secondary_priority && max(choose->impacts[0].count, choose->impacts[1].count) != 0)
+			// {
+			// 	cout << "===============================================================" << endl;
+			// 	cout << "choose  : ";
+			// 	cout << "count:" << max(choose->impacts[0].count, choose->impacts[1].count) << "|";
+			// 	cout << "FLEX:" << max(choose->getImpactVal(0, impact_type::FLEX), choose->getImpactVal(1, impact_type::FLEX)) << "|";
+			// 	cout << "LB:" << max(choose->getImpactVal(0, impact_type::LB), choose->getImpactVal(1, impact_type::LB)) << "|";
+			// 	cout << "REDUCE:" << max(choose->getImpactVal(0, impact_type::REDUCED_CONFLICTS), choose->getImpactVal(1, impact_type::REDUCED_CONFLICTS)) << endl;
+			// 	cout << "	" << *choose << endl;
+
+			// 	cout << "conflict: ";
+			// 	cout << "count:" << max(conflict->impacts[0].count, conflict->impacts[1].count) << "|";
+			// 	cout << "FLEX:" << max(conflict->getImpactVal(0, impact_type::FLEX), conflict->getImpactVal(1, impact_type::FLEX)) << "|";
+			// 	cout << "LB:" << max(conflict->getImpactVal(0, impact_type::LB), conflict->getImpactVal(1, impact_type::LB)) << "|";
+			// 	cout << "REDUCE:" << max(conflict->getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict->getImpactVal(1, impact_type::REDUCED_CONFLICTS)) << endl;
+			// 	cout << "	" << *conflict << endl;
+			// 	cout << "===============================================================" << endl;
+			// 	cout << "*choose < *conflict? " << (*choose < *conflict) << endl;
+			// 	cout << endl;
+			// }
+
 			if (*choose < *conflict)
 				choose = conflict;
 		}
@@ -258,7 +280,7 @@ shared_ptr<Conflict> CBS::debugChooseConflict(const HLNode &node)
 
 void CBS::updateConflictImpacts(const HLNode& node, const HLNode& parent, int child_idx)
 {
-	double increased_flex = (suboptimality * node.g_val - node.sum_of_costs) - (suboptimality * parent.g_val - parent.sum_of_costs);
+	double increased_flex = (suboptimality * node.g_val - (double) node.sum_of_costs) - (suboptimality * parent.g_val - (double) parent.sum_of_costs);
 	int increased_lb = node.g_val - parent.g_val;  // node->g_val has been updated in findPathForSingleAgent()
 	int reduced_num_conflicts = (parent.conflicts.size() + parent.unknownConf.size()) - (node.conflicts.size() + node.unknownConf.size());
 	

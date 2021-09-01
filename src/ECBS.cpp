@@ -197,7 +197,9 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 						}
 						else  // bypass condition checking for FECBS and FEECBS
 						{
-							if (curr->g_val < child[i]->g_val)  // do not bypass if the sum of lower bound increases
+							// if (curr->g_val < child[i]->g_val)  // do not bypass if the sum of lower bound increases
+							// 	foundBypass = false;
+							if (child[i]->sum_of_costs > suboptimality * curr->g_val)
 								foundBypass = false;
 						}
 
@@ -628,16 +630,16 @@ bool ECBS::generateRoot()
 				int ag = ma.front();
 				if (candidate_paths[ag].first.empty())
 				{
-					// candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
-					if (use_flex)
-					{
-						candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality, 
-							candidate->g_val - min_f_vals[ag], candidate->sum_of_costs - min_f_vals[ag], init_sum_lb, flex);
-					}
-					else
-					{
-						candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
-					}
+					candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
+					// if (use_flex)
+					// {
+					// 	candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality, 
+					// 		candidate->g_val - min_f_vals[ag], candidate->sum_of_costs - min_f_vals[ag], init_sum_lb, flex);
+					// }
+					// else
+					// {
+					// 	candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
+					// }
 
 					num_LL_expanded += search_engines[ag]->num_expanded;
 					num_LL_generated += search_engines[ag]->num_generated;
@@ -829,42 +831,42 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 		int other_sum_lb = node->g_val - min_f_vals[ag];
 		int other_sum_cost = node->sum_of_costs - (int) paths[ag]->size() + 1;
 
-		// new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
-		// 	suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
+		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
+			suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
 
-		// Flex restriction
-		bool not_use_flex;
-		if (node == dummy_start || node->parent == dummy_start)
-		{
-			not_use_flex = true;
-		}
-		else
-		{
-			not_use_flex = node->parent->chosen_from == "cleanup" || 
-				node->parent->conflict->priority == conflict_priority::CARDINAL || 
-				node->parent->g_val < node->g_val;
-		}
+		// // Flex restriction
+		// bool not_use_flex;
+		// if (node == dummy_start || node->parent == dummy_start)
+		// {
+		// 	not_use_flex = true;
+		// }
+		// else
+		// {
+		// 	not_use_flex = node->parent->chosen_from == "cleanup" || 
+		// 		node->parent->conflict->priority == conflict_priority::CARDINAL || 
+		// 		node->parent->g_val < node->g_val;
+		// }
 
-		if (suboptimality* (double) other_sum_lb - (double) other_sum_cost >= 0 && not_use_flex)
-		{
-			// Not use flex if the CT node is from cleanup or the conflict is cardinal
-			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
+		// if (suboptimality* (double) other_sum_lb - (double) other_sum_cost >= 0 && not_use_flex)
+		// {
+		// 	// Not use flex if the CT node is from cleanup or the conflict is cardinal
+		// 	new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
 
-			node->use_flex = false;
-			if (not_use_flex)
-				node->cannot_use_flex = true;
-		}
+		// 	node->use_flex = false;
+		// 	if (not_use_flex)
+		// 		node->cannot_use_flex = true;
+		// }
 
-		else
-		{
-			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
-				suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
+		// else
+		// {
+		// 	new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
+		// 		suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
 
-			node->use_flex = true;
-			if (suboptimality* (double) other_sum_lb - (double) other_sum_cost < 0)
-				node->no_more_flex = true;
-		}
-		// End Flex restrictions
+		// 	node->use_flex = true;
+		// 	if (suboptimality* (double) other_sum_lb - (double) other_sum_cost < 0)
+		// 		node->no_more_flex = true;
+		// }
+		// // End Flex restrictions
 	}
 	else
 	{
