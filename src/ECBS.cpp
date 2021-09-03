@@ -444,7 +444,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 	}  // end of while loop
 
 	// Restart from FEECBS to EECBS
-	clock_t curr_t = clock();
+	runtime = (double)(clock() - start) / CLOCKS_PER_SEC;
 	if (restart && runtime < time_limit)
 	{
 		vector<pair<Path,int>> backup_initial_paths = paths_found_initially;  // We do not want to clear initial paths
@@ -456,6 +456,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		bool debug_foundSol = solve(time_limit, 0);
 		assert(debug_foundSol == solution_found);
 	}
+	else if (runtime > time_limit && screen > 0)
+		printResults();
 
 	return solution_found;
 }
@@ -640,6 +642,11 @@ bool ECBS::generateRoot()
 					// {
 					// 	candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
 					// }
+					if (screen > 3)
+					{
+						replan_ll_generate->push_back(search_engines[ag]->num_generated);
+						replan_agent->push_back(ag);
+					}
 
 					num_LL_expanded += search_engines[ag]->num_expanded;
 					num_LL_generated += search_engines[ag]->num_generated;
@@ -769,6 +776,8 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 	assert(!agents.empty());
 	for (auto agent : agents)
 	{
+		// if (screen == 2)
+		// 	cout << "Find path for agent: " << agent << endl;
 		vector<int> invalid_ma = findMetaAgent(agent);
 		if (invalid_ma.size() == 1)
 		{
@@ -871,6 +880,13 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	else
 	{
 		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
+	}
+
+	if (screen > 3)
+	{
+		replan_flex->push_back(suboptimality * node->g_val - min_f_vals[ag] - (node->sum_of_costs - (int) paths[ag]->size() + 1));
+		replan_ll_generate->push_back(search_engines[ag]->num_generated);  // This is for debugging
+		replan_agent->push_back(ag);
 	}
 
 	num_LL_expanded += search_engines[ag]->num_expanded;

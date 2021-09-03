@@ -6,7 +6,7 @@
 class ECBS : public CBS
 {
 public:
-	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {		
+	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {	
 		if (screen > 3)
 		{
 			// Initialize for agents analysis
@@ -42,6 +42,9 @@ public:
 			iter_sum_ll_generate = make_shared<vector<uint64_t>>();
 			br_sum_ll_generate = make_shared<vector<uint64_t>>();
 			all_sum_ll_generate = make_shared<vector<uint64_t>>();
+			replan_ll_generate = make_shared<vector<uint64_t>>();
+			replan_agent = make_shared<vector<int>>();
+			replan_flex = make_shared<vector<double>>();
 
 			iter_node_idx = make_shared<vector<int>>();
 			br_node_idx = make_shared<vector<int>>();

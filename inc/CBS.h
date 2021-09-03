@@ -84,6 +84,9 @@ public:
     std::shared_ptr<vector<uint64_t>> iter_sum_ll_generate;
     std::shared_ptr<vector<uint64_t>> br_sum_ll_generate;
     std::shared_ptr<vector<uint64_t>> all_sum_ll_generate;
+	std::shared_ptr<vector<uint64_t>> replan_ll_generate;
+	std::shared_ptr<vector<int>> replan_agent;
+	std::shared_ptr<vector<double>> replan_flex;
 
     std::shared_ptr<vector<int>> iter_node_idx;
     std::shared_ptr<vector<int>> br_node_idx;

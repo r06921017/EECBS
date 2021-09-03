@@ -1576,6 +1576,15 @@ void CBS::saveEval(void)
 		stats << "iter_sum_ll_generate,";
 		std::copy(iter_sum_ll_generate->begin(), iter_sum_ll_generate->end(), std::ostream_iterator<uint64_t>(stats, ","));
 		stats << endl;
+		stats << "replan_ll_generate,";
+		std::copy(replan_ll_generate->begin(), replan_ll_generate->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+		stats << "replan_agent,";
+		std::copy(replan_agent->begin(), replan_agent->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+		stats << "replan_flex,";
+		std::copy(replan_flex->begin(), replan_flex->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
 		
 		stats << "br_sum_lb,";
 		std::copy(br_sum_lb->begin(), br_sum_lb->end(), std::ostream_iterator<int>(stats, ","));
