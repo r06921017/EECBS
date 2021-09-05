@@ -76,6 +76,13 @@ public:
 		paths_found_initially[agent].first = _path;
 		cout << paths_found_initially[agent].first << endl;
 	}
+	void setLLNodeLimitRatio(double lr)
+	{
+		for (int i = 0; i < num_of_agents; i++)
+			search_engines[i]->setNodeLimitRatio(lr);
+		return;
+	}
+
 	int getInitialPathLength(int agent) const override {return (int) paths_found_initially[agent].first.size() - 1; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////

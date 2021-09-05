@@ -23,7 +23,11 @@ public:
             {
                 if (n1->h_val == n2->h_val)
                 {
-                    return rand() % 2 == 0;   // break ties randomly
+					if (n1->num_of_conflicts == n2->num_of_conflicts)
+					{
+                    	return rand() % 2 == 0;   // break ties randomly
+					}
+					return n1->num_of_conflicts >= n2->num_of_conflicts;  // n1 > n2 if it has more conflicts
                 }
                 return n1->h_val >= n2->h_val;  // break ties towards smaller h_vals (closer to goal location)
             }
@@ -101,6 +105,8 @@ public:
 
 	list<int> getNextLocations(int curr) const; // including itself and its neighbors
 	list<int> getNeighbors(int curr) const { return instance.getNeighbors(curr); }
+	void setNodeLimit(uint64_t ll_nl) {node_limit = ll_nl;}
+	void setNodeLimitRatio(double r) {nl_ratio = r;}
 
 	// int getStartLocation() const {return instance.start_locations[agent]; }
 	// int getGoalLocation() const {return instance.goal_locations[agent]; }
@@ -119,6 +125,8 @@ protected:
 	int min_f_val; // minimal f value in OPEN
 	// int lower_bound; // Threshold for FOCAL
 	double w = 1; // suboptimal bound
+	uint64_t node_limit;  // If the number of generated LL node > nl_ratio * node_limit, then switch to A*, 1e6
+	double nl_ratio;
 
 	void compute_heuristics();
 	int get_DH_heuristic(int from, int to) const { return abs(my_heuristic[from] - my_heuristic[to]); }

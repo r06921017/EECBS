@@ -30,6 +30,7 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 	int outer_sum_lb, double single_flex, int hl_h_val)
 {
 	this->w = w;
+	this->use_focal = true;
 	Path path;
 	num_expanded = 0;
 	num_generated = 0;
@@ -142,7 +143,7 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 					bool add_to_focal = false;  // check if it was above the focal bound before and now below (thus need to be inserted)
 					bool update_in_focal = false;  // check if it was inside the focal and needs to be updated (because f-val changed)
 					bool update_open = false;
-					if ((next_g_val + next_h_val) <= upperbound)
+					if ((next_g_val + next_h_val) <= upperbound && use_focal)
 					{  // if the new f-val qualify to be in FOCAL
 						if (existing_next->getFVal() > upperbound)
 							add_to_focal = true;  // and the previous f-val did not qualify to be in FOCAL then add
@@ -169,7 +170,6 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 
 	releaseNodes();
 	constraint_table.clear();
-
 	return {path, min_f_val};
 }
 
@@ -235,8 +235,16 @@ int SpaceTimeAStar::getTravelTime(int start, int end, const ConstraintTable& con
 
 inline AStarNode* SpaceTimeAStar::popNode()
 {
-	auto node = focal_list.top(); focal_list.pop();
-	open_list.erase(node->open_handle);
+	AStarNode* node;
+	if (use_focal)
+	{
+		node = focal_list.top(); focal_list.pop();
+		open_list.erase(node->open_handle);
+	}
+	else
+	{
+		node = open_list.top(); open_list.pop();
+	}
 	node->in_openlist = false;
 	num_expanded++;
 	return node;
@@ -248,7 +256,10 @@ inline void SpaceTimeAStar::pushNode(AStarNode* node)
 	node->open_handle = open_list.push(node);
 	node->in_openlist = true;
 	num_generated++;
-	if (node->getFVal() <= upperbound)
+
+	if (num_generated > nl_ratio*node_limit && nl_ratio != -1 && w > 1 && upperbound > w * min_f_val)
+		use_focal = false;
+	else if (node->getFVal() <= upperbound)
 		node->focal_handle = focal_list.push(node);		
 }
 
@@ -260,14 +271,16 @@ void SpaceTimeAStar::updateFocalList(int lowerbound, int other_sum_lb, int other
 	{
 		int new_min_f_val = (int)open_head->getFVal();
 
-		// Get new_upper_bound
-		double new_upper_bound;
+		double new_upper_bound;  // Get new_upper_bound
 		new_upper_bound = w * max(outer_sum_lb, new_min_f_val + other_sum_lb) - other_sum_cost + single_flex;
 		assert(new_min_f_val <= new_upper_bound);
-		for (auto n : open_list)
+		if (use_focal)  // Update focal list
 		{
-			if (n->getFVal() >  upperbound && n->getFVal() <= new_upper_bound)
-				n->focal_handle = focal_list.push(n);
+			for (auto n : open_list)
+			{
+				if (n->getFVal() >  upperbound && n->getFVal() <= new_upper_bound)
+					n->focal_handle = focal_list.push(n);
+			}
 		}
 		min_f_val = new_min_f_val;
 		upperbound = new_upper_bound;

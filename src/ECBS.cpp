@@ -614,6 +614,7 @@ bool ECBS::generateRoot()
 		candidate->sum_of_costs = initial_g_val;
 		candidate->meta_agents = meta_agents;
 		candidate->ma_vec = ma_vec;
+		candidate->ag_ll_node = vector<uint64_t>(num_of_agents, UINT64_MAX);
 
 		vector<pair<Path, int>> candidate_paths;
 		candidate_paths.resize(num_of_agents);
@@ -650,6 +651,7 @@ bool ECBS::generateRoot()
 
 					num_LL_expanded += search_engines[ag]->num_expanded;
 					num_LL_generated += search_engines[ag]->num_generated;
+					candidate->ag_ll_node[ag] = search_engines[ag]->num_generated;
 				}
 								
 				if (candidate_paths[ag].first.empty())
@@ -771,6 +773,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 	node->makespan = parent->makespan;
 	node->meta_agents = parent->meta_agents;
 	node->ma_vec = parent->ma_vec;
+	node->ag_ll_node = parent->ag_ll_node;
 	node->depth = parent->depth + 1;
 	auto agents = getInvalidAgents(node->constraints);
 	assert(!agents.empty());
@@ -800,7 +803,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 			}
 		}
 	}
-	assert(node->sum_of_costs <= suboptimality * node->getFVal());
+	assert(node->sum_of_costs <= suboptimality * node->g_val);
 	assert(parent->getFVal() <= node->getFVal());
 	assert(parent->g_val <= node->g_val);
 
@@ -840,42 +843,45 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 		int other_sum_lb = node->g_val - min_f_vals[ag];
 		int other_sum_cost = node->sum_of_costs - (int) paths[ag]->size() + 1;
 
-		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
-			suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
+		search_engines[ag]->setNodeLimit(node->ag_ll_node[ag]);  // Set limit to LL generated node
 
-		// // Flex restriction
-		// bool not_use_flex;
-		// if (node == dummy_start || node->parent == dummy_start)
-		// {
-		// 	not_use_flex = true;
-		// }
-		// else
-		// {
-		// 	not_use_flex = node->parent->chosen_from == "cleanup" || 
-		// 		node->parent->conflict->priority == conflict_priority::CARDINAL || 
-		// 		node->parent->g_val < node->g_val;
-		// }
+		// // Without flex restriction
+		// new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
+		// 	suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
 
-		// if (suboptimality* (double) other_sum_lb - (double) other_sum_cost >= 0 && not_use_flex)
-		// {
-		// 	// Not use flex if the CT node is from cleanup or the conflict is cardinal
-		// 	new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
+		// Flex restriction
+		bool not_use_flex;
+		if (node == dummy_start || node->parent == dummy_start)
+		{
+			not_use_flex = true;
+		}
+		else
+		{
+			not_use_flex = node->parent->chosen_from == "cleanup" || 
+				node->parent->conflict->priority == conflict_priority::CARDINAL || 
+				node->parent->g_val < node->g_val;
+		}
 
-		// 	node->use_flex = false;
-		// 	if (not_use_flex)
-		// 		node->cannot_use_flex = true;
-		// }
+		if (suboptimality* (double) other_sum_lb - (double) other_sum_cost >= 0 && not_use_flex)
+		{
+			// Not use flex if the CT node is from cleanup or the conflict is cardinal
+			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
 
-		// else
-		// {
-		// 	new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
-		// 		suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
+			node->use_flex = false;
+			if (not_use_flex)
+				node->cannot_use_flex = true;
+		}
 
-		// 	node->use_flex = true;
-		// 	if (suboptimality* (double) other_sum_lb - (double) other_sum_cost < 0)
-		// 		node->no_more_flex = true;
-		// }
-		// // End Flex restrictions
+		else
+		{
+			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
+				suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
+
+			node->use_flex = true;
+			if (suboptimality* (double) other_sum_lb - (double) other_sum_cost < 0)
+				node->no_more_flex = true;
+		}
+		// End Flex restrictions
 	}
 	else
 	{
@@ -889,6 +895,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 		replan_agent->push_back(ag);
 	}
 
+	node->ag_ll_node[ag] = search_engines[ag]->num_generated;  // update the node limit
 	num_LL_expanded += search_engines[ag]->num_expanded;
 	num_LL_generated += search_engines[ag]->num_generated;
 	runtime_build_CT += search_engines[ag]->runtime_build_CT;
@@ -897,6 +904,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	if (new_path.first.empty())
 		return false;
 	assert(!isSamePath(*paths[ag], new_path.first));
+	assert((int) new_path.first.size() - 1 >= max(new_path.second, min_f_vals[ag]));
 
 	node->g_val = node->g_val + max(new_path.second - min_f_vals[ag], 0);
 	if (node->parent != nullptr)

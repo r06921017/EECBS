@@ -50,6 +50,7 @@ public:
 class SpaceTimeAStar: public SingleAgentSolver
 {
 public:
+	bool use_focal = true;
 	// find path by time-space A* search
 	// Returns a shortest path that satisfies the constraints of the give node  while
 	// minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).

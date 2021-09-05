@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 		("inadmissibleH", po::value<string>()->default_value("Global"), "inadmissible heuristics (Zero, Global, Path, Local, Conflict)")  // ECBS: Zero
 		("suboptimality", po::value<double>()->default_value(1.2), "suboptimality bound")
 		("cth", po::value<int>()->default_value(-1), "Threshold of non-increasing lowerbound in CLEANUP node slection")
-		("rth", po::value<int>()->default_value(-1), "Threshold of when to restart FEECBS after visiting certain number of nodes from CLEANUP")
+		("rth", po::value<int>()->default_value(50), "Threshold of when to restart FEECBS after visiting certain number of nodes from CLEANUP")
 
 		// params for CBS improvement
 		("heuristics", po::value<string>()->default_value("WDG"), "admissible heuristics for the high-level search (Zero, CG,DG, WDG)")  // ECBS: Zero
@@ -61,6 +61,7 @@ int main(int argc, char** argv)
 		// Statistic analysis
 		("saveCT", po::value<bool>()->default_value(false), "set true for plotting CT")
 		("nl", po::value<int>()->default_value(MAX_NODES), "Set node limit for timeout")
+		("lr", po::value<double>()->default_value(20.0), "LL generated node limit ratio")  // 10
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -76,6 +77,8 @@ int main(int argc, char** argv)
 		cerr << "Suboptimal bound should be at least 1!" << endl;
 		return -1;
 	}
+
+	double node_limit_ratio = vm["lr"].as<double>() / vm["suboptimality"].as<double>();
 
 	high_level_solver_type s;
 	if (vm["highLevelSolver"].as<string>() == "A*")
@@ -181,6 +184,7 @@ int main(int argc, char** argv)
 		ecbs.setUseFlex(vm["flex"].as<bool>());
 		ecbs.setRootReplan(vm["rp"].as<bool>(), vm["fa"].as<bool>(), vm["ca"].as<bool>());
 		ecbs.setRandomInit(vm["randomInit"].as<bool>());
+		ecbs.setLLNodeLimitRatio(node_limit_ratio);
 		if (vm["nl"].as<int>() < MAX_NODES)
 			ecbs.setNodeLimit(vm["nl"].as<int>());
 
