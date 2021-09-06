@@ -638,16 +638,24 @@ bool ECBS::generateRoot()
 					// {
 					// 	candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality, 
 					// 		candidate->g_val - min_f_vals[ag], candidate->sum_of_costs - min_f_vals[ag], init_sum_lb, flex);
+					//  num_use_flex ++;
 					// }
 					// else
 					// {
 					// 	candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
+					//  num_not_use_flex ++;
 					// }
 					if (screen > 3)
 					{
 						replan_ll_generate->push_back(search_engines[ag]->num_generated);
 						replan_agent->push_back(ag);
 					}
+					num_not_use_flex ++;
+					num_findPathForSingleAgent ++;
+					if (search_engines[ag]->use_focal)
+						num_use_LL_focal ++;
+					else
+						num_use_LL_AStar ++;
 
 					num_LL_expanded += search_engines[ag]->num_expanded;
 					num_LL_generated += search_engines[ag]->num_generated;
@@ -867,6 +875,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 			// Not use flex if the CT node is from cleanup or the conflict is cardinal
 			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
 
+			num_not_use_flex ++;
 			node->use_flex = false;
 			if (not_use_flex)
 				node->cannot_use_flex = true;
@@ -877,6 +886,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 			new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
 				suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
 
+			num_use_flex ++;
 			node->use_flex = true;
 			if (suboptimality* (double) other_sum_lb - (double) other_sum_cost < 0)
 				node->no_more_flex = true;
@@ -898,6 +908,13 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	node->ag_ll_node[ag] = search_engines[ag]->num_generated;  // update the node limit
 	num_LL_expanded += search_engines[ag]->num_expanded;
 	num_LL_generated += search_engines[ag]->num_generated;
+
+	num_findPathForSingleAgent ++;
+	if (search_engines[ag]->use_focal)
+		num_use_LL_focal ++;
+	else
+		num_use_LL_AStar ++;
+
 	runtime_build_CT += search_engines[ag]->runtime_build_CT;
 	runtime_build_CAT += search_engines[ag]->runtime_build_CAT;
 	runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;

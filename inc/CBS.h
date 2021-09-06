@@ -49,6 +49,11 @@ public:
 	uint64_t num_cleanup = 0; // number of expanded nodes chosen from cleanup list
 	uint64_t num_open = 0; // number of expanded nodes chosen from open list
 	uint64_t num_focal = 0; // number of expanded nodes chsoen from focal list
+	uint64_t num_use_LL_AStar = 0;
+	uint64_t num_use_LL_focal = 0;
+	uint64_t num_not_use_flex = 0;
+	uint64_t num_use_flex = 0;
+	uint64_t num_findPathForSingleAgent = 0;
 
 	// statistics for branch and every iteration
 	int cleanup_head_lb;

@@ -61,7 +61,7 @@ int main(int argc, char** argv)
 		// Statistic analysis
 		("saveCT", po::value<bool>()->default_value(false), "set true for plotting CT")
 		("nl", po::value<int>()->default_value(MAX_NODES), "Set node limit for timeout")
-		("lr", po::value<double>()->default_value(20.0), "LL generated node limit ratio")  // 10
+		("lr", po::value<double>()->default_value(-1), "LL generated node limit ratio")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -77,8 +77,6 @@ int main(int argc, char** argv)
 		cerr << "Suboptimal bound should be at least 1!" << endl;
 		return -1;
 	}
-
-	double node_limit_ratio = vm["lr"].as<double>() / vm["suboptimality"].as<double>();
 
 	high_level_solver_type s;
 	if (vm["highLevelSolver"].as<string>() == "A*")
@@ -184,7 +182,13 @@ int main(int argc, char** argv)
 		ecbs.setUseFlex(vm["flex"].as<bool>());
 		ecbs.setRootReplan(vm["rp"].as<bool>(), vm["fa"].as<bool>(), vm["ca"].as<bool>());
 		ecbs.setRandomInit(vm["randomInit"].as<bool>());
-		ecbs.setLLNodeLimitRatio(node_limit_ratio);
+
+		if (vm["lr"].as<double>() > 0)
+		{
+			double node_limit_ratio = vm["lr"].as<double>() / vm["suboptimality"].as<double>();
+			ecbs.setLLNodeLimitRatio(node_limit_ratio);
+		}
+
 		if (vm["nl"].as<int>() < MAX_NODES)
 			ecbs.setNodeLimit(vm["nl"].as<int>());
 

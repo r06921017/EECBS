@@ -86,6 +86,7 @@ public:
 	double runtime_build_CT = 0; // runtimr of building constraint table
 	double runtime_build_CAT = 0; // runtime of building conflict avoidance table
 
+	bool use_focal = true;
 	int start_location;
 	int goal_location;
 	vector<int> my_heuristic;  // this is the precomputed heuristic for this agent
@@ -126,7 +127,7 @@ protected:
 	// int lower_bound; // Threshold for FOCAL
 	double w = 1; // suboptimal bound
 	uint64_t node_limit;  // If the number of generated LL node > nl_ratio * node_limit, then switch to A*, 1e6
-	double nl_ratio;
+	double nl_ratio = -1;
 
 	void compute_heuristics();
 	int get_DH_heuristic(int from, int to) const { return abs(my_heuristic[from] - my_heuristic[to]); }
