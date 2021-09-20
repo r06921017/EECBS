@@ -1058,7 +1058,7 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 			"runtime of building MDDs,runtime of building constraint tables,runtime of building CATs," <<
 			"runtime of path finding,runtime of generating child nodes," <<
 			"preprocessing runtime,solver name,instance name,#pushFOCAL," <<
-			"#use pri,#use_type,#use second pri,#use increased flex,#use increased lb,#use reduced conf,#use count,#tie,#has seen conf,restart_cnt,restart_th" <<
+			"#use pri,#use_type,#use second pri,#use increased flex,#use increased lb,#use reduced conf,#use count,#tie,#has seen conf,restart_cnt,restart_th," <<
 			"#use_LL_AStar,#use_LL_focal,#not_use_flex,#use_flex,#findPathForSingleAgent" << endl;
 		addHeads.close();
 	}
