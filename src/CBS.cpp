@@ -65,6 +65,24 @@ void CBS::copyConflicts(const list<shared_ptr<Conflict >>& conflicts,
 	}
 }
 
+void CBS::RemoveConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int>& excluded_agents)
+{
+	for (list<std::shared_ptr<Conflict>>::const_iterator c_it = conflicts.begin(); c_it != conflicts.end();)
+	{
+		bool found = false;
+		if (std::find(excluded_agents.begin(), excluded_agents.end(), (*c_it)->a1) != excluded_agents.end() && 
+			std::find(excluded_agents.begin(), excluded_agents.end(), (*c_it)->a2) != excluded_agents.end())
+		{
+			cout << "Erase conflict: " << **c_it << endl;
+			c_it = conflicts.erase(c_it++);
+		}
+		else
+		{
+			++c_it;
+		}
+	}
+}
+
 
 void CBS::findConflicts(HLNode& curr, int a1, int a2)
 {
@@ -134,8 +152,16 @@ void CBS::findConflicts(HLNode& curr)
 	{
 		// Copy from parent
 		auto new_agents = curr.getReplannedAgents();
-		copyConflicts(curr.parent->conflicts, curr.conflicts, new_agents);
-		copyConflicts(curr.parent->unknownConf, curr.unknownConf, new_agents);
+		if (curr.is_merged)
+		{
+			RemoveConflicts(curr.conflicts, new_agents);
+			RemoveConflicts(curr.unknownConf, new_agents);
+		}
+		else
+		{
+			copyConflicts(curr.parent->conflicts, curr.conflicts, new_agents);
+			copyConflicts(curr.parent->unknownConf, curr.unknownConf, new_agents);
+		}
 
 		// detect new conflicts
 		for (auto it = new_agents.begin(); it != new_agents.end(); ++it)
@@ -1070,7 +1096,7 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 			"runtime of building MDDs,runtime of building constraint tables,runtime of building CATs," <<
 			"runtime of path finding,runtime of generating child nodes," <<
 			"preprocessing runtime,solver name,instance name,#pushFOCAL," <<
-			"#use pri,#use_type,#use second pri,#use increased flex,#use increased lb,#use reduced conf,#use count,#tie,#has seen conf,restart_cnt,restart_th" << endl;
+			"#use pri,#use_type,#use second pri,#use increased flex,#use increased lb,#use reduced conf,#use count,#tie,#has seen conf,restart_cnt,restart_th,#merged" << endl;
 		addHeads.close();
 	}
 	ofstream stats(fileName, std::ios::app);
@@ -1104,7 +1130,7 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 
 		runtime_preprocessing << "," << getSolverName() << "," << instanceName << "," << num_push_focal << "," <<
 		num_use_priority << "," << num_use_type << "," << num_use_second_priority << "," << num_use_increased_flex << "," << 
-		num_use_increased_lb << "," << num_use_reduced_conflicts << "," << num_use_count << "," << num_tie << "," << num_has_seen_conf << "," << restart_cnt << "," << restart_th << endl;
+		num_use_increased_lb << "," << num_use_reduced_conflicts << "," << num_use_count << "," << num_tie << "," << num_has_seen_conf << "," << restart_cnt << "," << restart_th << num_merged << endl;
 	stats.close();
 }
 
@@ -1519,7 +1545,7 @@ bool CBS::terminate(HLNode* curr)
 		goal_node = curr;
 		solution_cost = goal_node->getFHatVal() - goal_node->cost_to_go;
 
-		if (screen > 3)
+		if (screen > 3 && !is_solver)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
@@ -1527,7 +1553,7 @@ bool CBS::terminate(HLNode* curr)
 				saveNumNodesInLists();
 		}
 
-		if (!validateSolution())
+		if (!validateSolution() && !is_solver)
 		{
 			cout << "Solution invalid!!!" << endl;
 			// printPaths();
@@ -2170,7 +2196,7 @@ void CBS::getBranchEval(HLNode* __node__, int open_head_lb)
 	return;
 }
 
-bool CBS::shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode) const
+bool CBS::shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode)
 {
 	bool should_merge = false;
 	int counter = 0;
@@ -2187,6 +2213,8 @@ bool CBS::shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, in
 	default:
 		break;
 	}
+	if (should_merge)
+		num_merged ++;
 	return should_merge;
 }
 

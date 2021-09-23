@@ -58,6 +58,7 @@ public:
 	// Meta-agents and ma_vec
 	vector<vector<int>> meta_agents;
 	vector<bool> ma_vec;
+	bool is_merged = false;
 
 	inline int getFVal() const { return g_val + h_val; }
 	virtual inline int  getFHatVal() const = 0;

@@ -39,6 +39,7 @@ public:
 	uint64_t num_HL_generated = 0;
 	uint64_t num_LL_expanded = 0;
 	uint64_t num_LL_generated = 0;
+	uint64_t num_merged = 0;
 
 	uint64_t solver_counter;
 	uint64_t solver_num_HL_expanded = 0;
@@ -268,7 +269,7 @@ protected:
 
 	vector<int> findMetaAgent(int __ag__) const;
 	void printAllAgents(void) const;
-	bool shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode=0) const;
+	bool shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode=0);
 
 	template <typename T, typename S>
     void sortMetaAgents(const vector<T>& first_based, bool first_ascend, const vector<S>& second_based=vector<S>(), bool second_ascend=true)
@@ -327,6 +328,7 @@ protected:
 	shared_ptr<Conflict> chooseConflict(const HLNode &node) const;
 	static void copyConflicts(const list<shared_ptr<Conflict>>& conflicts,
 		list<shared_ptr<Conflict>>& copy, const list<int>& excluded_agent) ;
+	static void RemoveConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int>& excluded_agents);
 	void removeLowPriorityConflicts(list<shared_ptr<Conflict>>& conflicts) const;
 	void computeSecondPriorityForConflict(Conflict& conflict, const HLNode& node);
 

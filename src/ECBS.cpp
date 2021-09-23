@@ -231,6 +231,16 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					std::merge(ma1.begin(), ma1.end(), ma2.begin(), ma2.end(), joint_ma.begin());
 					meta_agents.push_back(joint_ma);
 
+					if (screen > 1)
+					{
+						cout << "Merging agents: ";
+						for (int _tmp_ag_ : joint_ma)
+						{
+							cout << _tmp_ag_ << ", ";
+						}
+						cout << endl;
+					}
+
 					bool foundPaths = findPathForMetaAgent(curr, joint_ma);
 					joint_ma.clear();
 
@@ -323,6 +333,14 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 				std::merge(ma1.begin(), ma1.end(), ma2.begin(), ma2.end(), std::back_inserter(joint_ma));
 				meta_agents.push_back(joint_ma);
 
+				if (screen > 1)
+				{
+					cout << "Merging agents: ";
+					for (int _tmp_ag_ : joint_ma)
+						cout << _tmp_ag_ << ", ";
+					cout << endl;
+				}
+
 				bool foundPaths = findPathForMetaAgent(curr, joint_ma);
 				joint_ma.clear();
 
@@ -330,9 +348,15 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 				{
 					// Copy new meta_agents to the current node
 					curr->meta_agents = meta_agents;
-					curr->ma_vec =ma_vec;
+					curr->ma_vec = ma_vec;
+					curr->is_merged = true;
 
 					findConflicts(*curr);
+					if (screen > 1)
+					{
+						printConflicts(*curr);
+						cout << endl;
+					}
 					heuristic_helper.computeQuickHeuristics(*curr);
 					pushNode(curr);
 
@@ -440,7 +464,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		// 		cout << endl;
 		// 	}
 		// }
-		curr->clear();
+		if (!curr->is_merged)  // Only clear conflicts if curr is not reinserted to lists (due to merging)
+			curr->clear();
 	}  // end of while loop
 
 	// Restart from FEECBS to EECBS
@@ -1042,8 +1067,12 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 
 inline void ECBS::pushNode(ECBSNode* node)
 {
-	num_HL_generated++;
-	node->time_generated = num_HL_generated;
+	if (node->time_generated == 0)
+	{
+		num_HL_generated++;
+		node->time_generated = num_HL_generated;
+	}
+
 	// update handles
     node->cleanup_handle = cleanup_list.push(node);
 	switch (solver_type)

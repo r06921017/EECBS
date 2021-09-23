@@ -35,6 +35,7 @@ using std::ofstream;
 using std::cerr;
 using std::string;
 using std::stable_sort;
+using std::find;
 
 // #define NDEBUG 
 
