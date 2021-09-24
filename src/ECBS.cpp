@@ -633,6 +633,8 @@ bool ECBS::generateRoot()
 				int ag = ma.front();
 				if (candidate_paths[ag].first.empty())
 				{
+					if (ag == 17)
+						cout << endl;
 					candidate_paths[ag] = search_engines[ag]->findSuboptimalPath(*candidate, initial_constraints[ag], paths, ag, 0, suboptimality);
 					// if (use_flex)
 					// {

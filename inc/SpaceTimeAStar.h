@@ -10,6 +10,7 @@ public:
 	typedef pairing_heap< AStarNode*, compare<LLNode::secondary_compare_node> >::handle_type focal_handle_t;
 	open_handle_t open_handle;
 	focal_handle_t focal_handle;
+	focal_handle_t type_handle;
 
 
 	AStarNode() : LLNode() {}
@@ -69,7 +70,7 @@ public:
 	SpaceTimeAStar(const Instance& instance, int agent):
 		SingleAgentSolver(instance, agent) {}
 
-private:
+protected:
 	// define typedefs and handles for heap
 	typedef pairing_heap< AStarNode*, compare<AStarNode::compare_node> > heap_open_t;
 	typedef pairing_heap< AStarNode*, compare<AStarNode::secondary_compare_node> > heap_focal_t;

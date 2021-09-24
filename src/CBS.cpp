@@ -4,6 +4,7 @@
 #include "CBS.h"
 #include "SIPP.h"
 #include "SpaceTimeAStar.h"
+#include "SpaceTimeTypeAStar.h"
 
 
 // takes the paths_found_initially and UPDATE all (constrained) paths found for agents from curr to start
@@ -1853,7 +1854,7 @@ CBS::CBS(const Instance& instance, bool sipp, int screen) :
 		if (sipp)
 			search_engines[i] = new SIPP(instance, i);
 		else
-			search_engines[i] = new SpaceTimeAStar(instance, i);
+			search_engines[i] = new SpaceTimeTypeAStar(instance, i);  // SpaceTimeAStar(instance, i);
 
 		initial_constraints[i].goal_location = search_engines[i]->goal_location;
 	}

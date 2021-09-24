@@ -1,6 +1,6 @@
 .idea
 cmake-*
-.vscode
+# .vscode
 build
 result_debug.csv
 iteration_data*
