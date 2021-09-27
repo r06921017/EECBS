@@ -967,7 +967,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	int outer_lb = 0;
 	for (const int& ag : meta_ag)
 	{
-		if (ag == 10)
+		if (ag == 43 || ag == 26)
 			cout << endl;
 		_ma_vec_[ag] = true;
 		outer_lb += min_f_vals[ag];  // Determine sum of fmin of the meta-agent
@@ -975,13 +975,9 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 		_constraint_table.init(initial_constraints[ag]);
 		_constraint_table.build(*node, ag);
 		inner_solver->setInitConstraints(ag, _constraint_table);
-	}
-
-	// Debug
-	for (int _ag_ : meta_ag)
-	{
-		printAgentInitCT(_ag_);
-		if (_ag_ == 10)
+		
+		printAgentInitCT(ag);
+		if (ag == 43 || ag == 26)
 			cout << endl;
 	}
 
