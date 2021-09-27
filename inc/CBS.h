@@ -328,7 +328,7 @@ protected:
 	shared_ptr<Conflict> chooseConflict(const HLNode &node) const;
 	static void copyConflicts(const list<shared_ptr<Conflict>>& conflicts,
 		list<shared_ptr<Conflict>>& copy, const list<int>& excluded_agent) ;
-	static void RemoveConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int>& excluded_agents);
+	static void removeConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int>& excluded_agents);
 	void removeLowPriorityConflicts(list<shared_ptr<Conflict>>& conflicts) const;
 	void computeSecondPriorityForConflict(Conflict& conflict, const HLNode& node);
 
@@ -348,6 +348,7 @@ protected:
 	void getBranchEval(HLNode* __node__, int open_head_lb);
 	void saveEval(void);
 	void saveNumNodesInLists(void);
+	void printAgentInitCT(int __ag__) const;
 
 private: // CBS only, cannot be used by ECBS
 	vector<Path> paths_found_initially;  // contain initial paths found

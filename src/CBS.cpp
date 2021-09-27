@@ -65,7 +65,7 @@ void CBS::copyConflicts(const list<shared_ptr<Conflict >>& conflicts,
 	}
 }
 
-void CBS::RemoveConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int>& excluded_agents)
+void CBS::removeConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int>& excluded_agents)
 {
 	for (list<std::shared_ptr<Conflict>>::const_iterator c_it = conflicts.begin(); c_it != conflicts.end();)
 	{
@@ -154,8 +154,8 @@ void CBS::findConflicts(HLNode& curr)
 		auto new_agents = curr.getReplannedAgents();
 		if (curr.is_merged)
 		{
-			RemoveConflicts(curr.conflicts, new_agents);
-			RemoveConflicts(curr.unknownConf, new_agents);
+			removeConflicts(curr.conflicts, new_agents);
+			removeConflicts(curr.unknownConf, new_agents);
 		}
 		else
 		{
@@ -1799,50 +1799,35 @@ void CBS::addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) con
 	}
 	else
 	{
-		// // For EECBS and FEECBS
+		// // For EECBS, NEECBS, and FEECBS (method 2.)
 		// child1->constraints = curr->conflict->constraint1;
 		// child2->constraints = curr->conflict->constraint2;
-		// // End for EECBS and FEECBS
+		// // End for EECBS, NEECBS and FEECBS
 
-		// For NFEECBS, need to change back to vertex/edge constraints for meta-agents
+		// For NFEECBS without symmetric reasoning, need to change back to vertex/edge constraints for meta-agents
 		vector<int> conf_ma1 = findMetaAgent(curr->conflict->a1);
-		if (conf_ma1.size() == 1)
-		{
-			child1->constraints = curr->conflict->constraint1;
-		}
-		else
-		{
-			constraint_type type;
-			if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
-				type = constraint_type::VERTEX;
-			else  // Meta-agent edge constraint
-				type = constraint_type::EDGE;
+		constraint_type type;
+		if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
+			type = constraint_type::VERTEX;
+		else  // Meta-agent edge constraint
+			type = constraint_type::EDGE;
 
-			for (const int& _ag_ : conf_ma1)
-			{
-				child1->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
-					curr->conflict->timestep, type);
-			}
+		for (const int& _ag_ : conf_ma1)
+		{
+			child1->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
+				curr->conflict->timestep, type);
 		}
 
 		vector<int> conf_ma2 = findMetaAgent(curr->conflict->a2);
-		if (conf_ma2.size() == 1)
-		{
-			child2->constraints = curr->conflict->constraint2;
-		}
-		else
-		{
-			constraint_type type;
-			if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
-				type = constraint_type::VERTEX;
-			else  // Meta-agent edge constraint
-				type = constraint_type::EDGE;
+		if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
+			type = constraint_type::VERTEX;
+		else  // Meta-agent edge constraint
+			type = constraint_type::EDGE;
 
-			for (const int& _ag_ : conf_ma2)
-			{
-				child2->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
-					curr->conflict->timestep, type);
-			}
+		for (const int& _ag_ : conf_ma2)
+		{
+			child2->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
+				curr->conflict->timestep, type);
 		}
 		// End for NFEECBS
 	}
@@ -2260,36 +2245,7 @@ bool CBS::compareConflicts(shared_ptr<Conflict> conflict1, shared_ptr<Conflict> 
 		{
 			if (conflict1->secondary_priority == conflict2->secondary_priority)
 			{
-				// Get minimum increased_flex
-				double impact1 = max(conflict1->getImpactVal(0, impact_type::FLEX), conflict1->getImpactVal(1, impact_type::FLEX));
-				double impact2 = max(conflict2->getImpactVal(0, impact_type::FLEX), conflict2->getImpactVal(1, impact_type::FLEX));
-
-				if (impact1 == impact2)
-				{
-					impact1 = max(conflict1->getImpactVal(0, impact_type::LB), conflict1->getImpactVal(1, impact_type::LB));
-					impact2 = max(conflict2->getImpactVal(0, impact_type::LB), conflict2->getImpactVal(1, impact_type::LB));
-					if (impact1 == impact2)
-					{
-						impact1 = max(conflict1->getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict1->getImpactVal(1, impact_type::REDUCED_CONFLICTS));
-						impact2 = max(conflict2->getImpactVal(0, impact_type::REDUCED_CONFLICTS), conflict2->getImpactVal(1, impact_type::REDUCED_CONFLICTS));
-						if (impact1 == impact2)
-						{
-							if (max(conflict1->impacts[0].count, conflict1->impacts[1].count) == max(conflict2->impacts[0].count, conflict2->impacts[1].count))
-							{
-								num_tie ++;
-								return rand() % 2;
-							}
-							num_use_count ++;
-							return max(conflict1->impacts[0].count, conflict1->impacts[1].count) > max(conflict2->impacts[0].count, conflict2->impacts[1].count);
-						}
-						num_use_reduced_conflicts ++;
-						return impact1 < impact2;
-					}
-					num_use_increased_lb ++;
-					return impact1 < impact2;
-				}
-				num_use_increased_flex ++;
-				return impact1 < impact2;
+				return rand() % 2;
 			}
 			num_use_second_priority ++;
 			return conflict1->secondary_priority > conflict2->secondary_priority;
@@ -2299,4 +2255,11 @@ bool CBS::compareConflicts(shared_ptr<Conflict> conflict1, shared_ptr<Conflict> 
 	}
 	num_use_priority ++;
 	return conflict1->priority > conflict2->priority;
+}
+
+void CBS::printAgentInitCT(int __ag__) const
+{
+	cout << "CT of agent " << __ag__ << ": " << endl;
+	initial_constraints[__ag__].printCT();
+	cout << "--------------------------------" << endl;
 }

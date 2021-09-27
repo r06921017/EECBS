@@ -312,6 +312,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 			// update conflict_matrix and joint meta_agent
 			vector<int> ma1 = findMetaAgent(curr->conflict->a1);
 			vector<int> ma2 = findMetaAgent(curr->conflict->a2);
+			if (ma1 == ma2)
+			{
+				for (int tmp_ag : ma1)
+					printAgentPath(tmp_ag);
+			}
 			assert(ma1 != ma2);
 
 			for (const int& a1 : ma1)
@@ -339,9 +344,22 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					for (int _tmp_ag_ : joint_ma)
 						cout << _tmp_ag_ << ", ";
 					cout << endl;
+					cout << "collected constraints:" << endl;
+					for (Constraint tmp_constraint : curr->constraints)
+					{
+						cout << "< a:" << get<0>(tmp_constraint) << ", v1:" << get<1>(tmp_constraint);
+						cout << ", v2:" << get<2>(tmp_constraint) << ", t:" << get<3>(tmp_constraint);
+						cout << ", " << get<4>(tmp_constraint) << ">" << endl;
+					}
 				}
 
 				bool foundPaths = findPathForMetaAgent(curr, joint_ma);
+				cout << "Paths" << endl;
+				for (int tmp_ag : joint_ma)
+				{
+					printAgentPath(tmp_ag);
+				}
+				cout << "----------------------------------" << endl;
 				joint_ma.clear();
 
 				if (foundPaths)
@@ -354,6 +372,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					findConflicts(*curr);
 					if (screen > 1)
 					{
+						cout << "After replanning the meta-agent" << endl;
 						printConflicts(*curr);
 						cout << endl;
 					}
@@ -948,12 +967,22 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	int outer_lb = 0;
 	for (const int& ag : meta_ag)
 	{
+		if (ag == 10)
+			cout << endl;
 		_ma_vec_[ag] = true;
 		outer_lb += min_f_vals[ag];  // Determine sum of fmin of the meta-agent
 		ConstraintTable _constraint_table;
 		_constraint_table.init(initial_constraints[ag]);
 		_constraint_table.build(*node, ag);
 		inner_solver->setInitConstraints(ag, _constraint_table);
+	}
+
+	// Debug
+	for (int _ag_ : meta_ag)
+	{
+		printAgentInitCT(_ag_);
+		if (_ag_ == 10)
+			cout << endl;
 	}
 
 	inner_solver->setMetaAgents(meta_ag);  // Set the meta-agent for inner solver
@@ -982,8 +1011,10 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	}
 	if (screen == 2)
 	{
+		cout << "--------------------------------------" << endl;
 		cout << "conflict of original CT ndoe" << endl;
 		printConflicts(*node);
+		cout << "--------------------------------------" << endl;
 		cout << "chosen onflict: " << *node->conflict << endl;
 	}
 	if (screen > 3)
@@ -1475,6 +1506,7 @@ ECBSNode* ECBS::selectNode()
 
 	// takes the paths_found_initially and UPDATE all constrained paths found for agents from curr to dummy_start (and lower-bounds)
 	updatePaths(curr);
+	meta_agents = curr->meta_agents;
 
 	if (screen > 1)
 		cout << endl << "Pop " << *curr << endl;
@@ -1493,6 +1525,14 @@ void ECBS::printPaths() const
 	}
 }
 
+void ECBS::printAgentPath(int ag) const
+{
+	cout << "Agent " << ag << " (" << paths_found_initially[ag].first.size() - 1 << " -->" <<
+		paths[ag]->size() - 1 << "): ";
+	for (const auto & t : *paths[ag])
+		cout << t.location << "->";
+	cout << endl;
+}
 
 void ECBS::classifyConflicts(ECBSNode &node)
 {

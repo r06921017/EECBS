@@ -106,4 +106,5 @@ private:
 	//update information
 	void updatePaths(ECBSNode* curr);
 	void printPaths() const;
+	void printAgentPath(int ag) const;
 };

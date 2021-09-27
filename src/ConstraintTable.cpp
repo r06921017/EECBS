@@ -19,6 +19,20 @@ void ConstraintTable::insert2CT(size_t loc, int t_min, int t_max)
 	}
 }
 
+
+void ConstraintTable::printCT(void) const
+{
+	cout << "Size: " << ct.size() << endl;
+	for (auto c : ct)
+	{
+		cout << "loc:" << c.first;
+		for (auto time_range : c.second)
+			cout << "(" << time_range.first << ", " << time_range.second << ")" << "->";
+		cout << endl;
+	}
+}
+
+
 void ConstraintTable::insertLandmark(size_t loc, int t)
 {
 	auto it = landmarks.find(t);
