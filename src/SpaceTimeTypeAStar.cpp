@@ -115,8 +115,8 @@ pair<Path, int> SpaceTimeTypeAStar::findSuboptimalPath(const HLNode& node, const
 				allNodes_table.insert(next);
 				continue;
 			}
-			// update existing node's if needed (only in the open_list)
 
+			// update existing node's if needed (only in the open_list)
 			auto existing_next = *it;
 			if (existing_next->getFVal() > next->getFVal() || // if f-val decreased through this new path
 				(existing_next->getFVal() == next->getFVal() &&
@@ -124,6 +124,11 @@ pair<Path, int> SpaceTimeTypeAStar::findSuboptimalPath(const HLNode& node, const
 			{
 				if (!existing_next->in_openlist) // if its in the closed list (reopen)
 				{
+					if (find(type_lists[(int) existing_next->getFVal()].begin(), type_lists[(int) existing_next->getFVal()].end(), existing_next) != type_lists[(int) existing_next->getFVal()].end())
+					{
+						cerr << "existing_node should be deleted since it is in CLOSE." << endl;
+						exit(1);
+					}
 					existing_next->copy(*next);
 					pushNode(existing_next);
 				}
@@ -155,8 +160,13 @@ pair<Path, int> SpaceTimeTypeAStar::findSuboptimalPath(const HLNode& node, const
 					}
 					if (update_in_focal)
 					{
+						// Remove the existing_next from type list
+						type_lists[(int) existing_next->getFVal()].erase(existing_next->type_list_handle);
+						
 						focal_list.update(existing_next->focal_handle);  // should we do update? yes, because number of conflicts may go up or down
-						type_lists[(int) existing_next->getFVal()].update(existing_next->type_handle);
+						pushNodeToTypes(existing_next);
+						// cout << "getNumInTypes(): " << getNumInTypes() << endl;
+						// cout << "focal_list.size(): " << focal_list.size() << endl;
 						assert(getNumInTypes() == focal_list.size());
 						assert(isTypeValid());
 					}
@@ -180,75 +190,43 @@ inline AStarNode* SpaceTimeTypeAStar::popNode()
 	{
 		if (iter_counter % 2 == 1)  // Focal search steop
 		{
-			cout << "====================================================" << endl;
-			cout << "Before: " << endl;
-			cout << "type_lists.size(): " << type_lists.size() << endl;
-			for (auto itr = type_lists.begin(); itr != type_lists.end(); itr++)
+			node = focal_list.top(); focal_list.pop();
+			type_lists[(int) node->getFVal()].erase(node->type_list_handle);
+
+			// Erase node pointer from type_lists and focal_list
+			if (type_lists[(int) node->getFVal()].empty())
 			{
-				cout << "\ntype_lists[" << itr->first << "]: " << endl;
-				for (auto tmp_n : itr->second)
-				{
-					cout << "\t" << tmp_n << tmp_n->getFVal() << ", " << tmp_n->location << ", " << tmp_n->num_of_conflicts << endl;
-				}
-				cout << "---------------------------------" << endl;
+				type_lists[(int) node->getFVal()].clear();
+				type_lists.erase((int) node->getFVal());
 			}
-
-			AStarNode *node = focal_list.top(); focal_list.pop();
-			type_lists[(int) node->getFVal()].erase(node->type_handle);
-
-			cout << "After: " << endl;
-			cout << "type_lists.size(): " << type_lists.size() << endl;
-			for (auto itr = type_lists.begin(); itr != type_lists.end(); itr++)
-			{
-				cout << "\ntype_lists[" << itr->first << "]: " << endl;
-				for (auto tmp_n : itr->second)
-				{
-					cout << "\t" << tmp_n->getFVal() << ", " << tmp_n->location << ", " << tmp_n->num_of_conflicts << endl;
-				}
-				cout << "---------------------------------" << endl;
-			}
-
-			assert(getNumInTypes() == focal_list.size());
-			assert(isTypeValid());
 		}
 		else  // Type-based focal search
 		{
-			cout << "type_lists.size(): " << type_lists.size() << endl;
-			for (auto itr = type_lists.begin(); itr != type_lists.end(); itr++)
-			{
-				cout << "\ntype_lists[" << itr->first << "]: " << endl;
-				for (auto tmp_n : itr->second)
-				{
-					cout << "\t" << tmp_n->getFVal() << ", " << tmp_n->location << ", " << tmp_n->num_of_conflicts << endl;
-				}
-				cout << "---------------------------------" << endl;
-			}
-
 			// Select the node with minimum number of conflicts in the given random type
-			cout << "Before focal_list.size(): " << focal_list.size() << endl;
 			assert(getNumInTypes() == focal_list.size());
 			assert(isTypeValid());
 
 			auto rand_it = type_lists.begin();
 			advance(rand_it, rand() % type_lists.size());
 
-			// Debug
-			cout << "rand_it: (" << rand_it->first << ", " << rand_it->second.top() << ")" << endl;
-			cout << "rand_it->second.size(): " << rand_it->second.size() << endl;
-
-			// Select node
+			// Select node from Type list
 			node = rand_it->second.top();
-			rand_it->second.pop();
+			if (find(focal_list.begin(), focal_list.end(), node) == focal_list.end())
+			{
+				cout << "node should be in focal" << endl;
+				exit(1);
+			}
+			focal_list.erase(node->focal_handle);
 
-			cout << "node->getFVal()   " << node->getFVal() << endl;
-			cout << "After rand_it->second.size(): " << rand_it->second.size() << endl;
+			cout << "same handle? " << (node->type_list_handle == node->focal_handle) << endl;
+			type_lists[(int) node->getFVal()].erase(node->type_list_handle);
 
 			// Erase node pointer from type_lists and focal_list
 			if (rand_it->second.empty())
-				type_lists.erase(rand_it->first);
-			focal_list.erase(node->focal_handle);
-
-			cout << "After focal_list.size(): " << focal_list.size() << endl;
+			{
+				type_lists[(int) node->getFVal()].clear();
+				type_lists.erase((int) node->getFVal());
+			}
 
 			// Debug
 			assert(getNumInTypes() == focal_list.size());
@@ -263,6 +241,9 @@ inline AStarNode* SpaceTimeTypeAStar::popNode()
 	}
 	node->in_openlist = false;
 	num_expanded++;
+
+	assert(getNumInTypes() == focal_list.size());
+	assert(isTypeValid());
 	return node;
 }
 
@@ -277,26 +258,37 @@ inline void SpaceTimeTypeAStar::pushNode(AStarNode* node)
 		use_focal = false;
 	else if (node->getFVal() <= upperbound)
 	{
-		node->focal_handle = focal_list.push(node);		
+		// cout << "In upperbound" << endl;
+		// cout << "Type size: " << getNumInTypes() << endl;
+		// cout << "Focal size: " << focal_list.size() << endl;
+		node->focal_handle = focal_list.push(node);
 		pushNodeToTypes(node);
-	}
+		// cout << "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII  " << (getNumInTypes() == focal_list.size()) << endl;
 
-	// Debug
-	cout << "++++++++++ push node ++++++++++" << endl;
-	cout << "focal_list.size(): " << focal_list.size() << endl;
-	for (auto t_n : focal_list)
-	{
-		cout << t_n << endl;
+		// if (getNumInTypes() != focal_list.size())
+		// {
+		// 	cerr << "Should be the same size" << endl;
+		// 	cout << "Type size: " << getNumInTypes() << endl;
+		// 	cout << "Focal size: " << focal_list.size() << endl;
+		// 	exit(1);
+		// }
 	}
-	for (auto tmp_type : type_lists)
-	{
-		cout << "tmp_type.second.size(): " << tmp_type.second.size();
-		for (auto t_n : tmp_type.second)
-			cout << ", " << tmp_type.second.top();
-		cout << endl;
-	}
-	assert(getNumInTypes() == focal_list.size());
-	assert(isTypeValid());
+	// cout << "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN  " << (getNumInTypes() == focal_list.size()) << endl;
+
+	// if (getNumInTypes() != focal_list.size())
+	// {
+	// 	cerr << "Should be the same size" << endl;
+	// 	// cout << "use_focal: " << use_focal << endl;
+	// 	// cout << "node->getFVal() <= upperbound: " << (node->getFVal() <= upperbound) << endl;
+	// 	// cout << "Type size: " << getNumInTypes() << endl;
+	// 	// cout << "Focal size: " << focal_list.size() << endl;
+	// 	exit(1);
+	// }
+	// if (!isTypeValid())
+	// {
+	// 	cerr << "Not valid" << endl;
+	// 	exit(1);
+	// }
 }
 
 inline void SpaceTimeTypeAStar::pushNodeToTypes(AStarNode* node)
@@ -305,20 +297,16 @@ inline void SpaceTimeTypeAStar::pushNodeToTypes(AStarNode* node)
 	if (type_lists.find(fval) == type_lists.end())  // Type of the node is not found
 	{
 		heap_focal_t tmp_focal;
-		node->type_handle = tmp_focal.push(node);
-		type_lists.insert(make_pair(fval, tmp_focal));
+		type_lists.try_emplace(fval, tmp_focal);
 	}
-	else  // The key already exists
-	{
-		node->type_handle = type_lists[fval].push(node);
-	}
+	node->type_list_handle = type_lists[fval].push(node);
 }
 
 
-int SpaceTimeTypeAStar::getNumInTypes(void)
+size_t SpaceTimeTypeAStar::getNumInTypes(void)
 {
-	int number_nodes_in_type_lists = 0;
-	for (auto tmp_type : type_lists)
+	size_t number_nodes_in_type_lists = 0;
+	for (pair<int, heap_focal_t> tmp_type : type_lists)
 		number_nodes_in_type_lists += tmp_type.second.size();
 	return number_nodes_in_type_lists;
 }
@@ -338,6 +326,63 @@ bool SpaceTimeTypeAStar::isTypeValid(void)
 		}
 	}
 	return true;
+}
+
+bool SpaceTimeTypeAStar::checkTypeListsUnique(void)
+{
+	cout << "CHECK TYPE LISTS UNIQUE!!!" << endl;
+	printTypeList();
+	heap_focal_t tmp_focal;
+	for (auto tmp_type : type_lists)
+	{
+		for (auto tmp_node : tmp_type.second)
+		{
+			if (find(tmp_focal.begin(), tmp_focal.end(), tmp_node) == tmp_focal.end())
+			{
+				tmp_focal.push(tmp_node);
+			}
+			else
+			{
+				cerr << "(" << tmp_node << ", " << tmp_node->getFVal() << ", " << tmp_node->location << ", " << tmp_node->timestep << ") ";
+				cout << "node should be unique!" << endl;
+				exit(1);
+				return false;
+			}
+		}
+	}
+
+	if (tmp_focal.size() != focal_list.size())
+	{
+		cerr << "The size of type list and focal list should be the same!" << endl;
+		exit(1);
+		return false;
+	}
+
+	for (auto tmp_it = focal_list.begin(); tmp_it != focal_list.end(); tmp_it++)
+	{
+		assert(find(tmp_focal.begin(), tmp_focal.end(), (*tmp_it))!= tmp_focal.end());
+		if (find(tmp_focal.begin(), tmp_focal.end(), (*tmp_it))== tmp_focal.end())
+		{
+			cerr << "Should find the node in FOCAL" << endl;
+			exit(1);
+		}
+	}
+	return true;
+}
+
+
+void SpaceTimeTypeAStar::printTypeList(void)
+{
+	cout << "type_lists.size(): " << type_lists.size() << endl;
+	for (auto itr = type_lists.begin(); itr != type_lists.end(); itr++)
+	{
+		// cout << "\ntype_lists[" << itr->first << "]: \tSize: " << itr->second.size() << endl;
+		for (auto tmp_n : itr->second)
+		{
+			cout << "\t" << tmp_n << ", " << tmp_n->getFVal() << ", " << tmp_n->location << ", " << tmp_n->num_of_conflicts << endl;
+		}
+		cout << "---------------------------------" << endl;
+	}
 }
 
 
@@ -366,14 +411,33 @@ void SpaceTimeTypeAStar::updateFocalList(int lowerbound, int other_sum_lb, int o
 		upperbound = new_upper_bound;
 		assert((double) min_f_val <= upperbound);
 	}
+	// if (!checkTypeListsUnique())
+	// {
+	// 	exit(1);
+	// }
 }
 
 void SpaceTimeTypeAStar::releaseNodes()
 {
 	open_list.clear();
-	focal_list.clear();
+	// printTypeList();
+	// for (auto tmp_node : focal_list)
+	// {
+	// 	cout << tmp_node << ", " << tmp_node->getFVal() << ", " << tmp_node->location << ", " << tmp_node->timestep << endl;
+	// }
+	// assert(checkTypeListsUnique());
+	// if (!isTypeValid())
+	// 	exit(1);
+	// if (getNumInTypes() != focal_list.size())
+	// 	exit(1);
 	type_lists.clear();
+	// cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << endl;
+	// printTypeList();
+	// cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << endl;
+
+	focal_list.clear();
 	for (auto node: allNodes_table)
 		delete node;
 	allNodes_table.clear();
+	iter_counter = 0;
 }

@@ -273,8 +273,8 @@ int SIPP::getTravelTime(int start, int end, const ConstraintTable& constraint_ta
 	return length;
 	/*int length = INT_MAX;
 	// generate a heap that can save nodes (and a open_handle)
-	pairing_heap< SIPPNode*, compare<SIPPNode::compare_node> > open_list;
-	// boost::heap::pairing_heap< AStarNode*, boost::heap::compare<LLNode::compare_node> >::handle_type open_handle;
+	fibonacci_heap< SIPPNode*, compare<SIPPNode::compare_node> > open_list;
+	// boost::heap::fibonacci_heap< AStarNode*, boost::heap::compare<LLNode::compare_node> >::handle_type open_handle;
 	unordered_set<SIPPNode*, SIPPNode::NodeHasher, SIPPNode::eqnode> nodes;
 
 	Interval interval = reservation_table.get_first_safe_interval(start);

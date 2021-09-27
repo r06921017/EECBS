@@ -5,7 +5,9 @@ cmake_minimum_required (VERSION 3.7.1)
 set(CMAKE_CXX_STANDARD 17)  # only useful when CMake version >= 3.1
 set(CMAKE_CXX_COMPILER "/usr/bin/g++")
 set(CMAKE_LINKER  "/usr/bin/ld")
+# set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
 set(CMAKE_VERBOSE_MAKEFILE OFF)  # Show all commands and parameters
+set (ENV{MALLOC_CHECK_} 2)
 
 IF(NOT CMAKE_BUILD_TYPE)
     SET(CMAKE_BUILD_TYPE "RELEASE")

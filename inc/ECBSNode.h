@@ -68,9 +68,9 @@ public:
 		}
 	};  // used by FOCAL to compare nodes by f^-val (top of the heap has min f^-val)
 
-	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_f> >::handle_type cleanup_handle;
-	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_inadmissible_f> >::handle_type open_handle;
-	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_d> >::handle_type focal_handle;
+	fibonacci_heap< ECBSNode*, compare<ECBSNode::compare_node_by_f> >::handle_type cleanup_handle;
+	fibonacci_heap< ECBSNode*, compare<ECBSNode::compare_node_by_inadmissible_f> >::handle_type open_handle;
+	fibonacci_heap< ECBSNode*, compare<ECBSNode::compare_node_by_d> >::handle_type focal_handle;
 
 	ECBSNode* parent;
 	list< pair< int, pair<Path, int> > > paths; // new paths <agent id, <path, min f>>	

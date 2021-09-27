@@ -60,7 +60,7 @@ bool MDD::buildMDD(ConstraintTable& constraint_table, const SingleAgentSolver* _
 	int holding_time = constraint_table.getHoldingTime(); // the earliest timestep that the agent can hold its goal location. The length_min is considered here.
 	auto root = new Node(solver->start_location, 0, solver->my_heuristic[solver->start_location]); // Root
 	// generate a heap that can save nodes (and a open_handle)
-	pairing_heap< Node*, compare<Node::compare_node> > open;
+	fibonacci_heap< Node*, compare<Node::compare_node> > open;
 	unordered_set<Node*, Node::NodeHasher, Node::eqnode> allNodes_table;
 	open.push(root);
 	allNodes_table.insert(root);

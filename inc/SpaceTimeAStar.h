@@ -6,11 +6,11 @@ class AStarNode: public LLNode
 {
 public:
 	// define a typedefs for handles to the heaps (allow up to quickly update a node in the heap)
-	typedef pairing_heap< AStarNode*, compare<LLNode::compare_node> >::handle_type open_handle_t;
-	typedef pairing_heap< AStarNode*, compare<LLNode::secondary_compare_node> >::handle_type focal_handle_t;
+	typedef fibonacci_heap< AStarNode*, compare<LLNode::compare_node> >::handle_type open_handle_t;
+	typedef fibonacci_heap< AStarNode*, compare<LLNode::secondary_compare_node> >::handle_type focal_handle_t;
 	open_handle_t open_handle;
 	focal_handle_t focal_handle;
-	focal_handle_t type_handle;
+	focal_handle_t type_list_handle;
 
 
 	AStarNode() : LLNode() {}
@@ -72,8 +72,8 @@ public:
 
 protected:
 	// define typedefs and handles for heap
-	typedef pairing_heap< AStarNode*, compare<AStarNode::compare_node> > heap_open_t;
-	typedef pairing_heap< AStarNode*, compare<AStarNode::secondary_compare_node> > heap_focal_t;
+	typedef fibonacci_heap< AStarNode*, compare<AStarNode::compare_node> > heap_open_t;
+	typedef fibonacci_heap< AStarNode*, compare<AStarNode::secondary_compare_node> > heap_focal_t;
 	heap_open_t open_list;
 	heap_focal_t focal_list;
 

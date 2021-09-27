@@ -33,8 +33,10 @@ private:
 	inline void pushNode(AStarNode* node);
 	inline void pushNodeToTypes(AStarNode* node);
 	void releaseNodes();
-	int getNumInTypes(void);
+	size_t getNumInTypes(void);
 	bool isTypeValid(void);
+	void printTypeList(void);
+	bool checkTypeListsUnique(void);
 
 	double upperbound;  // For FEECBS
 	uint64_t iter_counter = 0;
