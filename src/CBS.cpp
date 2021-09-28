@@ -73,7 +73,7 @@ void CBS::removeConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int
 		if (std::find(excluded_agents.begin(), excluded_agents.end(), (*c_it)->a1) != excluded_agents.end() && 
 			std::find(excluded_agents.begin(), excluded_agents.end(), (*c_it)->a2) != excluded_agents.end())
 		{
-			cout << "Erase conflict: " << **c_it << endl;
+			// cout << "Erase conflict: " << **c_it << endl;
 			c_it = conflicts.erase(c_it++);
 		}
 		else
@@ -1096,7 +1096,8 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 			"runtime of building MDDs,runtime of building constraint tables,runtime of building CATs," <<
 			"runtime of path finding,runtime of generating child nodes," <<
 			"preprocessing runtime,solver name,instance name,#pushFOCAL," <<
-			"#use pri,#use_type,#use second pri,#use increased flex,#use increased lb,#use reduced conf,#use count,#tie,#has seen conf,restart_cnt,restart_th,#merged" << endl;
+			"#use pri,#use_type,#use second pri,#use increased flex,#use increased lb,#use reduced conf,#use count,#tie,#has seen conf,restart_cnt,restart_th," <<
+			"#merged,#solver high-level expanded,#solver high-level generated,#solver low-level expanded,#solver low-level generated," << endl;
 		addHeads.close();
 	}
 	ofstream stats(fileName, std::ios::app);
@@ -1130,7 +1131,9 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 
 		runtime_preprocessing << "," << getSolverName() << "," << instanceName << "," << num_push_focal << "," <<
 		num_use_priority << "," << num_use_type << "," << num_use_second_priority << "," << num_use_increased_flex << "," << 
-		num_use_increased_lb << "," << num_use_reduced_conflicts << "," << num_use_count << "," << num_tie << "," << num_has_seen_conf << "," << restart_cnt << "," << restart_th << num_merged << endl;
+		num_use_increased_lb << "," << num_use_reduced_conflicts << "," << num_use_count << "," << num_tie << "," << 
+		num_has_seen_conf << "," << restart_cnt << "," << restart_th << "," << num_merged << "," <<
+		solver_num_HL_expanded << "," << solver_num_HL_generated << "," << solver_num_LL_expanded << "," << solver_num_LL_generated << endl;
 	stats.close();
 }
 
@@ -1800,36 +1803,33 @@ void CBS::addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) con
 	else
 	{
 		// For EECBS, NEECBS, and FEECBS (method 2.)
-		child1->constraints = curr->conflict->constraint1;
-		child2->constraints = curr->conflict->constraint2;
+		// child1->constraints = curr->conflict->constraint1;
+		// child2->constraints = curr->conflict->constraint2;
 		// End for EECBS, NEECBS and FEECBS
 
-		// // For NFEECBS without symmetric reasoning, need to change back to vertex/edge constraints for meta-agents
-		// vector<int> conf_ma1 = findMetaAgent(curr->conflict->a1);
-		// constraint_type type;
-		// if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
-		// 	type = constraint_type::VERTEX;
-		// else  // Meta-agent edge constraint
-		// 	type = constraint_type::EDGE;
+		// For NFEECBS without symmetric reasoning, need to change back to vertex/edge constraints for meta-agents
+		constraint_type type;
+		if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
+			type = constraint_type::VERTEX;
+		else  // Meta-agent edge constraint
+			type = constraint_type::EDGE;
 
-		// for (const int& _ag_ : conf_ma1)
-		// {
-		// 	child1->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
-		// 		curr->conflict->timestep, type);
-		// }
+		vector<int> conf_ma1 = findMetaAgent(curr->conflict->a1);
+		for (const int& _ag_ : conf_ma1)
+		{
+			child1->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
+				curr->conflict->timestep, type);
+		}
 
-		// vector<int> conf_ma2 = findMetaAgent(curr->conflict->a2);
-		// if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
-		// 	type = constraint_type::VERTEX;
-		// else  // Meta-agent edge constraint
-		// 	type = constraint_type::EDGE;
-
-		// for (const int& _ag_ : conf_ma2)
-		// {
-		// 	child2->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
-		// 		curr->conflict->timestep, type);
-		// }
-		// // End for NFEECBS
+		vector<int> conf_ma2 = findMetaAgent(curr->conflict->a2);
+		for (const int& _ag_ : conf_ma2)
+		{
+			if (type == constraint_type::VERTEX)
+				child2->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, curr->conflict->timestep, type);
+			else if (type == constraint_type::EDGE)
+				child2->constraints.emplace_back(_ag_, curr->conflict->loc2, curr->conflict->loc1, curr->conflict->timestep, type);
+		}
+		// End for NFEECBS
 	}
 }
 
@@ -1980,8 +1980,15 @@ inline void CBS::releaseNodes()
 	open_list.clear();
 	cleanup_list.clear();
 	focal_list.clear();
-	for (auto& node : allNodes_table)
-		delete node;
+	// cout << "is_solver: " << is_solver << endl;
+	// cout << "allNodes_table.size(): " << allNodes_table.size() << endl;
+	// for (auto& node : allNodes_table)
+	// {
+	// 	cout << "-----------------------------------------" << endl;
+	// 	cout << *node << endl;
+	// 	cout << "-----------------------------------------" << endl;
+	// 	delete node;
+	// }
 	allNodes_table.clear();
 	path_initialize = false;
 	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
@@ -2097,6 +2104,22 @@ void CBS::clear()
 	goal_node = nullptr;
 	solution_found = false;
 	solution_cost = -2;
+
+	// for nested framework
+	meta_agents.clear();
+	ma_vec.clear();
+	ma_vec.resize(num_of_agents, false);  // checking if need to solve agent
+
+	if (is_solver)
+	{
+		num_HL_generated = 0;
+		num_HL_expanded = 0;
+		num_LL_generated = 0;
+		num_LL_expanded = 0;
+	}
+
+	conflict_matrix.clear();
+	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
 }
 
 void CBS::getBranchEval(HLNode* __node__, int open_head_lb)

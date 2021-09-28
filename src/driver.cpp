@@ -188,7 +188,7 @@ int main(int argc, char** argv)
 		// inner solver for nested framework
 		if (vm["mergeTh"].as<int>() < INT_MAX)
 		{
-			shared_ptr<CBS> inner_solver = make_shared<ECBS>(ECBS(instance, false, 1));
+			shared_ptr<CBS> inner_solver = make_shared<ECBS>(ECBS(instance, false, 0));
 			inner_solver->setIsSolver(true);
 			inner_solver->setPrioritizeConflicts(vm["prioritizingConflicts"].as<bool>());
 			inner_solver->setDisjointSplitting(vm["disjointSplitting"].as<bool>());

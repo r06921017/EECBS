@@ -218,6 +218,7 @@ protected:
 	CBSHeuristic heuristic_helper;
 
 	list<HLNode*> allNodes_table; // this is ued for both ECBS and EES
+	unordered_map<uint64_t, HLNode*> mergedNodes_table; // this is for storing nodes that go through merging process
 
 
 	string getSolverName() const;

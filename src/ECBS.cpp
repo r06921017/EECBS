@@ -249,10 +249,19 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 						// Copy new meta_agents to the current node
 						curr->meta_agents = meta_agents;
 						curr->ma_vec =ma_vec;
+						curr->is_merged = true;
 
 						findConflicts(*curr);
 						heuristic_helper.computeQuickHeuristics(*curr);
 						pushNode(curr);
+
+						// // Debug
+						// cout << "allNnodes_table: ";
+						// for (auto tmp_node : allNodes_table)
+						// {
+						// 	cout << *tmp_node << ", ";
+						// }
+						// cout << endl;
 
 						assert(curr->g_val <= curr->sum_of_costs);
 						assert(curr->sum_of_costs <= suboptimality * curr->g_val);
@@ -262,9 +271,10 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 
 					else if (inner_solver->solution_cost == -1)  // Timeout
 					{
+						// solution_cost = -1;
 						runtime_merge += (double)(clock() - t1) / CLOCKS_PER_SEC;
-						solution_found = -1;
-						break;
+						// runtime = (double)(clock() - start) / CLOCKS_PER_SEC;
+						continue;
 					}
 
 					else
@@ -312,11 +322,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 			// update conflict_matrix and joint meta_agent
 			vector<int> ma1 = findMetaAgent(curr->conflict->a1);
 			vector<int> ma2 = findMetaAgent(curr->conflict->a2);
-			if (ma1 == ma2)
-			{
-				for (int tmp_ag : ma1)
-					printAgentPath(tmp_ag);
-			}
+			// if (ma1 == ma2)
+			// {
+			// 	for (int tmp_ag : ma1)
+			// 		printAgentPath(tmp_ag);
+			// }
 			assert(ma1 != ma2);
 
 			for (const int& a1 : ma1)
@@ -338,28 +348,28 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 				std::merge(ma1.begin(), ma1.end(), ma2.begin(), ma2.end(), std::back_inserter(joint_ma));
 				meta_agents.push_back(joint_ma);
 
-				if (screen > 1)
-				{
-					cout << "Merging agents: ";
-					for (int _tmp_ag_ : joint_ma)
-						cout << _tmp_ag_ << ", ";
-					cout << endl;
-					cout << "collected constraints:" << endl;
-					for (Constraint tmp_constraint : curr->constraints)
-					{
-						cout << "< a:" << get<0>(tmp_constraint) << ", v1:" << get<1>(tmp_constraint);
-						cout << ", v2:" << get<2>(tmp_constraint) << ", t:" << get<3>(tmp_constraint);
-						cout << ", " << get<4>(tmp_constraint) << ">" << endl;
-					}
-				}
+				// if (screen > 1)
+				// {
+				// 	cout << "Merging agents: ";
+				// 	for (int _tmp_ag_ : joint_ma)
+				// 		cout << _tmp_ag_ << ", ";
+				// 	cout << endl;
+				// 	cout << "collected constraints:" << endl;
+				// 	for (Constraint tmp_constraint : curr->constraints)
+				// 	{
+				// 		cout << "< a:" << get<0>(tmp_constraint) << ", v1:" << get<1>(tmp_constraint);
+				// 		cout << ", v2:" << get<2>(tmp_constraint) << ", t:" << get<3>(tmp_constraint);
+				// 		cout << ", " << get<4>(tmp_constraint) << ">" << endl;
+				// 	}
+				// }
 
 				bool foundPaths = findPathForMetaAgent(curr, joint_ma);
-				cout << "Paths" << endl;
-				for (int tmp_ag : joint_ma)
-				{
-					printAgentPath(tmp_ag);
-				}
-				cout << "----------------------------------" << endl;
+				// cout << "Paths" << endl;
+				// for (int tmp_ag : joint_ma)
+				// {
+				// 	printAgentPath(tmp_ag);
+				// }
+				// cout << "----------------------------------" << endl;
 				joint_ma.clear();
 
 				if (foundPaths)
@@ -370,14 +380,23 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					curr->is_merged = true;
 
 					findConflicts(*curr);
-					if (screen > 1)
-					{
-						cout << "After replanning the meta-agent" << endl;
-						printConflicts(*curr);
-						cout << endl;
-					}
+					// if (screen > 1)
+					// {
+					// 	cout << "After replanning the meta-agent" << endl;
+					// 	printConflicts(*curr);
+					// 	cout << endl;
+					// }
 					heuristic_helper.computeQuickHeuristics(*curr);
 					pushNode(curr);
+
+					// // Debug
+					// cout << "push node done!" << endl;
+					// cout << "allNnodes_table:" << endl;
+					// for (auto tmp_node : allNodes_table)
+					// {
+					// 	cout << "Address: " << tmp_node << ", " << *tmp_node << endl;
+					// }
+					// cout << endl;
 
 					assert(curr->g_val <= curr->sum_of_costs);
 					assert(curr->sum_of_costs <= suboptimality * curr->g_val);
@@ -388,8 +407,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 				else if (inner_solver->solution_cost == -1)  // Timeout
 				{
 					runtime_merge += (double)(clock() - t1) / CLOCKS_PER_SEC;
-					solution_found = -1;
-					break;
+					// runtime = (double)(clock() - start) / CLOCKS_PER_SEC;
+					continue;
 				}
 
 				else
@@ -473,16 +492,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 			num_cardinal_conflicts++;
         if (!curr->children.empty())
             heuristic_helper.updateOnlineHeuristicErrors(*curr); // update online heuristic errors
-		
-		// if (screen == 5 && curr->time_generated == 144)
-		// {
-		// 	cout << *curr << endl;
-		// 	for (const auto& child : curr->children)
-		// 	{
-		// 		cout << *child << endl;
-		// 		cout << endl;
-		// 	}
-		// }
+
 		if (!curr->is_merged)  // Only clear conflicts if curr is not reinserted to lists (due to merging)
 			curr->clear();
 	}  // end of while loop
@@ -794,7 +804,7 @@ bool ECBS::generateRoot()
 	if (screen >= 2) // print start and goals
 	{
 		printPaths();
-		printConflicts(*dummy_start);
+		// printConflicts(*dummy_start);
 	}
 	return true;
 }
@@ -967,18 +977,12 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	int outer_lb = 0;
 	for (const int& ag : meta_ag)
 	{
-		if (ag == 43 || ag == 26)
-			cout << endl;
 		_ma_vec_[ag] = true;
 		outer_lb += min_f_vals[ag];  // Determine sum of fmin of the meta-agent
 		ConstraintTable _constraint_table;
 		_constraint_table.init(initial_constraints[ag]);
 		_constraint_table.build(*node, ag);
 		inner_solver->setInitConstraints(ag, _constraint_table);
-		
-		printAgentInitCT(ag);
-		if (ag == 43 || ag == 26)
-			cout << endl;
 	}
 
 	inner_solver->setMetaAgents(meta_ag);  // Set the meta-agent for inner solver
@@ -1005,19 +1009,19 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 			
 		}
 	}
-	if (screen == 2)
-	{
-		cout << "--------------------------------------" << endl;
-		cout << "conflict of original CT ndoe" << endl;
-		printConflicts(*node);
-		cout << "--------------------------------------" << endl;
-		cout << "chosen onflict: " << *node->conflict << endl;
-	}
-	if (screen > 3)
-	{
-		cout << inner_solver->getInitialPathLength(0) << endl;
-		cout << endl;
-	}
+	// if (screen == 2)
+	// {
+	// 	cout << "--------------------------------------" << endl;
+	// 	cout << "conflict of original CT ndoe" << endl;
+	// 	printConflicts(*node);
+	// 	cout << "--------------------------------------" << endl;
+	// 	cout << "chosen onflict: " << *node->conflict << endl;
+	// }
+	// if (screen > 3)
+	// {
+	// 	cout << inner_solver->getInitialPathLength(0) << endl;
+	// 	cout << endl;
+	// }
 	inner_solver->setFlex(outer_flex);
 	inner_solver->setIsStart(false);
 	inner_solver->path_initialize = true;
@@ -1026,6 +1030,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	bool foundSol = inner_solver->solve(inner_time_limit, outer_lb);  // Run solver for meta-agent
 
 	// Update Outer ECBS parameters from Inner ECBS
+	// cout << "inner solver done!" << endl;
 	solver_num_HL_expanded += inner_solver->num_HL_expanded;
 	solver_num_HL_generated += inner_solver->num_HL_generated;
 	solver_num_LL_expanded += inner_solver->num_LL_expanded;
@@ -1144,7 +1149,15 @@ inline void ECBS::pushNode(ECBSNode* node)
 	default:
 		break;
 	}
-	allNodes_table.push_back(node);
+	if (!node->isin_allNodesTable)
+	{
+		node->isin_allNodesTable = true;
+		allNodes_table.push_back(node);
+	}
+	if (node->is_merged)
+	{
+		mergedNodes_table.try_emplace(node->time_generated, node);
+	}
 }
 
 
@@ -1727,6 +1740,14 @@ void ECBS::clear()
 	meta_agents.clear();
 	ma_vec.clear();
 	ma_vec.resize(num_of_agents, false);  // checking if need to solve agent
+
+	if (is_solver)
+	{
+		num_HL_generated = 0;
+		num_HL_expanded = 0;
+		num_LL_generated = 0;
+		num_LL_expanded = 0;
+	}
 
 	conflict_matrix.clear();
 	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));

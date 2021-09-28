@@ -27,7 +27,7 @@ void ConstraintTable::printCT(void) const
 	{
 		cout << "loc:" << c.first;
 		for (auto time_range : c.second)
-			cout << "(" << time_range.first << ", " << time_range.second << ")" << "->";
+			cout << ", (" << time_range.first << ", " << time_range.second << ")" << "->";
 		cout << endl;
 	}
 }

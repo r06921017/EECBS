@@ -103,12 +103,12 @@
             "program": "${workspaceFolder}/build/eecbs",
             "args": [
                 "-m/home/rdaneel/mapf_benchmark/mapf-map/random-32-32-20.map",
-                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-10.scen", //22
+                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-21.scen", //22
                 // "-m/home/rdaneel/mapf_benchmark/mapf-map/den520d.map", 
                 // "-a/home/rdaneel/mapf_benchmark/scen-even/den520d-even-2.scen",
-                "-k60",
+                "-k80",
                 "-o${workspaceFolder}/result_debug.csv", 
-                "-t300",
+                "-t60",
                 "-b", "1",
                 // "--nl", "349",
                 "--highLevelSolver", "A*eps",
@@ -121,7 +121,7 @@
                 "--rectangleReasoning", "false",
                 "--corridorReasoning", "false",
                 "--targetReasoning", "false",
-                "-s2"],
+                "-s1"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
