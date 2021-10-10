@@ -74,6 +74,6 @@ std::ostream& operator<<(std::ostream& os, const HLNode& node)
 	os << "Node " << node.time_generated << " from " << node.chosen_from << " ( f = "<< node.g_val << " + " <<
 		node.h_val << ", f hat = " << node.getFHatVal() - node.cost_to_go << " + " << node.cost_to_go <<
 		", d = " << node.distance_to_go << " ) with " <<
-		node.getNumNewPaths() << " new paths ";
+ 		node.getNumNewPaths() << " new paths ";
 	return os;
 }

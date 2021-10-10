@@ -87,7 +87,7 @@ std::ostream& operator<<(std::ostream& os, const Conflict& conflict)
 	return os;
 }
 
-bool operator < (const Conflict& conflict1, const Conflict& conflict2) // return true if conflict2 has higher priority
+bool operator < (const Conflict& conflict1, const Conflict& conflict2) // return true if conflict2 has higher priority (lower priority number)
 {
 	if (conflict1.priority == conflict2.priority)
 	{

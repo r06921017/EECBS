@@ -140,7 +140,6 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 				vector<int> ma1 = findMetaAgent(curr->conflict->a1);
 				vector<int> ma2 = findMetaAgent(curr->conflict->a2);
 				assert(ma1 != ma2);
-
 				for (const int& a1 : ma1)
 				{
 					for (const int& a2 : ma2)
@@ -195,13 +194,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 								}
 							}
 						}
-						else  // bypass condition checking for FECBS and FEECBS
-						{
-							// if (curr->g_val < child[i]->g_val)  // do not bypass if the sum of lower bound increases
-							// 	foundBypass = false;
-							if (child[i]->sum_of_costs > suboptimality * curr->g_val)
-								foundBypass = false;
-						}
+						else if (child[i]->sum_of_costs > suboptimality * curr->g_val)
+							foundBypass = false;  // bypass condition checking for FECBS and FEECBS
 
 						if (foundBypass)
 						{
@@ -219,27 +213,37 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 						delete i;
 					}
                     classifyConflicts(*curr); // classify the new-detected conflicts
+					// cout << "*************************" << endl;
+					// cout << "After adoptBypass and classify conflicts:" << endl;
+					// printConflicts(*curr, 8, 72);
+					// printAgentPath(8);
+					// printAgentPath(72);
+					// cout << "*************************" << endl;
+					// cout << endl;
 				}
 
 				else if (shouldMerge(ma1, ma2)) // Should merge
 				{
 					clock_t t1 = clock();
+					paths = path_copy;
 					// Update new meta-agent to global variable and curr CT node
 					meta_agents.erase(std::remove(meta_agents.begin(), meta_agents.end(), ma1), meta_agents.end());
 					meta_agents.erase(std::remove(meta_agents.begin(), meta_agents.end(), ma2), meta_agents.end());
 					vector<int> joint_ma;
-					std::merge(ma1.begin(), ma1.end(), ma2.begin(), ma2.end(), joint_ma.begin());
+					std::merge(ma1.begin(), ma1.end(), ma2.begin(), ma2.end(), std::back_inserter(joint_ma));
 					meta_agents.push_back(joint_ma);
 
-					if (screen > 1)
-					{
-						cout << "Merging agents: ";
-						for (int _tmp_ag_ : joint_ma)
-						{
-							cout << _tmp_ag_ << ", ";
-						}
-						cout << endl;
-					}
+					// if (screen > 1)
+					// {
+					// 	cout << "	Merging agents: ";
+					// 	for (int _tmp_ag_ : joint_ma)
+					// 	{
+					// 		cout << _tmp_ag_ << ", ";
+					// 	}
+					// 	cout << endl;
+					// 	// cout << "	Before merging: " << endl;
+					// 	// printConflicts(*curr, 8, 72);
+					// }
 
 					bool foundPaths = findPathForMetaAgent(curr, joint_ma);
 					joint_ma.clear();
@@ -254,26 +258,21 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 						findConflicts(*curr);
 						heuristic_helper.computeQuickHeuristics(*curr);
 						pushNode(curr);
-
-						// // Debug
-						// cout << "allNnodes_table: ";
-						// for (auto tmp_node : allNodes_table)
-						// {
-						// 	cout << *tmp_node << ", ";
-						// }
-						// cout << endl;
-
 						assert(curr->g_val <= curr->sum_of_costs);
 						assert(curr->sum_of_costs <= suboptimality * curr->g_val);
+
+						// if (screen > 1)
+						// {
+						// 	cout << "After merging: " << endl;
+						// 	printConflicts(*curr, 8, 72);
+						// }
 
 						runtime_merge += (double)(clock() - t1) / CLOCKS_PER_SEC;
 					}
 
 					else if (inner_solver->solution_cost == -1)  // Timeout
 					{
-						// solution_cost = -1;
 						runtime_merge += (double)(clock() - t1) / CLOCKS_PER_SEC;
-						// runtime = (double)(clock() - start) / CLOCKS_PER_SEC;
 						continue;
 					}
 
@@ -322,11 +321,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 			// update conflict_matrix and joint meta_agent
 			vector<int> ma1 = findMetaAgent(curr->conflict->a1);
 			vector<int> ma2 = findMetaAgent(curr->conflict->a2);
-			// if (ma1 == ma2)
-			// {
-			// 	for (int tmp_ag : ma1)
-			// 		printAgentPath(tmp_ag);
-			// }
+
 			assert(ma1 != ma2);
 
 			for (const int& a1 : ma1)
@@ -348,28 +343,17 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 				std::merge(ma1.begin(), ma1.end(), ma2.begin(), ma2.end(), std::back_inserter(joint_ma));
 				meta_agents.push_back(joint_ma);
 
-				// if (screen > 1)
-				// {
-				// 	cout << "Merging agents: ";
-				// 	for (int _tmp_ag_ : joint_ma)
-				// 		cout << _tmp_ag_ << ", ";
-				// 	cout << endl;
-				// 	cout << "collected constraints:" << endl;
-				// 	for (Constraint tmp_constraint : curr->constraints)
-				// 	{
-				// 		cout << "< a:" << get<0>(tmp_constraint) << ", v1:" << get<1>(tmp_constraint);
-				// 		cout << ", v2:" << get<2>(tmp_constraint) << ", t:" << get<3>(tmp_constraint);
-				// 		cout << ", " << get<4>(tmp_constraint) << ">" << endl;
-				// 	}
-				// }
+				if (screen > 1)
+				{
+					cout << "	Merging agents: ";
+					for (int _tmp_ag_ : joint_ma)
+					{
+						cout << _tmp_ag_ << ", ";
+					}
+					cout << endl;
+				}
 
 				bool foundPaths = findPathForMetaAgent(curr, joint_ma);
-				// cout << "Paths" << endl;
-				// for (int tmp_ag : joint_ma)
-				// {
-				// 	printAgentPath(tmp_ag);
-				// }
-				// cout << "----------------------------------" << endl;
 				joint_ma.clear();
 
 				if (foundPaths)
@@ -383,7 +367,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					// if (screen > 1)
 					// {
 					// 	cout << "After replanning the meta-agent" << endl;
-					// 	printConflicts(*curr);
+					// 	printConflicts(*curr, 8, 72);
 					// 	cout << endl;
 					// }
 					heuristic_helper.computeQuickHeuristics(*curr);
@@ -516,6 +500,19 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 
 void ECBS::adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_copy, const vector<Path*>& path_copy)
 {
+	// if (screen > 0)
+	// {
+	// 	cout << "curr conflicts:" << endl;
+	// 	printConflicts(*curr);
+	// 	cout << "||||||||||||||||||||||||||||||||||||" << endl;
+	// 	cout << "child conflicts:" << endl;
+	// 	printConflicts(*child);
+	// 	cout << "||||||||||||||||||||||||||||||||||||" << endl;
+	// 	if (child->conflicts.size() == 0 && child->unknownConf.size() == 0)
+	// 	{
+	// 		assert(validatePaths(child));
+	// 	}		
+	// }
 	num_adopt_bypass++;
 	curr->sum_of_costs = child->sum_of_costs;
 	curr->cost_to_go = child->cost_to_go;
@@ -524,6 +521,8 @@ void ECBS::adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_
 	curr->unknownConf = child->unknownConf;
 	curr->conflict = nullptr;
 	curr->makespan = child->makespan;
+	curr->meta_agents = child->meta_agents;
+	curr->ma_vec = child->ma_vec;
 	for (const auto& path : child->paths) // update paths
 	{
 		auto p = curr->paths.begin();
@@ -801,11 +800,11 @@ bool ECBS::generateRoot()
 	pushNode(root);
 	dummy_start = root;
 
-	if (screen >= 2) // print start and goals
-	{
-		printPaths();
-		// printConflicts(*dummy_start);
-	}
+	// if (screen >= 2) // print start and goals
+	// {
+	// 	printPaths();
+	// 	printConflicts(*dummy_start);
+	// }
 	return true;
 }
 
@@ -856,7 +855,6 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 	heuristic_helper.computeQuickHeuristics(*node);
 
 	updateConflictImpacts(*node, *parent, child_idx);
-
 	runtime_generate_child += (double)(clock() - t1) / CLOCKS_PER_SEC;
 	return true;
 }
@@ -864,6 +862,9 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 
 bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 {
+	// if (screen > 1)
+	// 	collectPaths(node->parent);
+
 	clock_t t = clock();
 	pair<Path, int> new_path;
 	if (use_flex)
@@ -952,6 +953,8 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 
 	assert(node->sum_of_costs <= suboptimality * node->getFVal());
 	assert(node->getFVal() >= node->parent->getFVal());
+	if (screen > 1)
+		collectPaths(node);
 
 	return true;
 }
@@ -960,6 +963,18 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 // Collect constraints outside the function. 
 bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 {
+	// if (screen > 0)
+	// {
+	// 	collectPaths(node->parent);
+	// 	vector<pair<Path*, int>> tmp_paths = collectPaths(node);
+	// 	cout << "Start meta-agent search" << endl;
+	// 	printAgentPath(41, tmp_paths[41].first);
+	// 	printAgentPath(41);
+	// 	cout << "---------------------------------" << endl;
+	// 	printAgentPath(76, tmp_paths[76].first);
+	// 	printAgentPath(76);
+	// 	cout << "---------------------------------" << endl;
+	// }
 	if (inner_solver == nullptr)
 	{
 		cerr << "Failed: No solver for MetaAgent!" << endl;
@@ -1040,6 +1055,22 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 
 	if (foundSol)
 	{
+		// if (screen > 1)
+		// {
+		// 	collectPaths(node->parent);
+		// 	vector<pair<Path*, int>> tmp_paths = collectPaths(node);
+		// 	cout << endl;
+
+		// 	int tmp_soc = 0;
+		// 	for (int i = 0; i < num_of_agents; i++)
+		// 	{
+		// 		assert(tmp_paths[i].first->size() == paths[i]->size());
+		// 		tmp_soc += (int)paths[i]->size() - 1;
+		// 	}
+		// 	assert(tmp_soc == node->sum_of_costs);
+		// 	cout << endl;
+		// }
+
 		int old_sum_of_costs = 0;
 		int new_sum_lb = 0;
 		for (const int& ag : meta_ag)
@@ -1073,7 +1104,34 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 			paths[ag] = &node->paths.back().second.first;
 			node->makespan = max(node->makespan, inner_path.size() - 1);
 		}
-		
+		// if (screen > 1)
+		// {
+		// 	for (const int& ag : meta_ag)
+		// 	{
+		// 		printAgentPath(ag);
+		// 	}
+		// 	// printConflicts(*node);
+		// 	cout << "Current meta-agents: "; printAllMetaAgents();
+		// 	cout << "conflict size: " << node->conflicts.size() << "+" << node->unknownConf.size() << endl;
+		// }
+		// // removeInternalConflicts(node, meta_ag);
+		// if (screen > 1)
+		// {
+		// 	cout << "=================== After removing intrenal conflicts =====================" << endl;
+		// 	// printConflicts(*node);
+		// 	cout << "conflict size: " << node->conflicts.size() << "+" << node->unknownConf.size() << endl;
+		// 	cout << "Current fmin: " << cleanup_list.top()->getFVal() << ", ";
+		// 	cout << "cost_lowerbound: " << cost_lowerbound << endl;
+		// 	cout << "Current upper bound: " << suboptimality * cost_lowerbound << endl;
+		// 	cout << "current node: " << *node << endl;
+		// 	cout << endl;
+		// 	collectPaths(node);
+		// 	// if (node->conflicts.size() + node->unknownConf.size() == 0)  // it is conflict free!
+		// 	// {
+		// 	// 	assert(validatePaths(node));
+		// 	// 	cout << endl;
+		// 	// }
+		// }
 		inner_solver->setInitSumLB(0);  // Reset sum of fmin
 		inner_solver->setFlex(0);  // Reset flex
 
@@ -1085,6 +1143,8 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	{
 		assert(inner_solver->solution_cost == -1);
 		runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
+		if (screen > 1)
+			cout << "Timeout for inner_solver!!!" << endl;
 		return false;
 	}
 
@@ -1517,8 +1577,23 @@ ECBSNode* ECBS::selectNode()
 	updatePaths(curr);
 	meta_agents = curr->meta_agents;
 
-	if (screen > 1)
-		cout << endl << "Pop " << *curr << endl;
+	// if (screen > 1)
+	// {
+	// 	vector<pair<Path*, int>> tmp_paths = collectPaths(curr);
+	// 	cout << endl << "Pop " << *curr << endl;
+	// 	if (curr->time_generated == 50 && !is_solver)
+	// 	{
+	// 		printAgentPath(8, paths[8]);
+	// 		printAgentPath(72, paths[72]);
+	// 		printConflicts(*curr);
+	// 		cout << endl;
+	// 	}
+
+	// 	for (int i = 0; i < num_of_agents; i++)
+	// 	{
+	// 		assert(tmp_paths[i].first->size() == paths[i]->size());
+	// 	}
+	// }
 	return curr;
 }
 
@@ -1534,11 +1609,16 @@ void ECBS::printPaths() const
 	}
 }
 
-void ECBS::printAgentPath(int ag) const
+void ECBS::printAgentPath(int ag, Path* path_ptr) const
 {
-	cout << "Agent " << ag << " (" << paths_found_initially[ag].first.size() - 1 << " -->" <<
-		paths[ag]->size() - 1 << "): ";
-	for (const auto & t : *paths[ag])
+	Path* p;
+	if (path_ptr == nullptr)
+		p = paths[ag];
+	else
+		p = path_ptr;
+
+	cout << "Agent " << ag << " (" << paths_found_initially[ag].first.size() - 1 << " -->" << p->size() - 1 << "): ";
+	for (const auto & t : *p)
 		cout << t.location << "->";
 	cout << endl;
 }
@@ -1555,6 +1635,15 @@ void ECBS::classifyConflicts(ECBSNode &node)
 		int timestep = get<3>(con->constraint1.back());
 		constraint_type type = get<4>(con->constraint1.back());
 		node.unknownConf.pop_front();
+
+		if (screen > 1)
+		{
+			if ((a1 == 40 && a2 == 63) || (a1 == 40 && a2 == 63))
+			{
+				cout << *con << endl;
+				cout << endl;
+			}
+		}
 
 		if (PC)
 		    if (node.chosen_from == "cleanup" ||
@@ -1751,4 +1840,318 @@ void ECBS::clear()
 
 	conflict_matrix.clear();
 	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
+}
+
+void ECBS::initializeIterAnalysis(void)
+{
+	if (screen > 3)
+	{
+		// Initialize for agents analysis
+		iter_sum_lb = make_shared<vector<int>>();
+		br_sum_lb = make_shared<vector<int>>();
+		all_sum_lb = make_shared<vector<int>>();
+		open_sum_lb = make_shared<vector<int>>();
+
+		iter_sum_fval = make_shared<vector<int>>();
+		br_sum_fval = make_shared<vector<int>>();
+		all_sum_fval = make_shared<vector<int>>();
+		open_sum_fval = make_shared<vector<int>>();
+
+		iter_sum_cost = make_shared<vector<int>>();
+		br_sum_cost = make_shared<vector<int>>();
+		all_sum_cost = make_shared<vector<int>>();
+		open_sum_cost = make_shared<vector<int>>();
+
+		iter_num_conflicts = make_shared<vector<int>>();
+		br_num_conflicts = make_shared<vector<int>>();
+		all_num_conflicts = make_shared<vector<int>>();
+		open_num_conflicts = make_shared<vector<int>>();
+
+		iter_remained_flex = make_shared<vector<double>>();
+		br_remained_flex = make_shared<vector<double>>();
+		all_remained_flex = make_shared<vector<double>>();
+		open_remained_flex = make_shared<vector<double>>();
+
+		iter_subopt = make_shared<vector<double>>();
+		br_subopt = make_shared<vector<double>>();
+		all_subopt = make_shared<vector<double>>();
+
+		iter_sum_ll_generate = make_shared<vector<uint64_t>>();
+		br_sum_ll_generate = make_shared<vector<uint64_t>>();
+		all_sum_ll_generate = make_shared<vector<uint64_t>>();
+
+		iter_node_idx = make_shared<vector<int>>();
+		br_node_idx = make_shared<vector<int>>();
+		all_node_idx = make_shared<vector<int>>();
+		open_node_idx = make_shared<vector<int>>();
+
+		iter_ag_lb = make_shared<vector<vector<int>>>(num_of_agents);
+		br_ag_lb = make_shared<vector<vector<int>>>(num_of_agents);
+
+		iter_ag_cost = make_shared<vector<vector<int>>>(num_of_agents);
+		br_ag_cost = make_shared<vector<vector<int>>>(num_of_agents);
+	}
+
+	if (screen == 5)
+	{
+		iter_num_focal = make_shared<vector<uint64_t>>();
+		iter_num_open = make_shared<vector<uint64_t>>();
+		iter_num_cleanup = make_shared<vector<uint64_t>>();
+		iter_node_type = make_shared<vector<int>>();
+		iter_use_flex = make_shared<vector<bool>>();
+		iter_no_more_flex = make_shared<vector<bool>>();
+		iter_cannot_use_flex = make_shared<vector<bool>>();
+	}
+}
+
+bool ECBS::validatePaths(ECBSNode* node)
+{
+	if (screen > 0)
+		cout << "validatepaths" << endl;
+	const vector<pair<Path*, int>> tmp_paths = collectPaths(node);
+
+	// Check conflicts among the collected paths
+	for (int a1 = 0; a1 < num_of_agents; a1++)
+	{
+		for (int a2 = a1 + 1; a2 < num_of_agents; a2++)
+		{
+			size_t min_path_length = tmp_paths[a1].first->size() < tmp_paths[a2].first->size() ? tmp_paths[a1].first->size() : tmp_paths[a2].first->size();
+			for (size_t timestep = 0; timestep < min_path_length; timestep++)
+			{
+				int loc1 = tmp_paths[a1].first->at(timestep).location;
+				int loc2 = tmp_paths[a2].first->at(timestep).location;
+				if (loc1 == loc2)
+				{
+					cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
+					return false;
+				}
+				else if (timestep < min_path_length - 1
+					&& loc1 == tmp_paths[a2].first->at(timestep + 1).location
+					&& loc2 == tmp_paths[a1].first->at(timestep + 1).location)
+				{
+					cout << "Agents " << a1 << " and " << a2 << " collides at (" <<
+						loc1 << "-->" << loc2 << ") at timestep " << timestep << endl;
+					return false;
+				}
+			}
+			if (tmp_paths[a1].first->size() != tmp_paths[a2].first->size())
+			{
+				int a1_ = tmp_paths[a1].first->size() < tmp_paths[a2].first->size() ? a1 : a2;
+				int a2_ = tmp_paths[a1].first->size() < tmp_paths[a2].first->size() ? a2 : a1;
+				int loc1 = tmp_paths[a1_].first->back().location;
+				for (size_t timestep = min_path_length; timestep < tmp_paths[a2_].first->size(); timestep++)
+				{
+					int loc2 = tmp_paths[a2_].first->at(timestep).location;
+					if (loc1 == loc2)
+					{
+						printAllMetaAgents();
+						cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
+						return false; // It's at least a semi conflict			
+					}
+				}
+			}
+		}
+	}
+	return true;
+}
+
+bool ECBS::validatePathswithCurrConflicts(ECBSNode* node)
+{
+	if (screen > 0)
+		cout << "validatepaths" << endl;
+	const vector<pair<Path*, int>> tmp_paths = collectPaths(node);
+	bool found = false;
+	bool at_least_one_conf = false;
+	// Check conflicts among the collected paths
+	for (int a1 = 0; a1 < num_of_agents; a1++)
+	{
+		for (int a2 = a1 + 1; a2 < num_of_agents; a2++)
+		{
+			size_t min_path_length = tmp_paths[a1].first->size() < tmp_paths[a2].first->size() ? tmp_paths[a1].first->size() : tmp_paths[a2].first->size();
+			for (size_t timestep = 0; timestep < min_path_length; timestep++)
+			{
+				int loc1 = tmp_paths[a1].first->at(timestep).location;
+				int loc2 = tmp_paths[a2].first->at(timestep).location;
+				if (loc1 == loc2)
+				{
+					cout << "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP" << endl;
+					cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
+					printAgentPath(a1);
+					printAgentPath(a2);
+					printConflicts(*node);
+					cout << endl;
+	
+					at_least_one_conf = true;
+
+					found = false;
+					for (const auto& conf : node->conflicts)
+					{
+						if (((a1 == conf->a1 && a2 == conf->a2) || (a1 == conf->a2 && a2 == conf->a1)) && 
+							loc1 == conf->loc1 && timestep == conf->timestep)
+						{
+							cout << "find correspond conflict!" << endl;
+							found = true;
+							break;
+						}
+					}
+
+					if (!found)
+					{
+						for (const auto& conf : node->unknownConf)
+						{
+							if (((a1 == conf->a1 && a2 == conf->a2) || (a1 == conf->a2 && a2 == conf->a1)) && 
+								loc1 == conf->loc1 && timestep == conf->timestep)
+							{
+								cout << "find correspond unknown conflict!" << endl;
+								found = true;
+								break;
+							}
+						}
+					}
+
+					if (node != dummy_start)
+					{
+						assert(found);
+					}
+				}
+				else if (timestep < min_path_length - 1
+					&& loc1 == tmp_paths[a2].first->at(timestep + 1).location
+					&& loc2 == tmp_paths[a1].first->at(timestep + 1).location)
+				{
+					cout << "Agents " << a1 << " and " << a2 << " collides at (" <<
+						loc1 << "-->" << loc2 << ") at timestep " << timestep << endl;
+					at_least_one_conf = true;
+					
+					printAgentPath(a1);
+					printAgentPath(a2);
+					printConflicts(*node);
+					cout << endl;
+
+					found = false;
+					for (const auto& conf : node->conflicts)
+					{
+						if (((a1 == conf->a1 && a2 == conf->a2) || (a1 == conf->a2 && a2 == conf->a1)) && 
+							loc1 == conf->loc1 && loc2 == conf->loc2 && (timestep+1) == conf->timestep)
+						{
+							cout << "find correspond conflict!" << endl;
+							found = true;
+							break;
+						}
+					}
+
+					if (!found)
+					{
+						for (const auto& conf : node->unknownConf)
+						{
+							if (((a1 == conf->a1 && a2 == conf->a2) || (a1 == conf->a2 && a2 == conf->a1)) && 
+								loc1 == conf->loc1 && loc2 == conf->loc2 && timestep == conf->timestep)
+							{
+								cout << "find correspond unknown conflict!" << endl;
+								found = true;
+								break;
+							}
+						}
+					}
+					if (node != dummy_start)
+					{
+						assert(found);
+					}
+				}
+			}
+			if (tmp_paths[a1].first->size() != tmp_paths[a2].first->size())
+			{
+				int a1_ = tmp_paths[a1].first->size() < tmp_paths[a2].first->size() ? a1 : a2;
+				int a2_ = tmp_paths[a1].first->size() < tmp_paths[a2].first->size() ? a2 : a1;
+				int loc1 = tmp_paths[a1_].first->back().location;
+				for (size_t timestep = min_path_length; timestep < tmp_paths[a2_].first->size(); timestep++)
+				{
+					int loc2 = tmp_paths[a2_].first->at(timestep).location;
+					if (loc1 == loc2)
+					{
+						cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
+						at_least_one_conf = true;
+						printAgentPath(a1);
+						printAgentPath(a2);
+						printConflicts(*node);
+						cout << endl;
+
+						found = false;
+						for (const auto& conf : node->conflicts)
+						{
+							if (((a1 == conf->a1 && a2 == conf->a2) || (a1 == conf->a2 && a2 == conf->a1)) && 
+								loc1 == conf->loc1 && timestep == conf->timestep)
+							{
+								cout << "find correspond conflict!" << endl;
+								found = true;
+								break;
+							}
+						}
+
+						if (!found)
+						{
+							for (const auto& conf : node->unknownConf)
+							{
+								if (((a1 == conf->a1 && a2 == conf->a2) || (a1 == conf->a2 && a2 == conf->a1)) && 
+									loc1 == conf->loc1 && timestep == conf->timestep)
+								{
+									cout << "find correspond unknown conflict!" << endl;
+									found = true;
+									break;
+								}
+							}
+						}
+
+						if (node != dummy_start)
+						{
+							assert(found);
+						}
+					}
+				}
+			}
+		}
+	}
+	if (at_least_one_conf && node != dummy_start)
+		assert(found);
+	return found;
+}
+
+
+const vector<pair<Path*, int>> ECBS::collectPaths(ECBSNode* node)
+{
+	// Collect paths along the CT branch
+	ECBSNode *tmp_node = node;
+	vector<pair<Path*, int>> tmp_paths(num_of_agents, make_pair(nullptr, 0));
+	vector<bool> updated(num_of_agents, false);  // initialized for false
+
+	for (int i = 0; i < num_of_agents; i++)
+	{
+		tmp_paths[i].first = &paths_found_initially[i].first;
+		tmp_paths[i].second = paths_found_initially[i].second;
+	}
+
+	while (tmp_node != nullptr)
+	{
+		for (auto & p : tmp_node->paths)
+		{
+			int agent = p.first;
+			if (!updated[agent])
+			{
+				tmp_paths[agent].first = &p.second.first;
+				tmp_paths[agent].second = p.second.second;
+				updated[agent] = true;
+			}
+		}
+		tmp_node = tmp_node->parent;
+	}
+	
+	int soc = 0;
+	for (int i = 0; i < num_of_agents; i ++)
+	{
+		if (node->ma_vec[i])
+			soc += (int) tmp_paths[i].first->size() - 1;
+	}
+	assert(soc == node->sum_of_costs);
+	assert(soc <= suboptimality * node->g_val);
+
+	return tmp_paths;
 }

@@ -45,8 +45,26 @@ inline void CBS::updatePaths(CBSNode* curr)
 void CBS::copyConflicts(const list<shared_ptr<Conflict >>& conflicts,
 	list<shared_ptr<Conflict>>& copy, const list<int>& excluded_agents)
 {
+	if (screen > 1)
+		printAllMetaAgents();
+
 	for (auto& conflict : conflicts)
 	{
+		// if (screen > 1)
+		// {
+		// 	cout << *conflict << endl;
+		// 	cout << "a1: ";
+		// 	for (const int& _ag_ : findMetaAgent(conflict->a1))
+		// 		cout << _ag_ << ",";
+		// 	cout << " | a2: ";
+		// 	for (const int& _ag_ : findMetaAgent(conflict->a2))
+		// 		cout << _ag_ << ",";
+		// 	cout << endl;
+		// }
+
+		if (findMetaAgent(conflict->a1) == findMetaAgent(conflict->a2))  // This is a internal conflict
+			continue;
+
 		bool found = false;
 		for (auto a : excluded_agents)
 		{
@@ -63,6 +81,7 @@ void CBS::copyConflicts(const list<shared_ptr<Conflict >>& conflicts,
 			copy.push_back(conflict);
 		}
 	}
+	return;
 }
 
 void CBS::removeConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int>& excluded_agents)
@@ -83,9 +102,140 @@ void CBS::removeConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int
 	}
 }
 
+// void CBS::removeInternalConflicts(HLNode* node, const vector<int>& meta_ag)
+// {
+// 	for (list<shared_ptr<Conflict>>::const_iterator c_it = node->conflicts.begin(); c_it != node->conflicts.end();)
+// 	{
+// 		bool found = false;
+// 		if (std::find(meta_ag.begin(), meta_ag.end(), (*c_it)->a1) != meta_ag.end() &&
+// 			std::find(meta_ag.begin(), meta_ag.end(), (*c_it)->a2) != meta_ag.end())
+// 		{
+// 			if (screen > 1)  // Debug: check the conflict is really resolved by the inner solver
+// 			{
+// 				if ((*c_it)->type == conflict_type::STANDARD)
+// 				{
+// 					assert(findMetaAgent((*c_it)->a1) == findMetaAgent((*c_it)->a2));
+// 					assert(findMetaAgent((*c_it)->a1) == meta_ag);
+// 					assert(findMetaAgent((*c_it)->a2) == meta_ag);
+
+// 					int min_p_len = (int) (paths[(*c_it)->a1]->size() < paths[(*c_it)->a2]->size()? paths[(*c_it)->a1]->size() : paths[(*c_it)->a2]->size());
+// 					int loc1 = paths[(*c_it)->a1]->at(min((*c_it)->timestep, min_p_len - 1)).location;
+// 					int loc2 = paths[(*c_it)->a2]->at(min((*c_it)->timestep, min_p_len - 1)).location;
+// 					assert(loc1 != loc2);  // Should not have vertex conflicts
+// 					if ((*c_it)->timestep < min_p_len - 1)  // Should not have edge conflicts
+// 						assert(!(loc1 == paths[(*c_it)->a2]->at((*c_it)->timestep + 1).location && 
+// 								loc2 == paths[(*c_it)->a1]->at((*c_it)->timestep + 1).location));
+// 				}
+// 				cout << "Remove internal conflict: " << **c_it << endl;
+// 			}  // End debug
+// 			c_it = node->conflicts.erase(c_it++);
+// 		}
+// 		else
+// 		{
+// 			++c_it;
+// 		}
+// 	}
+
+// 	for (list<shared_ptr<Conflict>>::const_iterator c_it = node->unknownConf.begin(); c_it != node->unknownConf.end();)
+// 	{
+// 		bool found = false;
+// 		if (std::find(meta_ag.begin(), meta_ag.end(), (*c_it)->a1) != meta_ag.end() &&
+// 			std::find(meta_ag.begin(), meta_ag.end(), (*c_it)->a2) != meta_ag.end())
+// 		{
+// 			if (screen > 1)  // Debug: check the conflict is really resolved by the inner solver
+// 			{
+// 				if ((*c_it)->type == conflict_type::STANDARD)
+// 				{
+// 					int min_p_len = (int) (paths[(*c_it)->a1]->size() < paths[(*c_it)->a2]->size()? paths[(*c_it)->a1]->size() : paths[(*c_it)->a2]->size());
+// 					int loc1 = paths[(*c_it)->a1]->at(min((*c_it)->timestep, min_p_len - 1)).location;
+// 					int loc2 = paths[(*c_it)->a2]->at(min((*c_it)->timestep, min_p_len - 1)).location;
+// 					assert(loc1 != loc2);  // Should not have vertex conflicts
+// 					if ((*c_it)->timestep < min_p_len - 1)  // Should not have edge conflicts
+// 						assert(!(loc1 == paths[(*c_it)->a2]->at((*c_it)->timestep + 1).location && 
+// 								loc2 == paths[(*c_it)->a1]->at((*c_it)->timestep + 1).location));
+// 				}
+// 				cout << "Remove internal conflict: " << (*c_it) << endl;
+// 			}  // End debug
+// 			c_it = node->unknownConf.erase(c_it++);
+// 		}
+// 		else
+// 		{
+// 			++c_it;
+// 		}
+// 	}
+// }
+
+void CBS::removeInternalConflicts(HLNode* node)
+{
+	for (list<shared_ptr<Conflict>>::const_iterator c_it = node->conflicts.begin(); c_it != node->conflicts.end();)
+	{
+		bool found = false;
+		if (findMetaAgent((*c_it)->a1) == findMetaAgent((*c_it)->a2))
+		{
+			// if (screen > 1)  // Debug: check the conflict is really resolved by the inner solver
+			// {
+			// 	if ((*c_it)->type == conflict_type::STANDARD)
+			// 	{
+			// 		int min_p_len = (int) (paths[(*c_it)->a1]->size() < paths[(*c_it)->a2]->size()? paths[(*c_it)->a1]->size() : paths[(*c_it)->a2]->size());
+			// 		int loc1 = paths[(*c_it)->a1]->at(min((*c_it)->timestep, min_p_len - 1)).location;
+			// 		int loc2 = paths[(*c_it)->a2]->at(min((*c_it)->timestep, min_p_len - 1)).location;
+			// 		assert(loc1 != loc2);  // Should not have vertex conflicts
+			// 		if ((*c_it)->timestep < min_p_len - 1)  // Should not have edge conflicts
+			// 			assert(!(loc1 == paths[(*c_it)->a2]->at((*c_it)->timestep + 1).location && 
+			// 					loc2 == paths[(*c_it)->a1]->at((*c_it)->timestep + 1).location));
+			// 	}
+			// 	cout << "Remove internal conflict: " << **c_it << endl;
+			// }  // End debug
+			c_it = node->conflicts.erase(c_it++);
+		}
+		else
+		{
+			++c_it;
+		}
+	}
+
+	for (list<shared_ptr<Conflict>>::const_iterator c_it = node->unknownConf.begin(); c_it != node->unknownConf.end();)
+	{
+		bool found = false;
+		if (findMetaAgent((*c_it)->a1) == findMetaAgent((*c_it)->a2))
+		{
+			if (screen > 1)  // Debug: check the conflict is really resolved by the inner solver
+			{
+				if ((*c_it)->type == conflict_type::STANDARD)
+				{
+					int min_p_len = (int) (paths[(*c_it)->a1]->size() < paths[(*c_it)->a2]->size()? paths[(*c_it)->a1]->size() : paths[(*c_it)->a2]->size());
+					int loc1 = paths[(*c_it)->a1]->at(min((*c_it)->timestep, min_p_len - 1)).location;
+					int loc2 = paths[(*c_it)->a2]->at(min((*c_it)->timestep, min_p_len - 1)).location;
+					assert(loc1 != loc2);  // Should not have vertex conflicts
+					if ((*c_it)->timestep < min_p_len - 1)  // Should not have edge conflicts
+						assert(!(loc1 == paths[(*c_it)->a2]->at((*c_it)->timestep + 1).location && 
+								loc2 == paths[(*c_it)->a1]->at((*c_it)->timestep + 1).location));
+				}
+				cout << "Remove internal conflict: " << (*c_it) << endl;
+			}  // End debug
+			c_it = node->unknownConf.erase(c_it++);
+		}
+		else
+		{
+			++c_it;
+		}
+	}
+}
 
 void CBS::findConflicts(HLNode& curr, int a1, int a2)
 {
+	// if ((a1 == 8 && a2 == 72) || (a1 == 72 && a2 == 8))
+	// {
+	// 	cout << "\nAgent " << a1 << " (" << paths[a1]->size() - 1 << "): ";
+	// 	for (const auto & t : *paths[a1])
+	// 		cout << t.location << "->";
+	// 	cout << endl;
+	// 	cout << "Agent " << a2 << " (" << paths[a2]->size() - 1 << "): ";
+	// 	for (const auto & t : *paths[a2])
+	// 		cout << t.location << "->";
+	// 	cout << endl;
+	// }
+
 	int min_path_length = (int) (paths[a1]->size() < paths[a2]->size() ? paths[a1]->size() : paths[a2]->size());
 	for (int timestep = 0; timestep < min_path_length; timestep++)
 	{
@@ -152,15 +302,25 @@ void CBS::findConflicts(HLNode& curr)
 	{
 		// Copy from parent
 		auto new_agents = curr.getReplannedAgents();
-		if (curr.is_merged)
-		{
-			removeConflicts(curr.conflicts, new_agents);
-			removeConflicts(curr.unknownConf, new_agents);
-		}
-		else
+		if (curr.conflicts.size() == 0 && curr.unknownConf.size() == 0)
 		{
 			copyConflicts(curr.parent->conflicts, curr.conflicts, new_agents);
 			copyConflicts(curr.parent->unknownConf, curr.unknownConf, new_agents);
+		}
+		else
+		{
+			// if (screen > 1)
+			// {
+			// 	cout << "Before merging:" << endl;
+			// 	printConflicts(curr,2, 25);
+			// }
+			removeInternalConflicts(&curr);
+			// if (screen > 1)
+			// {
+			// 	cout << "After merging:" << endl;
+			// 	printConflicts(curr, 2, 25);
+			// }
+			// cout << endl;
 		}
 
 		// detect new conflicts
@@ -220,7 +380,7 @@ void CBS::findConflicts(HLNode& curr)
 		// 				continue;
 		// 		}
 		// 	}
-		// }			
+		// }
 	}
 	runtime_detect_conflicts += (double)(clock() - t) / CLOCKS_PER_SEC;
 }
@@ -443,6 +603,12 @@ void CBS::classifyConflicts(CBSNode &node)
 		//constraint_type type;
 		//tie(a, loc1, loc2, timestep, type) = con->constraint1.back();
 		node.unknownConf.pop_front();
+
+		if ((a1 == 40 && a2 == 63) || (a1 == 63 && a2 == 40))
+		{
+			cout << *con << endl;
+			cout << endl;
+		}
 
 		computeConflictPriority(con, node);
 
@@ -1286,15 +1452,51 @@ vector<Path> CBS::getPath(void) const
 	return output_paths;
 }
 
-void CBS::printConflicts(const HLNode &curr)
+void CBS::printConflicts(const HLNode &curr, int a1, int a2)
 {
+	cout << "knownConflicts:";
+	if (curr.conflicts.empty())
+		cout << "None!" << endl;
+	else
+		cout << endl;
+
 	for (const auto& conflict : curr.conflicts)
 	{
-		cout << *conflict << endl;
+		if (a1 == -1 && a2 == -1)
+		{
+			cout << "\t" << *conflict << endl;
+		}
+		else
+		{
+			if (a1 == -1 && conflict->a2 == a2)
+				cout << "\t" << *conflict << endl;
+			else if (a2 == -1 && conflict->a1 == a1)
+				cout << "\t" << *conflict << endl;
+			else if (conflict->a1 == a1 && conflict->a2 == a2)
+				cout << "\t" << *conflict << endl;
+		}
 	}
+	cout << "unknownConflicts:";
+	if (curr.unknownConf.empty())
+		cout << "None!" << endl;
+	else
+		cout << endl;
+
 	for (const auto& conflict : curr.unknownConf)
 	{
-		cout << *conflict << endl;
+		if (a1 == -1 && a2 == -1)
+		{
+			cout << "\t" << *conflict << endl;
+		}
+		else
+		{
+			if (a1 == -1 && conflict->a2 == a2)
+				cout << "\t" << *conflict << endl;
+			else if (a2 == -1 && conflict->a1 == a1)
+				cout << "\t" << *conflict << endl;
+			else if ((conflict->a1 == a1 && conflict->a2 == a2) || (conflict->a1 == a2 && conflict->a2 == a1))
+				cout << "\t" << *conflict << endl;
+		}
 	}
 }
 
@@ -1529,8 +1731,8 @@ bool CBS::terminate(HLNode* curr)
 	{
 		solution_cost = cost_lowerbound;
 		solution_found = false;
-        if (screen > 0) // 1 or 2
-            printResults();
+        // if (screen > 0) // 1 or 2
+        //     printResults();
 
 		if (screen > 3)
 		{
@@ -1803,33 +2005,33 @@ void CBS::addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) con
 	else
 	{
 		// For EECBS, NEECBS, and FEECBS (method 2.)
-		// child1->constraints = curr->conflict->constraint1;
-		// child2->constraints = curr->conflict->constraint2;
+		child1->constraints = curr->conflict->constraint1;
+		child2->constraints = curr->conflict->constraint2;
 		// End for EECBS, NEECBS and FEECBS
 
-		// For NFEECBS without symmetric reasoning, need to change back to vertex/edge constraints for meta-agents
-		constraint_type type;
-		if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
-			type = constraint_type::VERTEX;
-		else  // Meta-agent edge constraint
-			type = constraint_type::EDGE;
+		// // For NFEECBS without symmetric reasoning, need to change back to vertex/edge constraints for meta-agents
+		// constraint_type type;
+		// if (curr->conflict->loc2 == -1)  // Meta-agent vertex constraint
+		// 	type = constraint_type::VERTEX;
+		// else  // Meta-agent edge constraint
+		// 	type = constraint_type::EDGE;
 
-		vector<int> conf_ma1 = findMetaAgent(curr->conflict->a1);
-		for (const int& _ag_ : conf_ma1)
-		{
-			child1->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
-				curr->conflict->timestep, type);
-		}
+		// vector<int> conf_ma1 = findMetaAgent(curr->conflict->a1);
+		// for (const int& _ag_ : conf_ma1)
+		// {
+		// 	child1->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, 
+		// 		curr->conflict->timestep, type);
+		// }
 
-		vector<int> conf_ma2 = findMetaAgent(curr->conflict->a2);
-		for (const int& _ag_ : conf_ma2)
-		{
-			if (type == constraint_type::VERTEX)
-				child2->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, curr->conflict->timestep, type);
-			else if (type == constraint_type::EDGE)
-				child2->constraints.emplace_back(_ag_, curr->conflict->loc2, curr->conflict->loc1, curr->conflict->timestep, type);
-		}
-		// End for NFEECBS
+		// vector<int> conf_ma2 = findMetaAgent(curr->conflict->a2);
+		// for (const int& _ag_ : conf_ma2)
+		// {
+		// 	if (type == constraint_type::VERTEX)
+		// 		child2->constraints.emplace_back(_ag_, curr->conflict->loc1, curr->conflict->loc2, curr->conflict->timestep, type);
+		// 	else if (type == constraint_type::EDGE)
+		// 		child2->constraints.emplace_back(_ag_, curr->conflict->loc2, curr->conflict->loc1, curr->conflict->timestep, type);
+		// }
+		// // End for NFEECBS
 	}
 }
 
@@ -1908,6 +2110,15 @@ vector<int> CBS::shuffleAgents() const
 
 bool CBS::generateRoot()
 {
+	if (meta_agents.empty())  // initialize for outer CBS
+	{
+		for (int ag = 0; ag < num_of_agents; ag ++)
+		{
+			meta_agents.push_back(vector<int>({ag}));
+			ma_vec[ag] = true;
+		}
+	}
+
 	auto root = new CBSNode();
 	root->g_val = 0;
 	paths.resize(num_of_agents, nullptr);
@@ -2069,6 +2280,7 @@ bool CBS::validateSolution() const
 					int loc2 = paths[a2_]->at(timestep).location;
 					if (loc1 == loc2)
 					{
+						printAllMetaAgents();
 						cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
 						return false; // It's at least a semi conflict			
 					}
@@ -2260,6 +2472,34 @@ void CBS::printAllAgents(void) const
 	cout << endl;
 }
 
+void CBS::printAllMetaAgents(void) const
+{
+	for (const vector<int>& _ma_ : meta_agents)
+	{
+		if (_ma_.size() > 1)
+		{
+			for (const int& _ag_ : _ma_)
+				cout << _ag_ << ", ";
+			cout << "| ";
+		}
+	}
+	cout << endl;
+}
+
+void CBS::printAllSingleAgents(void) const
+{
+	for (const vector<int>& _ma_ : meta_agents)
+	{
+		if (_ma_.size() == 1)
+		{
+			for (const int& _ag_ : _ma_)
+				cout << _ag_ << ", ";
+		}
+	}
+	cout << endl;
+}
+
+
 bool CBS::compareConflicts(shared_ptr<Conflict> conflict1, shared_ptr<Conflict> conflict2)
 {
 	if (conflict1->priority == conflict2->priority)
@@ -2285,4 +2525,19 @@ void CBS::printAgentInitCT(int __ag__) const
 	cout << "CT of agent " << __ag__ << ": " << endl;
 	initial_constraints[__ag__].printCT();
 	cout << "--------------------------------" << endl;
+}
+
+
+void CBS::printAgentPath(int ag, Path* path_ptr) const
+{
+	Path* p;
+	if (path_ptr == nullptr)
+		p = paths[ag];
+	else
+		p = path_ptr;
+
+	cout << "Agent " << ag << " (" << paths_found_initially[ag].size() - 1 << " -->" << p->size() - 1 << "): ";
+	for (const auto & t : *p)
+		cout << t.location << "->";
+	cout << endl;
 }

@@ -1142,7 +1142,7 @@ int CBSHeuristic::weightedVertexCover(const std::vector<int>& CG)
 	std::vector<bool> done(num_of_agents, false);
 	for (int i = 0; i < num_of_agents; i++)
 	{
-		if (done[i])
+		if (done[i])  // agent i is already in the previous connected component
 			continue;
 		std::vector<int> range;
 		std::vector<int> indices;
@@ -1152,7 +1152,7 @@ int CBSHeuristic::weightedVertexCover(const std::vector<int>& CG)
 		std::queue<int> Q;
 		Q.push(i);
 		done[i] = true;
-		while (!Q.empty())
+		while (!Q.empty())  // get the connected component of agent i
 		{
 			int j = Q.front(); Q.pop();
 			range.push_back(0);

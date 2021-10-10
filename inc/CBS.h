@@ -270,6 +270,8 @@ protected:
 
 	vector<int> findMetaAgent(int __ag__) const;
 	void printAllAgents(void) const;
+	void printAllMetaAgents(void) const;
+	void printAllSingleAgents(void) const;
 	bool shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode=0);
 
 	template <typename T, typename S>
@@ -327,17 +329,19 @@ protected:
 	void findConflicts(HLNode& curr);
 	void findConflicts(HLNode& curr, int a1, int a2);
 	shared_ptr<Conflict> chooseConflict(const HLNode &node) const;
-	static void copyConflicts(const list<shared_ptr<Conflict>>& conflicts,
+	void copyConflicts(const list<shared_ptr<Conflict>>& conflicts,
 		list<shared_ptr<Conflict>>& copy, const list<int>& excluded_agent) ;
-	static void removeConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int>& excluded_agents);
+	void removeConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int>& excluded_agents);
 	void removeLowPriorityConflicts(list<shared_ptr<Conflict>>& conflicts) const;
+	// void removeInternalConflicts(HLNode* node, const vector<int>& meta_ag);
+	void removeInternalConflicts(HLNode* node);
 	void computeSecondPriorityForConflict(Conflict& conflict, const HLNode& node);
 
 	inline void releaseNodes();
 
 	// print and save
 	void printResults() const;
-	static void printConflicts(const HLNode &curr) ;
+	static void printConflicts(const HLNode &curr, int a1=-1, int a2=-1) ;
 
 	bool validateSolution() const;
 	inline int getAgentLocation(int agent_id, size_t timestep) const;
@@ -350,6 +354,7 @@ protected:
 	void saveEval(void);
 	void saveNumNodesInLists(void);
 	void printAgentInitCT(int __ag__) const;
+	void printAgentPath(int ag, Path* path_ptr=nullptr) const;
 
 private: // CBS only, cannot be used by ECBS
 	vector<Path> paths_found_initially;  // contain initial paths found
