@@ -133,55 +133,58 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 		}
 		else // no bypass
 		{
-			ECBSNode* child[2] = { new ECBSNode() , new ECBSNode() };
-			curr->conflict = chooseConflict(*curr);
-			addConstraints(curr, child[0], child[1]);
+			bf = min(curr->distance_to_go, br_thred);  // Branching factor
+			vector<int> constraint_assignments = shuffleConstraints(curr);
 
-			if (screen > 1)
-				cout << "	Expand " << *curr << endl << "	on " << *(curr->conflict) << endl;
-
-			bool solved[2] = { false, false };
+			vector<ECBSNode*> child(bf, nullptr);
+			vector<bool> solved(bf, false);
 			vector<vector<PathEntry>*> path_copy(paths);
 			vector<int> fmin_copy(min_f_vals);
-			for (int i = 0; i < 2; i++)
+			int bf_cnt = 0;
+			while (bf_cnt < bf)
 			{
-				if (i > 0)
+				if (bf_cnt > 0)
 				{
 					paths = path_copy;
 					min_f_vals = fmin_copy;
 				}
-				solved[i] = generateChild(child[i], curr);
-				if (!solved[i])
+				int curr_cons = constraint_assignments[bf_cnt];
+				child[bf_cnt] = new ECBSNode();
+				assignConstraints(curr, child[bf_cnt], curr_cons);
+				solved[bf_cnt] = generateChild(child[bf_cnt], curr);
+
+				if (solved[bf_cnt])
 				{
-					delete (child[i]);
-					continue;
+					pushNode(child[bf_cnt]);
+					curr->children.push_back(child[bf_cnt]);
+					bf_cnt ++;
 				}
-				pushNode(child[i]);
-				curr->children.push_back(child[i]);
-				if (screen > 1)
-					cout << "		Generate " << *child[i] << endl;
+				else
+				{
+					delete (child[bf_cnt]);
+				}
 			}
 		}
-		switch (curr->conflict->type)
-		{
-		case conflict_type::RECTANGLE:
-			num_rectangle_conflicts++;
-			break;
-		case conflict_type::CORRIDOR:
-			num_corridor_conflicts++;
-			break;
-		case  conflict_type::TARGET:
-			num_target_conflicts++;
-			break;
-		case conflict_type::STANDARD:
-			num_standard_conflicts++;
-			break;
-		case conflict_type::MUTEX:
-			num_mutex_conflicts++;
-			break;
-		default:
-			break;
-		}
+		// switch (curr->conflict->type)
+		// {
+		// case conflict_type::RECTANGLE:
+		// 	num_rectangle_conflicts++;
+		// 	break;
+		// case conflict_type::CORRIDOR:
+		// 	num_corridor_conflicts++;
+		// 	break;
+		// case  conflict_type::TARGET:
+		// 	num_target_conflicts++;
+		// 	break;
+		// case conflict_type::STANDARD:
+		// 	num_standard_conflicts++;
+		// 	break;
+		// case conflict_type::MUTEX:
+		// 	num_mutex_conflicts++;
+		// 	break;
+		// default:
+		// 	break;
+		// }
 		if (curr->chosen_from == "cleanup")
 			num_cleanup++;
 		else if (curr->chosen_from == "open")
@@ -316,7 +319,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
 	node->sum_of_costs = parent->sum_of_costs;
 	node->makespan = parent->makespan;
 	node->depth = parent->depth + 1;
-	auto agents = getInvalidAgents(node->constraints);
+	auto agents = getInvalidAgents2(node->constraints);
 	assert(!agents.empty());
 	for (auto agent : agents)
 	{
@@ -327,6 +330,11 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent)
 			runtime_generate_child += (double)(clock() - t1) / CLOCKS_PER_SEC;
 			return false;
 		}
+		else
+		{
+			printPaths();
+		}
+		
 	}
 
 	findConflicts(*node);

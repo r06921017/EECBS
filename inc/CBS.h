@@ -130,7 +130,8 @@ protected:
 	clock_t start;
 
 	int num_of_agents;
-
+	int br_thred = 5;
+	int bf;
 
 	vector<Path*> paths;
 	vector<Path> paths_found_initially;  // contain initial paths found
@@ -138,7 +139,10 @@ protected:
 	vector < SingleAgentSolver* > search_engines;  // used to find (single) agents' paths and mdd
 
 	void addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) const;
+	vector<int> shuffleConstraints(const HLNode* node) const;
+	void assignConstraints(const HLNode* curr, HLNode* child, int cons_assign) const;
 	set<int> getInvalidAgents(const list<Constraint>& constraints); // return agents that violates the constraints
+	set<int> getInvalidAgents2(const list<Constraint>& constraints); // return agents that violates the constraints
 	//conflicts
 	void findConflicts(HLNode& curr);
 	void findConflicts(HLNode& curr, int a1, int a2);

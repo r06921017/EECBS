@@ -871,6 +871,67 @@ set<int> CBS::getInvalidAgents(const list<Constraint>& constraints)  // return a
 	return agents;
 }
 
+set<int> CBS::getInvalidAgents2(const list<Constraint>& constraints)  // return agents that violates the constraints
+{
+	set<int> agents;
+	int agent, x, y, t;
+	constraint_type type;
+	assert(!constraints.empty());
+
+	for (const auto _cons : constraints)
+	{
+		tie(agent, x, y, t, type) = _cons;
+		if (type == constraint_type::LEQLENGTH)
+		{
+			for (int ag = 0; ag < num_of_agents; ag++)
+			{
+				if (ag == agent)
+					continue;
+				for (int i = t; i < (int)paths[ag]->size(); i++)
+				{
+					if (paths[ag]->at(i).location == x)
+					{
+						agents.insert(ag);
+						break;
+					}
+				}
+			}
+		}
+		else if (type == constraint_type::POSITIVE_VERTEX)
+		{
+			for (int ag = 0; ag < num_of_agents; ag++)
+			{
+				if (ag == agent)
+					continue;
+				if (getAgentLocation(ag, t) == x)
+				{
+					agents.insert(ag);
+				}
+			}
+		}
+		else if (type == constraint_type::POSITIVE_EDGE)
+		{
+			for (int ag = 0; ag < num_of_agents; ag++)
+			{
+				if (ag == agent)
+					continue;
+				int curr = getAgentLocation(ag, t);
+				int prev = getAgentLocation(ag, t - 1);
+				if (prev == x || curr == y ||
+					(prev == y && curr == x))
+				{
+					agents.insert(ag);
+				}
+			}
+		}
+		else
+		{
+			agents.insert(agent);
+		}
+	}
+	return agents;
+}
+
 
 void CBS::printPaths() const
 {
@@ -1451,6 +1512,45 @@ void CBS::addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) con
 	}
 }
 
+vector<int> CBS::shuffleConstraints(const HLNode* node) const
+{
+	assert((int)(node->conflicts.size() + node->unknownConf.size()) == node->distance_to_go);
+	vector<int> possible_assignment(node->distance_to_go);
+	std::iota(possible_assignment.begin(), possible_assignment.end(), 0);
+	std::random_device rd;
+	std::mt19937 g(rd());
+	std::shuffle(std::begin(possible_assignment), std::end(possible_assignment), g);
+
+	if (screen > 1)
+	{
+		cout << "possible_assignment size: " << possible_assignment.size() << endl;
+		for (int i = 0; i < 10; i++)
+		{
+			cout << possible_assignment[i] << ", ";
+		}
+		cout << endl;
+	}
+
+	return possible_assignment;
+}
+
+void CBS::assignConstraints(const HLNode* curr, HLNode* child, int cons_assign) const
+{
+	for (const auto& _conf : curr->conflicts)
+	{
+		int constraint_idx = cons_assign % 2;
+		if (constraint_idx == 0)
+			child->constraints.insert(child->constraints.end(), _conf->constraint1.begin(), _conf->constraint1.end());
+		else
+			child->constraints.insert(child->constraints.end(), _conf->constraint2.begin(), _conf->constraint2.end());
+		if (screen > 1)
+			cout << endl;
+
+		cons_assign = cons_assign/2;
+	}
+
+	return;
+}
 
 CBS::CBS(vector<SingleAgentSolver*>& search_engines,
 	const vector<ConstraintTable>& initial_constraints,
