@@ -800,11 +800,6 @@ bool ECBS::generateRoot()
 	pushNode(root);
 	dummy_start = root;
 
-	// if (screen >= 2) // print start and goals
-	// {
-	// 	printPaths();
-	// 	printConflicts(*dummy_start);
-	// }
 	return true;
 }
 
@@ -862,9 +857,6 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 
 bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 {
-	// if (screen > 1)
-	// 	collectPaths(node->parent);
-
 	clock_t t = clock();
 	pair<Path, int> new_path;
 	if (use_flex)
@@ -1635,15 +1627,6 @@ void ECBS::classifyConflicts(ECBSNode &node)
 		int timestep = get<3>(con->constraint1.back());
 		constraint_type type = get<4>(con->constraint1.back());
 		node.unknownConf.pop_front();
-
-		if (screen > 1)
-		{
-			if ((a1 == 40 && a2 == 63) || (a1 == 40 && a2 == 63))
-			{
-				cout << *con << endl;
-				cout << endl;
-			}
-		}
 
 		if (PC)
 		    if (node.chosen_from == "cleanup" ||

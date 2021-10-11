@@ -45,23 +45,8 @@ inline void CBS::updatePaths(CBSNode* curr)
 void CBS::copyConflicts(const list<shared_ptr<Conflict >>& conflicts,
 	list<shared_ptr<Conflict>>& copy, const list<int>& excluded_agents)
 {
-	if (screen > 1)
-		printAllMetaAgents();
-
 	for (auto& conflict : conflicts)
 	{
-		// if (screen > 1)
-		// {
-		// 	cout << *conflict << endl;
-		// 	cout << "a1: ";
-		// 	for (const int& _ag_ : findMetaAgent(conflict->a1))
-		// 		cout << _ag_ << ",";
-		// 	cout << " | a2: ";
-		// 	for (const int& _ag_ : findMetaAgent(conflict->a2))
-		// 		cout << _ag_ << ",";
-		// 	cout << endl;
-		// }
-
 		if (findMetaAgent(conflict->a1) == findMetaAgent(conflict->a2))  // This is a internal conflict
 			continue;
 
@@ -224,18 +209,6 @@ void CBS::removeInternalConflicts(HLNode* node)
 
 void CBS::findConflicts(HLNode& curr, int a1, int a2)
 {
-	// if ((a1 == 8 && a2 == 72) || (a1 == 72 && a2 == 8))
-	// {
-	// 	cout << "\nAgent " << a1 << " (" << paths[a1]->size() - 1 << "): ";
-	// 	for (const auto & t : *paths[a1])
-	// 		cout << t.location << "->";
-	// 	cout << endl;
-	// 	cout << "Agent " << a2 << " (" << paths[a2]->size() - 1 << "): ";
-	// 	for (const auto & t : *paths[a2])
-	// 		cout << t.location << "->";
-	// 	cout << endl;
-	// }
-
 	int min_path_length = (int) (paths[a1]->size() < paths[a2]->size() ? paths[a1]->size() : paths[a2]->size());
 	for (int timestep = 0; timestep < min_path_length; timestep++)
 	{
@@ -309,18 +282,7 @@ void CBS::findConflicts(HLNode& curr)
 		}
 		else
 		{
-			// if (screen > 1)
-			// {
-			// 	cout << "Before merging:" << endl;
-			// 	printConflicts(curr,2, 25);
-			// }
 			removeInternalConflicts(&curr);
-			// if (screen > 1)
-			// {
-			// 	cout << "After merging:" << endl;
-			// 	printConflicts(curr, 2, 25);
-			// }
-			// cout << endl;
 		}
 
 		// detect new conflicts
@@ -365,22 +327,6 @@ void CBS::findConflicts(HLNode& curr)
 				findConflicts(curr, a1, a2);
 			}
 		}
-
-		// vector<bool> detected(num_of_agents, false);
-		// for (int a1 = 0; a1 < num_of_agents; a1++)
-		// {
-		// 	detected[a1] = true;
-		// 	if (ma_vec[a1])
-		// 	{
-		// 		for (int a2 = 0; a2 < num_of_agents; a2 ++)
-		// 		{
-		// 			if (ma_vec[a2] && !detected[a2] && findMetaAgent(a1) != findMetaAgent(a2))
-		// 				findConflicts(curr, a1, a2);
-		// 			else
-		// 				continue;
-		// 		}
-		// 	}
-		// }
 	}
 	runtime_detect_conflicts += (double)(clock() - t) / CLOCKS_PER_SEC;
 }
@@ -603,12 +549,6 @@ void CBS::classifyConflicts(CBSNode &node)
 		//constraint_type type;
 		//tie(a, loc1, loc2, timestep, type) = con->constraint1.back();
 		node.unknownConf.pop_front();
-
-		if ((a1 == 40 && a2 == 63) || (a1 == 63 && a2 == 40))
-		{
-			cout << *con << endl;
-			cout << endl;
-		}
 
 		computeConflictPriority(con, node);
 
@@ -2074,6 +2014,11 @@ CBS::CBS(const Instance& instance, bool sipp, int screen) :
 			search_engines[i] = new SpaceTimeAStar(instance, i);
 
 		initial_constraints[i].goal_location = search_engines[i]->goal_location;
+		// cout << "goal_location: " << initial_constraints[i].goal_location << ", " << 
+		// 	mdd_helper.initial_constraints[i].goal_location << endl;
+		// cout << "map_size: " << initial_constraints[i].map_size << ", " << 
+		// 	mdd_helper.initial_constraints[i].map_size << endl;
+		// cout << endl;
 	}
 	runtime_preprocessing = (double)(clock() - t) / CLOCKS_PER_SEC;
 

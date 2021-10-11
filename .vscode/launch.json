@@ -97,7 +97,7 @@
             ]
         },
         {
-            "name": "(gdb) NFECBS",
+            "name": "(gdb) NEECBS",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/eecbs",
