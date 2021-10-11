@@ -1,2 +1,7 @@
 .idea
 cmake-*
+build
+run
+script
+result_debug.csv
+.vscode
