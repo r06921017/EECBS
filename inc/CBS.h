@@ -142,7 +142,7 @@ public:
 	void setNodeLimit(int n) { node_limit = n; }
 	void setMergeThreshold(int b) { merge_th = b; }
 	void setMergeRestart(bool mr) { mr_active = mr; }
-	void setMASolver(shared_ptr<CBS> in_solver) { inner_solver = in_solver; }
+	// void setMASolver(shared_ptr<CBS> in_solver) { inner_solver = in_solver; }
 	void setMAVector(vector<bool> in_ma_vec) { ma_vec = in_ma_vec; }	
 	void setInitConstraints(int agent, ConstraintTable _table) {initial_constraints[agent].init(_table);}
 	void setInitSumLB (int _sum_lb) { init_sum_lb = _sum_lb; }
@@ -162,7 +162,7 @@ public:
 			min_f_vals.resize(num_of_agents);
 		min_f_vals[agent] = val; 
 	}
-	virtual void setInitialPath(int agent, Path _path)
+	void setInitialPath(int agent, Path _path)
 	{ 
 		if (paths_found_initially.empty())
 			paths_found_initially.resize(num_of_agents);

@@ -195,7 +195,7 @@ public:
 	// int greedyWDG(CBSNode& curr, double time_limit);
 	double getCostError(int i = 0) const { return (num_of_errors[i] == 0)? 0 : sum_cost_errors[i] / num_of_errors[i]; }
 	double getDistanceError(int i = 0) const { return (num_of_errors[i] == 0)? 0 : sum_distance_errors[i]  / num_of_errors[i]; }
-
+	heuristics_type getInadmissibleHeuristics(void) {return inadmissible_heuristic;};
 	// void copyConflictGraph(HLNode& child, const HLNode& parent);
 	void clear() { lookupTable.clear(); }
 

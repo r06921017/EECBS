@@ -2014,11 +2014,6 @@ CBS::CBS(const Instance& instance, bool sipp, int screen) :
 			search_engines[i] = new SpaceTimeAStar(instance, i);
 
 		initial_constraints[i].goal_location = search_engines[i]->goal_location;
-		// cout << "goal_location: " << initial_constraints[i].goal_location << ", " << 
-		// 	mdd_helper.initial_constraints[i].goal_location << endl;
-		// cout << "map_size: " << initial_constraints[i].map_size << ", " << 
-		// 	mdd_helper.initial_constraints[i].map_size << endl;
-		// cout << endl;
 	}
 	runtime_preprocessing = (double)(clock() - t) / CLOCKS_PER_SEC;
 

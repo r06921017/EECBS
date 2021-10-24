@@ -7,11 +7,23 @@ class ECBS : public CBS
 {
 public:
 	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) { initializeIterAnalysis();}
-	void setInitialPath(int agent, Path _path) override
+	ECBS(vector<SingleAgentSolver*>& search_engines, 
+		const vector<ConstraintTable>& init_constraints,
+		vector<Path>& init_paths, 
+		vector<int>& init_min_f_vals, int screen) : CBS(search_engines, init_constraints, init_paths, screen){
+		paths_found_initially.resize(num_of_agents);
+		for (int _ag_ = 0; _ag_ < num_of_agents; _ag_ ++)
+		{
+			setInitialPath(_ag_, init_paths[_ag_], init_min_f_vals[_ag_]);
+			setMinFVal(_ag_, init_min_f_vals[_ag_]);
+		}
+	};
+	void setInitialPath(int agent, Path _path, int _min_f_val=0)
 	{ 
 		if (paths_found_initially.empty())
 			paths_found_initially.resize(num_of_agents);
 		paths_found_initially[agent].first = _path;
+		paths_found_initially[agent].second = _min_f_val;
 	}
 	int getInitialPathLength(int agent) const override {return (int) paths_found_initially[agent].first.size() - 1; }
 

@@ -189,25 +189,25 @@ int main(int argc, char** argv)
 		if (vm["mergeTh"].as<int>() < INT_MAX)
 		{
 			// shared_ptr<CBS> inner_solver = make_shared<ECBS>(ECBS(instance, false, vm["screen"].as<int>()));
-			shared_ptr<CBS> inner_solver = make_shared<ECBS>(ECBS(instance, false, 0));
-			inner_solver->setIsSolver(true);
-			inner_solver->setPrioritizeConflicts(vm["prioritizingConflicts"].as<bool>());
-			inner_solver->setDisjointSplitting(vm["disjointSplitting"].as<bool>());
-			inner_solver->setBypass(vm["bypass"].as<bool>());
-			inner_solver->setRectangleReasoning(vm["rectangleReasoning"].as<bool>());
-			inner_solver->setCorridorReasoning(vm["corridorReasoning"].as<bool>());
-			inner_solver->setHeuristicType(h, h_hat);
-			inner_solver->setTargetReasoning(vm["targetReasoning"].as<bool>());
-			inner_solver->setMutexReasoning(false);
-			inner_solver->setConflictSelectionRule(conflict);
-			inner_solver->setNodeSelectionRule(n);
-			inner_solver->setSavingStats(vm["stats"].as<bool>());
-			inner_solver->setHighLevelSolver(s, vm["suboptimality"].as<double>());
-			inner_solver->setUseFlex(vm["flex"].as<bool>());
-			inner_solver->setRootReplan(vm["rp"].as<bool>(), vm["fa"].as<bool>(), vm["ca"].as<bool>());
-			inner_solver->setRandomInit(vm["randomInit"].as<bool>());
+			// shared_ptr<CBS> inner_solver = make_shared<ECBS>(ECBS(instance, false, 0));
+			// inner_solver->setIsSolver(true);
+			// inner_solver->setPrioritizeConflicts(vm["prioritizingConflicts"].as<bool>());
+			// inner_solver->setDisjointSplitting(vm["disjointSplitting"].as<bool>());
+			// inner_solver->setBypass(vm["bypass"].as<bool>());
+			// inner_solver->setRectangleReasoning(vm["rectangleReasoning"].as<bool>());
+			// inner_solver->setCorridorReasoning(vm["corridorReasoning"].as<bool>());
+			// inner_solver->setHeuristicType(h, h_hat);
+			// inner_solver->setTargetReasoning(vm["targetReasoning"].as<bool>());
+			// inner_solver->setMutexReasoning(false);
+			// inner_solver->setConflictSelectionRule(conflict);
+			// inner_solver->setNodeSelectionRule(n);
+			// inner_solver->setSavingStats(vm["stats"].as<bool>());
+			// inner_solver->setHighLevelSolver(s, vm["suboptimality"].as<double>());
+			// inner_solver->setUseFlex(vm["flex"].as<bool>());
+			// inner_solver->setRootReplan(vm["rp"].as<bool>(), vm["fa"].as<bool>(), vm["ca"].as<bool>());
+			// inner_solver->setRandomInit(vm["randomInit"].as<bool>());
 
-			ecbs.setMASolver(inner_solver);
+			// ecbs.setMASolver(inner_solver);
 			ecbs.setMergeThreshold(vm["mergeTh"].as<int>());
 			if (vm["mr"].as<bool>())
 				ecbs.setMergeRestart(vm["mr"].as<bool>());

@@ -117,7 +117,7 @@
                 "--suboptimality","1.05",
                 // "--flex", "true",
                 "--prioritizingConflicts", "false",
-                "--bypass", "true",
+                "--bypass", "false",
                 "--rectangleReasoning", "false",
                 "--corridorReasoning", "false",
                 "--targetReasoning", "false",
