@@ -246,7 +246,7 @@ private:
 	// int minimumConstrainedWeightedVertexCover(const vector<int>& CG);
 	int weightedVertexCover(const vector<int>& CG);
 	int DPForWMVC(vector<int>& x, int i, int sum, const vector<int>& CG, const vector<int>& range, int& best_so_far); // dynamic programming
-	// int ILPForWMVC(const vector<int>& CG, const vector<int>& range) const; // Integer linear programming
+	int ILPForWMVC(const vector<int>& CG, const vector<int>& range) const; // Integer linear programming
 	int ILPForConstrainedWMVC(const std::vector<int>& CG, const std::vector<int>& range);
 	int DPForConstrainedWMVC(vector<bool>& x, int i, int sum, const vector<int>& CG, const vector<int>& range, int& best_so_far);
 };

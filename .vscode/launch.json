@@ -103,7 +103,7 @@
             "program": "${workspaceFolder}/build/eecbs",
             "args": [
                 "-m/home/rdaneel/mapf_benchmark/mapf-map/random-32-32-20.map",
-                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-4.scen", //22
+                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-22.scen", //22
                 // "-m/home/rdaneel/mapf_benchmark/mapf-map/den520d.map", 
                 // "-a/home/rdaneel/mapf_benchmark/scen-even/den520d-even-2.scen",
                 "-k90",
@@ -116,8 +116,8 @@
                 "--heuristics", "Zero",
                 "--suboptimality","1.05",
                 // "--flex", "true",
-                "--prioritizingConflicts", "false",
-                "--bypass", "false",
+                "--prioritizingConflicts", "true",
+                "--bypass", "true",
                 "--rectangleReasoning", "false",
                 "--corridorReasoning", "false",
                 "--targetReasoning", "false",

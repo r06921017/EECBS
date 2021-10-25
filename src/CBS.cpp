@@ -1990,6 +1990,9 @@ CBS::CBS(vector<SingleAgentSolver*>& search_engines,
 {
 	num_of_agents = (int) search_engines.size();
 	mutex_helper.search_engines = search_engines;
+	// Initialize for nested framework
+	ma_vec.resize(num_of_agents, false);  // checking if need to solve agent
+	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
 }
 
 CBS::CBS(const Instance& instance, bool sipp, int screen) :

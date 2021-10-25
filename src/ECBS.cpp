@@ -800,6 +800,9 @@ bool ECBS::generateRoot()
 	pushNode(root);
 	dummy_start = root;
 
+	if (is_solver && screen == 2)
+		printPaths();
+
 	return true;
 }
 
@@ -987,6 +990,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 			else
 			{
 				_path_cost_ = min_f_vals[_ag_];
+				inner_min_f_vals[_ag_] = min_f_vals[_ag_];
 			}
 
 			if (!_ma_vec_[_ag_] && use_flex)
@@ -995,7 +999,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	}
 
 	inner_solver = make_shared<ECBS>(ECBS(search_engines, inner_constraints, 
-		inner_init_paths, inner_min_f_vals, screen));
+		inner_init_paths, inner_min_f_vals, 0));
 
 	inner_solver->setMetaAgents(meta_ag);  // Set the meta-agent for inner solver
 	inner_solver->setMAVector(_ma_vec_);
@@ -1012,7 +1016,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	inner_solver->setMutexReasoning(false);
 	inner_solver->setConflictSelectionRule(conflict_selection_rule);
 	inner_solver->setNodeSelectionRule(node_selection_rule);
-	inner_solver->setSavingStats(save_stats);
+	// inner_solver->setSavingStats(save_stats);
 	inner_solver->setHighLevelSolver(solver_type, suboptimality);
 	inner_solver->setUseFlex(use_flex);
 	inner_solver->setRootReplan(root_replan, fmin_ascend, conf_ascend);
@@ -1034,9 +1038,13 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	inner_solver->setFlex(outer_flex);
 	inner_solver->setIsStart(false);
 	inner_solver->path_initialize = true;
+
+	if (node->time_expanded == 641 && node->time_generated == 42)
+		inner_solver->setScreen(2);
+
 	clock_t t = clock();
 	double inner_time_limit = time_limit - ((t-start) / CLOCKS_PER_SEC);
-	bool foundSol = inner_solver->solve(inner_time_limit, outer_lb);  // Run solver for meta-agent
+	bool foundSol = inner_solver->solve(inner_time_limit, outer_lb, MAX_COST);  // Run solver for meta-agent
 
 	// Update Outer ECBS parameters from Inner ECBS
 	// cout << "inner solver done!" << endl;
@@ -1699,6 +1707,11 @@ void ECBS::classifyConflicts(ECBSNode &node)
 			// TODO: memorize the conflicts location for meta-agent to view it as vertex conflict
 			auto mdd1 = mdd_helper.getMDD(node, a1, paths[a1]->size());
 			auto mdd2 = mdd_helper.getMDD(node, a2, paths[a2]->size());
+			if (screen == 2 && is_solver)
+			{
+				printAgentPath(a1, paths[a1]);
+				printAgentPath(a2, paths[a2]);
+			}
 			auto rectangle = rectangle_helper.run(paths, timestep, a1, a2, mdd1, mdd2);
 			if (rectangle != nullptr)
 			{

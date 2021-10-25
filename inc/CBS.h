@@ -162,7 +162,7 @@ public:
 			min_f_vals.resize(num_of_agents);
 		min_f_vals[agent] = val; 
 	}
-	void setInitialPath(int agent, Path _path)
+	virtual void setInitialPath(int agent, Path _path)
 	{ 
 		if (paths_found_initially.empty())
 			paths_found_initially.resize(num_of_agents);
@@ -175,6 +175,7 @@ public:
 	void setUseFlex(bool _f) { use_flex = _f; }
 	void setRandomInit(bool _r) {random_init = _r;}
 	void setRootReplan(bool _r, bool _f_asc, bool _c_asc) {root_replan = _r; fmin_ascend = _f_asc; conf_ascend = _c_asc;}
+	void setScreen(int s) {screen = s;}
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
@@ -189,7 +190,7 @@ public:
 		const vector<ConstraintTable>& constraints,
 		vector<Path>& paths_found_initially, int screen);
 	void clearSearchEngines();
-	~CBS();
+	virtual ~CBS();
 
 	// Save results
 	void saveResults(const string &fileName, const string &instanceName) const;
