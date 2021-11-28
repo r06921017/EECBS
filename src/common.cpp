@@ -21,3 +21,14 @@ bool isSamePath(const Path& p1, const Path& p2)
 	}
 	return true;
 }
+
+pair<vector<int>, int> myfindMaxValuePair(
+    unordered_map<vector<int>, int, container_hash<vector<int>>> const &x)
+{
+    return *std::max_element(x.begin(), x.end(),
+                             [](const pair<vector<int>, int> &p1,
+                                const pair<vector<int>, int> &p2)
+                             {
+                                return p1.second < p2.second;
+                             });
+}

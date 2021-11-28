@@ -20,6 +20,22 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		start = clock();
 	}
 
+	if (is_solver)  // Debug: check initial constraints
+	{
+		cout << "Inner ECBS:" << endl;
+		for (const vector<int>& _ma_ : meta_agents)
+		{
+			for (const int& _ag_ : _ma_)
+			{
+				// printAgentInitCT(_ag_);
+				cout << "fmin:" << min_f_vals[_ag_] << endl;
+				printAgentPath(_ag_, &paths_found_initially[_ag_].first);
+				cout << "--------------------" << endl;
+			}
+		}
+		cout << "**********************" << endl;
+	}
+
 	generateRoot();
 
 	while (!cleanup_list.empty() && !solution_found)
@@ -48,8 +64,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		auto curr = selectNode();  // update focal list and select the CT node
 
 		// Debug
-		assert((double) curr->sum_of_costs <= suboptimality * curr->getFVal());
-		assert((double) curr->sum_of_costs <= suboptimality * cleanup_head->getFVal());
+		assert((double) curr->sum_of_costs <= suboptimality * max(curr->getFVal(), init_sum_lb));
+		assert((double) curr->sum_of_costs <= suboptimality * max(cleanup_head->getFVal(), init_sum_lb));
 
 		if (screen > 3)
 		{
@@ -87,7 +103,38 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		// End debug
 
 		if (terminate(curr))
+		{
+			// debug, update individual fmin according to open_head
+			ECBSNode* tmp_node = cleanup_head;
+			for (int i = 0; i < num_of_agents; i++)
+				if (ma_vec[i])
+					min_f_vals[i] = init_min_f_vals[i];
+
+			vector<int> updated(num_of_agents, false);
+			while (tmp_node != nullptr)
+			{
+				for (const auto& tmp_p : tmp_node->paths)
+				{
+					int cor_ag = tmp_p.first;
+					if (ma_vec[cor_ag] && !updated[cor_ag])
+					{
+						min_f_vals[cor_ag] = tmp_p.second.second; 
+						updated[cor_ag] = true;
+					}
+				}
+				tmp_node = tmp_node->parent;
+			}
+			
+			int debug_lb = 0;
+			for (int i = 0; i < num_of_agents; i++)
+				if (ma_vec[i])
+					debug_lb += min_f_vals[i];
+			cout << "cost_lowerbound: " << cost_lowerbound << endl;
+			cout << "debug_lb: " << debug_lb << endl;
+			assert(debug_lb <= cost_lowerbound);
+			// end debug
 			return solution_found;
+		}
 
 		if (use_flex && curr->chosen_from == "cleanup")  // Early replanning for FEECBS
 		{
@@ -226,12 +273,6 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 				{
 					clock_t t1 = clock();
 					paths = path_copy;
-					// Update new meta-agent to global variable and curr CT node
-					meta_agents.erase(std::remove(meta_agents.begin(), meta_agents.end(), ma1), meta_agents.end());
-					meta_agents.erase(std::remove(meta_agents.begin(), meta_agents.end(), ma2), meta_agents.end());
-					vector<int> joint_ma;
-					std::merge(ma1.begin(), ma1.end(), ma2.begin(), ma2.end(), std::back_inserter(joint_ma));
-					meta_agents.push_back(joint_ma);
 
 					// if (screen > 1)
 					// {
@@ -245,9 +286,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					// 	// printConflicts(*curr, 8, 72);
 					// }
 
-					bool foundPaths = findPathForMetaAgent(curr, joint_ma);
-					joint_ma.clear();
-
+					bool foundPaths = findPathForMetaAgent(curr, ma1, ma2);
 					if (foundPaths)
 					{
 						// Copy new meta_agents to the current node
@@ -336,25 +375,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 			if (shouldMerge(ma1, ma2)) // Should merge
 			{
 				clock_t t1 = clock();
-				// Update new meta-agent to global variable and curr CT node
-				meta_agents.erase(std::remove(meta_agents.begin(), meta_agents.end(), ma1), meta_agents.end());
-				meta_agents.erase(std::remove(meta_agents.begin(), meta_agents.end(), ma2), meta_agents.end());
-				vector<int> joint_ma;
-				std::merge(ma1.begin(), ma1.end(), ma2.begin(), ma2.end(), std::back_inserter(joint_ma));
-				meta_agents.push_back(joint_ma);
-
-				if (screen > 1)
-				{
-					cout << "	Merging agents: ";
-					for (int _tmp_ag_ : joint_ma)
-					{
-						cout << _tmp_ag_ << ", ";
-					}
-					cout << endl;
-				}
-
-				bool foundPaths = findPathForMetaAgent(curr, joint_ma);
-				joint_ma.clear();
+				bool foundPaths = findPathForMetaAgent(curr, ma1, ma2);
 
 				if (foundPaths)
 				{
@@ -617,7 +638,7 @@ bool ECBS::generateRoot()
 				initial_soc += paths_found_initially[ag].first.size() - 1;
 			}
 			else
-			{ 
+			{
 				min_f_vals[ag] = search_engines[ag]->my_heuristic[search_engines[ag]->start_location];
 			}
 
@@ -661,8 +682,8 @@ bool ECBS::generateRoot()
 			break;
 
 		auto candidate = new ECBSNode();
-		candidate->g_val = initial_g_val;
-		candidate->sum_of_costs = initial_g_val;
+		candidate->g_val = root->g_val;
+		candidate->sum_of_costs = root->g_val;
 		candidate->meta_agents = meta_agents;
 		candidate->ma_vec = ma_vec;
 
@@ -818,6 +839,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 	node->makespan = parent->makespan;
 	node->meta_agents = parent->meta_agents;
 	node->ma_vec = parent->ma_vec;
+	node->ma_lb = parent->ma_lb;
 	node->depth = parent->depth + 1;
 	auto agents = getInvalidAgents(node->constraints);
 	assert(!agents.empty());
@@ -845,7 +867,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 			}
 		}
 	}
-	assert(node->sum_of_costs <= suboptimality * node->getFVal());
+	assert(node->sum_of_costs <= suboptimality * max(node->getFVal(), init_sum_lb));
 	assert(parent->getFVal() <= node->getFVal());
 	assert(parent->g_val <= node->g_val);
 
@@ -928,12 +950,20 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 
 	num_LL_expanded += search_engines[ag]->num_expanded;
 	num_LL_generated += search_engines[ag]->num_generated;
+	node->ll_generated = search_engines[ag]->num_generated;
+
 	runtime_build_CT += search_engines[ag]->runtime_build_CT;
 	runtime_build_CAT += search_engines[ag]->runtime_build_CAT;
 	runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
 	if (new_path.first.empty())
 		return false;
 	assert(!isSamePath(*paths[ag], new_path.first));
+	assert((int)(new_path.first.size()-1) <= suboptimality * new_path.second);
+	
+	cout << "old path lb:" << min_f_vals[ag] << endl;
+	cout << "new path lb:" << new_path.second << endl;
+	cout << "old path cost: " << paths[ag]->size() - 1 << endl;
+	cout << "new path cost: " << new_path.first.size() - 1 << endl;
 
 	node->g_val = node->g_val + max(new_path.second - min_f_vals[ag], 0);
 	if (node->parent != nullptr)
@@ -946,7 +976,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	paths[ag] = &node->paths.back().second.first;
 	node->makespan = max(node->makespan, new_path.first.size() - 1);
 
-	assert(node->sum_of_costs <= suboptimality * node->getFVal());
+	assert(node->sum_of_costs <= suboptimality * max(node->getFVal(), init_sum_lb));
 	assert(node->getFVal() >= node->parent->getFVal());
 	if (screen > 1)
 		collectPaths(node);
@@ -956,58 +986,193 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 
 // Plan a path for the meta agent in a child node
 // Collect constraints outside the function. 
-bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
+bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const vector<int>& ma2)
 {
-	solver_counter ++;
+	if (screen > 1)
+	{
+		cout << "Merge agents [";
+		for (const int& a1 : ma1)
+			cout << a1 << ", ";
+		for (const int& a2 : ma2)
+			cout << a2 << ", ";
+		cout << "] at " << *node << "on " << *(node->conflict) << endl;
+	}
 
 	// Set constraint to inner solver
+	solver_counter ++;
 	double outer_flex = 0.0;
-	int outer_lb = 0;
+	int init_ma_sum_lb = 0;
+	int init_ma_soc = 0;
+
 	vector<bool> _ma_vec_ = vector<bool>(num_of_agents, false);
 	vector<Path> inner_init_paths(num_of_agents); 
 	vector<int> inner_min_f_vals(num_of_agents, 0);
 	vector<ConstraintTable> inner_constraints(num_of_agents);
 
-	for (const int& ag : meta_ag)
+	if (screen > 1)
 	{
-		_ma_vec_[ag] = true;
-		outer_lb += min_f_vals[ag];  // Determine sum of fmin of the meta-agent
-		inner_constraints[ag] = ConstraintTable(initial_constraints[ag]);
-		inner_constraints[ag].build(*node, ag);
+		for (const auto& debug_lb : node->ma_lb)
+		{
+			cout << "[";
+			for (const int& ag : debug_lb.first)
+			{
+				cout << ag << ", ";
+			}
+			cout << "] -> " << debug_lb.second << endl;
+		}
 	}
 
-	for (const vector<int>& _ma_ : meta_agents)
+	// Update the paths, lowerbounds, and outer flex
+	for (const vector<int>& _ma_ : meta_agents)  // meta_agents has not been updated yet!
 	{
+		int _path_cost_ = 0;
 		for (const int& _ag_ : _ma_)
 		{
-			int _path_cost_ = 0;
 			if (paths[_ag_] != nullptr)
 			{
-				_path_cost_ = paths[_ag_]->size() - 1;
+				_path_cost_ += paths[_ag_]->size() - 1;
 				inner_init_paths[_ag_] = Path(*paths[_ag_]);
 				inner_min_f_vals[_ag_] = min_f_vals[_ag_];
 			}
 			else
 			{
-				_path_cost_ = min_f_vals[_ag_];
+				_path_cost_ += min_f_vals[_ag_];
 				inner_min_f_vals[_ag_] = min_f_vals[_ag_];
 			}
-
-			if (!_ma_vec_[_ag_] && use_flex)
-				outer_flex += suboptimality * min_f_vals[_ag_] - _path_cost_;
 		}
+
+		if (use_flex)
+		{
+			if (_ma_.size() > 1)
+				outer_flex += suboptimality * node->ma_lb[_ma_];
+			else
+				outer_flex += suboptimality * min_f_vals[_ma_.front()];
+			outer_flex -= _path_cost_;
+		}
+	}
+
+
+	// Determine sum of fmin of the meta-agent
+	if (ma1.size() > 1)
+	{
+		init_ma_sum_lb += node->ma_lb[ma1];
+	}
+	else
+	{
+		assert(ma1.size() == 1);
+		init_ma_sum_lb += min_f_vals[ma1.front()];
+	}
+
+	for (const int& _ag_ : ma1)
+	{
+		// Determine sum of costs of the meta-agent
+		if (paths[_ag_] != nullptr)
+			init_ma_soc += (int) paths[_ag_]->size() - 1;
+		else
+			init_ma_soc += min_f_vals[_ag_];
+
+		// Add external constraints to the meta-agent
+		inner_constraints[_ag_] = ConstraintTable(initial_constraints[_ag_]);
+		inner_constraints[_ag_].build(*node, _ag_);
+		_ma_vec_[_ag_] = true;
+
+		// if (screen > 1 && meta_ag.size() == 3)  // Debug
+		// {
+		// 	ECBSNode* _debug_node_ = node;
+		// 	while (_debug_node_ != dummy_start)
+		// 	{
+		// 		for (const auto& tmp_cons : _debug_node_->constraints)
+		// 		{
+		// 			if (get<0>(tmp_cons) == ag)
+		// 			{
+		// 				cout << "----------------------------------------" << endl;
+		// 				cout << "node generated ID: " << _debug_node_->time_generated << "\t";
+		// 				cout << tmp_cons << ", ";
+		// 			}
+		// 		}
+		// 		_debug_node_ = _debug_node_->parent;
+		// 	}
+		// 	inner_constraints[ag].printCT();
+		// }  // End debug
+	}
+
+	// Determine sum of fmin of the meta-agent
+	if (!ma2.empty())
+	{
+		if (ma2.size() > 1)
+		{
+			init_ma_sum_lb += node->ma_lb[ma2];
+		}
+		else
+		{
+			assert(ma2.size() == 1);
+			init_ma_sum_lb += min_f_vals[ma2.front()];
+		}
+
+		for (const int& _ag_ : ma2)
+		{
+			// Determine sum of costs of the meta-agent
+			if (paths[_ag_] != nullptr)
+				init_ma_soc += (int) paths[_ag_]->size() - 1;
+			else
+				init_ma_soc += min_f_vals[_ag_];
+
+			// Add external constraints to the meta-agent
+			inner_constraints[_ag_] = ConstraintTable(initial_constraints[_ag_]);
+			inner_constraints[_ag_].build(*node, _ag_);
+			_ma_vec_[_ag_] = true;
+		}
+	}
+
+	if (screen > 1)
+	{
+		cout << "init_ma_sum_lb: " << init_ma_sum_lb << endl;
+		cout << "init_ma_soc: " << init_ma_soc << endl;
+		int tmp_ag_lb = 0;
+		for (const int& a1 : ma1)
+		{
+			tmp_ag_lb += min_f_vals[a1];
+		}
+		for (const int& a2 : ma2)
+		{
+			tmp_ag_lb += min_f_vals[a2];
+		}
+		cout << "tmp_ag_lb: " << tmp_ag_lb << endl;
+		cout << endl;
+	}
+
+	if (use_flex)  // Remove the inner flex
+		outer_flex = outer_flex - (suboptimality * init_ma_sum_lb - init_ma_soc);
+	else
+		assert(outer_flex == 0.0);
+
+	// Remove old meta-agent (if is merging) and add new meta-agent to global variable and curr CT node
+	vector<int> joint_ma;
+	if (ma2.empty())
+	{
+		joint_ma = ma1;
+	}
+	else
+	{
+		node->ma_lb.erase(ma1);
+		node->ma_lb.erase(ma2);
+		meta_agents.erase(std::remove(meta_agents.begin(), meta_agents.end(), ma1), meta_agents.end());
+		meta_agents.erase(std::remove(meta_agents.begin(), meta_agents.end(), ma2), meta_agents.end());
+		std::merge(ma1.begin(), ma1.end(), ma2.begin(), ma2.end(), std::back_inserter(joint_ma));
+		meta_agents.push_back(joint_ma);
 	}
 
 	inner_solver = make_shared<ECBS>(ECBS(search_engines, inner_constraints, 
 		inner_init_paths, inner_min_f_vals, 0));
 
-	inner_solver->setMetaAgents(meta_ag);  // Set the meta-agent for inner solver
+	inner_solver->setMetaAgents(joint_ma);  // Set the meta-agent for inner solver
 	inner_solver->setMAVector(_ma_vec_);
-	inner_solver->setInitSumLB(outer_lb);
+	inner_solver->setInitSumLB(init_ma_sum_lb);
 	inner_solver->setIsSolver(true);
 	inner_solver->setPrioritizeConflicts(PC);
-	inner_solver->setHeuristicType(heuristic_helper.type, 
-		heuristic_helper.getInadmissibleHeuristics());
+	// inner_solver->setHeuristicType(heuristic_helper.type, 
+	// 	heuristic_helper.getInadmissibleHeuristics(), true);
+	inner_solver->setHeuristicType(heuristics_type::ZERO, heuristics_type::ZERO, true);
 	inner_solver->setDisjointSplitting(disjoint_splitting);
 	inner_solver->setBypass(bypass);
 	inner_solver->setRectangleReasoning(rectangle_reasoning);
@@ -1021,11 +1186,12 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	inner_solver->setUseFlex(use_flex);
 	inner_solver->setRootReplan(root_replan, fmin_ascend, conf_ascend);
 	inner_solver->setRandomInit(random_init);
+	inner_solver->setScreen(screen);
 
 	// if (screen == 2)
 	// {
 	// 	cout << "--------------------------------------" << endl;
-	// 	cout << "conflict of original CT ndoe" << endl;
+	// 	cout << "conflict of original CT node" << endl;
 	// 	printConflicts(*node);
 	// 	cout << "--------------------------------------" << endl;
 	// 	cout << "chosen onflict: " << *node->conflict << endl;
@@ -1039,19 +1205,20 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 	inner_solver->setIsStart(false);
 	inner_solver->path_initialize = true;
 
-	if (node->time_expanded == 641 && node->time_generated == 42)
-		inner_solver->setScreen(2);
-
 	clock_t t = clock();
 	double inner_time_limit = time_limit - ((t-start) / CLOCKS_PER_SEC);
-	bool foundSol = inner_solver->solve(inner_time_limit, outer_lb, MAX_COST);  // Run solver for meta-agent
+	if (joint_ma == vector<int>({34,56,81}))
+	{
+		cout << endl;
+	}
+	bool foundSol = inner_solver->solve(inner_time_limit, init_ma_sum_lb, MAX_COST);  // Run solver for meta-agent
 
 	// Update Outer ECBS parameters from Inner ECBS
-	// cout << "inner solver done!" << endl;
 	solver_num_HL_expanded += inner_solver->num_HL_expanded;
 	solver_num_HL_generated += inner_solver->num_HL_generated;
 	solver_num_LL_expanded += inner_solver->num_LL_expanded;
-	solver_num_LL_generated += inner_solver->num_LL_generated; 
+	solver_num_LL_generated += inner_solver->num_LL_generated;
+	node->ll_generated = inner_solver->num_HL_generated;  // Debug
 
 	runtime_solver += inner_solver->runtime;
 
@@ -1073,13 +1240,10 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 		// 	cout << endl;
 		// }
 
-		int old_sum_of_costs = 0;
-		int new_sum_lb = 0;
-		for (const int& ag : meta_ag)
+		int new_sum_lb = inner_solver->getLowerBound();  // return the cost_lowerbound
+		for (const int& ag : joint_ma)
 		{
-			old_sum_of_costs += (int) paths[ag]->size() - 1;
-			new_sum_lb += inner_solver->getminFVal(ag);
-
+			// new_sum_lb += inner_solver->getminFVal(ag);  // never record the individual lb of agents in the meta-agent any more, since it is wrong!!
 			for (list<pair<int, pair<Path, int>>>::iterator p_it = node->paths.begin(); p_it != node->paths.end();)
 			{
 				if (ag == p_it->first)  // Delete repeated paths in node
@@ -1093,16 +1257,19 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& meta_ag)
 				}
 			}
 		}
+		cout << "new_sum_lb: " << new_sum_lb << endl;
+		cout << "inner_solver->solution_cost: " << inner_solver->solution_cost << endl;
 
-		node->g_val = node->g_val + max(new_sum_lb - outer_lb, 0);
-		node->sum_of_costs = node->sum_of_costs - old_sum_of_costs + inner_solver->solution_cost;
+		node->g_val = node->g_val + max(new_sum_lb - init_ma_sum_lb, 0);
+		node->sum_of_costs = node->sum_of_costs - init_ma_soc + inner_solver->solution_cost;
+		node->ma_lb[joint_ma] = max(new_sum_lb, init_ma_sum_lb);  // Separate the lb of single agents and meta-agent for WDG
 
-		for (const int& ag : meta_ag)  // Update the paths and the lower bounds of the meta-agent
+		for (const int& ag : joint_ma)  // Update the paths and the lower bounds of the meta-agent
 		{
 			Path inner_path = inner_solver->getPath(ag);
-			int inner_lb = inner_solver->getminFVal(ag);
-			int ag_lb = (new_sum_lb < outer_lb)? min_f_vals[ag] : inner_lb;
-			node->paths.emplace_back(ag, make_pair(inner_path, ag_lb));
+			// int inner_lb = inner_solver->getminFVal(ag);
+			// int ag_lb = (new_sum_lb < init_ma_sum_lb)? min_f_vals[ag] : inner_lb;
+			node->paths.emplace_back(ag, make_pair(inner_path, min_f_vals[ag]));  // No update single lb after merging
 			paths[ag] = &node->paths.back().second.first;
 			node->makespan = max(node->makespan, inner_path.size() - 1);
 		}
@@ -1294,15 +1461,24 @@ ECBSNode* ECBS::selectNode()
 		{ // return best d
 			curr = focal_list.top();
 			curr->chosen_from = "focal";
-			/*curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
+
+			/* for debug */
+			curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
 			curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
 			curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+			curr->c_of_best_in_cleanup = cleanup_list.top()->sum_of_costs;
+
 			curr->f_of_best_in_open = open_list.top()->getFVal();
 			curr->f_hat_of_best_in_open = open_list.top()->getFHatVal();
 			curr->d_of_best_in_open = open_list.top()->distance_to_go;
+			curr->c_of_best_in_open = open_list.top()->sum_of_costs;
+
 			curr->f_of_best_in_focal = focal_list.top()->getFVal();
 			curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
-			curr->d_of_best_in_focal = focal_list.top()->distance_to_go; */
+			curr->d_of_best_in_focal = focal_list.top()->distance_to_go;
+			curr->c_of_best_in_focal = focal_list.top()->sum_of_costs;
+			/* end for debug */
+			
 			focal_list.pop();
 			cleanup_list.erase(curr->cleanup_handle);
 			open_list.erase(curr->open_handle);
@@ -1311,15 +1487,23 @@ ECBSNode* ECBS::selectNode()
 		{ // return best f_hat
 			curr = open_list.top();
 			curr->chosen_from = "open";
-			/*curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
+			/* for debug */
+			curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
 			curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
 			curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+			curr->c_of_best_in_cleanup = cleanup_list.top()->sum_of_costs;
+
 			curr->f_of_best_in_open = open_list.top()->getFVal();
 			curr->f_hat_of_best_in_open = open_list.top()->getFHatVal();
 			curr->d_of_best_in_open = open_list.top()->distance_to_go;
+			curr->c_of_best_in_open = open_list.top()->sum_of_costs;
+
 			curr->f_of_best_in_focal = focal_list.top()->getFVal();
 			curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
-			curr->d_of_best_in_focal = focal_list.top()->distance_to_go;*/
+			curr->d_of_best_in_focal = focal_list.top()->distance_to_go;
+			curr->c_of_best_in_focal = focal_list.top()->sum_of_costs;
+			/* end for debug */
+
 			open_list.pop();
 			cleanup_list.erase(curr->cleanup_handle);
 			focal_list.erase(curr->focal_handle);
@@ -1328,15 +1512,24 @@ ECBSNode* ECBS::selectNode()
 		{ // return best f
 			curr = cleanup_list.top();
 			curr->chosen_from = "cleanup";
-			/*curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
+			
+			/* for debug */
+			curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
 			curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
 			curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+			curr->c_of_best_in_cleanup = cleanup_list.top()->sum_of_costs;
+
 			curr->f_of_best_in_open = open_list.top()->getFVal();
 			curr->f_hat_of_best_in_open = open_list.top()->getFHatVal();
 			curr->d_of_best_in_open = open_list.top()->distance_to_go;
+			curr->c_of_best_in_open = open_list.top()->sum_of_costs;
+
 			curr->f_of_best_in_focal = focal_list.top()->getFVal();
 			curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
-			curr->d_of_best_in_focal = focal_list.top()->distance_to_go;*/
+			curr->d_of_best_in_focal = focal_list.top()->distance_to_go;
+			curr->c_of_best_in_focal = focal_list.top()->sum_of_costs;
+			/* end for debug */
+
 			cleanup_list.pop();
 			open_list.erase(curr->open_handle);
 			if (curr->getFHatVal() <= suboptimality * inadmissible_cost_lowerbound)
@@ -1368,12 +1561,19 @@ ECBSNode* ECBS::selectNode()
 		// choose best d in the focal list
 		curr = focal_list.top();
 		curr->chosen_from = "focal";
-		/*curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
+
+		/* for debug */
+		curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
 		curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
 		curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+		curr->c_of_best_in_cleanup = cleanup_list.top()->sum_of_costs;
+
 		curr->f_of_best_in_focal = focal_list.top()->getFVal();
 		curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
-		curr->d_of_best_in_focal = focal_list.top()->distance_to_go;*/
+		curr->d_of_best_in_focal = focal_list.top()->distance_to_go;
+		curr->c_of_best_in_focal = focal_list.top()->sum_of_costs;
+		/* end for debug */
+
 		focal_list.pop();
 		cleanup_list.erase(curr->cleanup_handle);
 		break;
@@ -1840,68 +2040,6 @@ void ECBS::clear()
 	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
 }
 
-void ECBS::initializeIterAnalysis(void)
-{
-	if (screen > 3)
-	{
-		// Initialize for agents analysis
-		iter_sum_lb = make_shared<vector<int>>();
-		br_sum_lb = make_shared<vector<int>>();
-		all_sum_lb = make_shared<vector<int>>();
-		open_sum_lb = make_shared<vector<int>>();
-
-		iter_sum_fval = make_shared<vector<int>>();
-		br_sum_fval = make_shared<vector<int>>();
-		all_sum_fval = make_shared<vector<int>>();
-		open_sum_fval = make_shared<vector<int>>();
-
-		iter_sum_cost = make_shared<vector<int>>();
-		br_sum_cost = make_shared<vector<int>>();
-		all_sum_cost = make_shared<vector<int>>();
-		open_sum_cost = make_shared<vector<int>>();
-
-		iter_num_conflicts = make_shared<vector<int>>();
-		br_num_conflicts = make_shared<vector<int>>();
-		all_num_conflicts = make_shared<vector<int>>();
-		open_num_conflicts = make_shared<vector<int>>();
-
-		iter_remained_flex = make_shared<vector<double>>();
-		br_remained_flex = make_shared<vector<double>>();
-		all_remained_flex = make_shared<vector<double>>();
-		open_remained_flex = make_shared<vector<double>>();
-
-		iter_subopt = make_shared<vector<double>>();
-		br_subopt = make_shared<vector<double>>();
-		all_subopt = make_shared<vector<double>>();
-
-		iter_sum_ll_generate = make_shared<vector<uint64_t>>();
-		br_sum_ll_generate = make_shared<vector<uint64_t>>();
-		all_sum_ll_generate = make_shared<vector<uint64_t>>();
-
-		iter_node_idx = make_shared<vector<int>>();
-		br_node_idx = make_shared<vector<int>>();
-		all_node_idx = make_shared<vector<int>>();
-		open_node_idx = make_shared<vector<int>>();
-
-		iter_ag_lb = make_shared<vector<vector<int>>>(num_of_agents);
-		br_ag_lb = make_shared<vector<vector<int>>>(num_of_agents);
-
-		iter_ag_cost = make_shared<vector<vector<int>>>(num_of_agents);
-		br_ag_cost = make_shared<vector<vector<int>>>(num_of_agents);
-	}
-
-	if (screen == 5)
-	{
-		iter_num_focal = make_shared<vector<uint64_t>>();
-		iter_num_open = make_shared<vector<uint64_t>>();
-		iter_num_cleanup = make_shared<vector<uint64_t>>();
-		iter_node_type = make_shared<vector<int>>();
-		iter_use_flex = make_shared<vector<bool>>();
-		iter_no_more_flex = make_shared<vector<bool>>();
-		iter_cannot_use_flex = make_shared<vector<bool>>();
-	}
-}
-
 bool ECBS::validatePaths(ECBSNode* node)
 {
 	if (screen > 0)
@@ -2149,7 +2287,7 @@ const vector<pair<Path*, int>> ECBS::collectPaths(ECBSNode* node)
 			soc += (int) tmp_paths[i].first->size() - 1;
 	}
 	assert(soc == node->sum_of_costs);
-	assert(soc <= suboptimality * node->g_val);
+	assert(soc <= suboptimality * max(node->g_val, init_sum_lb));
 
 	return tmp_paths;
 }

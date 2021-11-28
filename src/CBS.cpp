@@ -87,69 +87,6 @@ void CBS::removeConflicts(list<shared_ptr<Conflict >>& conflicts, const list<int
 	}
 }
 
-// void CBS::removeInternalConflicts(HLNode* node, const vector<int>& meta_ag)
-// {
-// 	for (list<shared_ptr<Conflict>>::const_iterator c_it = node->conflicts.begin(); c_it != node->conflicts.end();)
-// 	{
-// 		bool found = false;
-// 		if (std::find(meta_ag.begin(), meta_ag.end(), (*c_it)->a1) != meta_ag.end() &&
-// 			std::find(meta_ag.begin(), meta_ag.end(), (*c_it)->a2) != meta_ag.end())
-// 		{
-// 			if (screen > 1)  // Debug: check the conflict is really resolved by the inner solver
-// 			{
-// 				if ((*c_it)->type == conflict_type::STANDARD)
-// 				{
-// 					assert(findMetaAgent((*c_it)->a1) == findMetaAgent((*c_it)->a2));
-// 					assert(findMetaAgent((*c_it)->a1) == meta_ag);
-// 					assert(findMetaAgent((*c_it)->a2) == meta_ag);
-
-// 					int min_p_len = (int) (paths[(*c_it)->a1]->size() < paths[(*c_it)->a2]->size()? paths[(*c_it)->a1]->size() : paths[(*c_it)->a2]->size());
-// 					int loc1 = paths[(*c_it)->a1]->at(min((*c_it)->timestep, min_p_len - 1)).location;
-// 					int loc2 = paths[(*c_it)->a2]->at(min((*c_it)->timestep, min_p_len - 1)).location;
-// 					assert(loc1 != loc2);  // Should not have vertex conflicts
-// 					if ((*c_it)->timestep < min_p_len - 1)  // Should not have edge conflicts
-// 						assert(!(loc1 == paths[(*c_it)->a2]->at((*c_it)->timestep + 1).location && 
-// 								loc2 == paths[(*c_it)->a1]->at((*c_it)->timestep + 1).location));
-// 				}
-// 				cout << "Remove internal conflict: " << **c_it << endl;
-// 			}  // End debug
-// 			c_it = node->conflicts.erase(c_it++);
-// 		}
-// 		else
-// 		{
-// 			++c_it;
-// 		}
-// 	}
-
-// 	for (list<shared_ptr<Conflict>>::const_iterator c_it = node->unknownConf.begin(); c_it != node->unknownConf.end();)
-// 	{
-// 		bool found = false;
-// 		if (std::find(meta_ag.begin(), meta_ag.end(), (*c_it)->a1) != meta_ag.end() &&
-// 			std::find(meta_ag.begin(), meta_ag.end(), (*c_it)->a2) != meta_ag.end())
-// 		{
-// 			if (screen > 1)  // Debug: check the conflict is really resolved by the inner solver
-// 			{
-// 				if ((*c_it)->type == conflict_type::STANDARD)
-// 				{
-// 					int min_p_len = (int) (paths[(*c_it)->a1]->size() < paths[(*c_it)->a2]->size()? paths[(*c_it)->a1]->size() : paths[(*c_it)->a2]->size());
-// 					int loc1 = paths[(*c_it)->a1]->at(min((*c_it)->timestep, min_p_len - 1)).location;
-// 					int loc2 = paths[(*c_it)->a2]->at(min((*c_it)->timestep, min_p_len - 1)).location;
-// 					assert(loc1 != loc2);  // Should not have vertex conflicts
-// 					if ((*c_it)->timestep < min_p_len - 1)  // Should not have edge conflicts
-// 						assert(!(loc1 == paths[(*c_it)->a2]->at((*c_it)->timestep + 1).location && 
-// 								loc2 == paths[(*c_it)->a1]->at((*c_it)->timestep + 1).location));
-// 				}
-// 				cout << "Remove internal conflict: " << (*c_it) << endl;
-// 			}  // End debug
-// 			c_it = node->unknownConf.erase(c_it++);
-// 		}
-// 		else
-// 		{
-// 			++c_it;
-// 		}
-// 	}
-// }
-
 void CBS::removeInternalConflicts(HLNode* node)
 {
 	for (list<shared_ptr<Conflict>>::const_iterator c_it = node->conflicts.begin(); c_it != node->conflicts.end();)
@@ -942,13 +879,19 @@ CBSNode* CBS::selectNode()
                 curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
                 curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
                 curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+                curr->c_of_best_in_cleanup = cleanup_list.top()->sum_of_costs;
+
                 curr->f_of_best_in_open = open_list.top()->getFVal();
                 curr->f_hat_of_best_in_open = open_list.top()->getFHatVal();
                 curr->d_of_best_in_open = open_list.top()->distance_to_go;
+                curr->c_of_best_in_open = open_list.top()->sum_of_costs;
+
                 curr->f_of_best_in_focal = focal_list.top()->getFVal();
                 curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
                 curr->d_of_best_in_focal = focal_list.top()->distance_to_go;
+				curr->c_of_best_in_focal = focal_list.top()->sum_of_costs;
                 /* end for debug */
+
                 focal_list.pop();
                 cleanup_list.erase(curr->cleanup_handle);
                 open_list.erase(curr->open_handle);
@@ -961,13 +904,18 @@ CBSNode* CBS::selectNode()
                 curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
                 curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
                 curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+                curr->c_of_best_in_cleanup = cleanup_list.top()->sum_of_costs;
+
                 curr->f_of_best_in_open = open_list.top()->getFVal();
                 curr->f_hat_of_best_in_open = open_list.top()->getFHatVal();
                 curr->d_of_best_in_open = open_list.top()->distance_to_go;
-                curr->f_of_best_in_focal = focal_list.top()->getFVal();
+                curr->c_of_best_in_open = open_list.top()->sum_of_costs;
+                
+				curr->f_of_best_in_focal = focal_list.top()->getFVal();
                 curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
                 curr->d_of_best_in_focal = focal_list.top()->distance_to_go;
-                /* end for debug */
+				curr->c_of_best_in_focal = focal_list.top()->sum_of_costs;
+				/* end for debug */
                 open_list.pop();
                 cleanup_list.erase(curr->cleanup_handle);
                 focal_list.erase(curr->focal_handle);
@@ -980,12 +928,17 @@ CBSNode* CBS::selectNode()
                 curr->f_of_best_in_cleanup = cleanup_list.top()->getFVal();
                 curr->f_hat_of_best_in_cleanup = cleanup_list.top()->getFHatVal();
                 curr->d_of_best_in_cleanup = cleanup_list.top()->distance_to_go;
+                curr->c_of_best_in_cleanup = cleanup_list.top()->sum_of_costs;
+
                 curr->f_of_best_in_open = open_list.top()->getFVal();
                 curr->f_hat_of_best_in_open = open_list.top()->getFHatVal();
                 curr->d_of_best_in_open = open_list.top()->distance_to_go;
-                curr->f_of_best_in_focal = focal_list.top()->getFVal();
+                curr->c_of_best_in_open = open_list.top()->sum_of_costs;
+                
+				curr->f_of_best_in_focal = focal_list.top()->getFVal();
                 curr->f_hat_of_best_in_focal = focal_list.top()->getFHatVal();
                 curr->d_of_best_in_focal = focal_list.top()->distance_to_go;
+				curr->c_of_best_in_focal = focal_list.top()->sum_of_costs;
                 /* end for debug */
                 cleanup_list.pop();
                 open_list.erase(curr->open_handle);
@@ -1506,7 +1459,11 @@ bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 
 		if (terminate(curr))
 		{
-			
+			// // debug
+			// cout << "2 Agent paths:" << endl;
+			// printAgentPath(0, paths[0]);
+			// printAgentPath(1, paths[1]);
+			// // end debug
 			return solution_found;
 		}
 
@@ -1678,6 +1635,7 @@ bool CBS::terminate(HLNode* curr)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
+			saveBrToGoEval();
 			if (screen == 5)
 				saveNumNodesInLists();
 		}
@@ -1694,6 +1652,7 @@ bool CBS::terminate(HLNode* curr)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
+			saveBrToGoEval();
 			if (screen == 5)
 				saveNumNodesInLists();
 		}
@@ -1719,6 +1678,7 @@ bool CBS::terminate(HLNode* curr)
 		{
 			getBranchEval(curr, cleanup_head_lb);
 			saveEval();
+			saveBrToGoEval();
 			if (screen == 5)
 				saveNumNodesInLists();
 		}
@@ -1731,7 +1691,7 @@ bool CBS::terminate(HLNode* curr)
 void CBS::saveEval(void)
 {
 	ofstream stats;
-	stats.open("iteration_data.txt", std::ios::out);
+	stats.open("iteration_data.csv", std::ios::out);
 	if (!stats.is_open())
 	{
 		cout << "Failed to open file." << endl;
@@ -1780,6 +1740,9 @@ void CBS::saveEval(void)
 		stats << endl;
 		stats << "br_sum_ll_generate,";
 		std::copy(br_sum_ll_generate->begin(), br_sum_ll_generate->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+		stats << "br_is_merged,";
+		std::copy(br_is_merged->begin(), br_is_merged->end(), std::ostream_iterator<uint64_t>(stats, ","));
 		stats << endl;
 
 		stats << "all_sum_lb,";
@@ -1864,10 +1827,82 @@ void CBS::saveEval(void)
 	return;
 }
 
+void CBS::saveBrToGoEval(void)
+{
+	ofstream stats;
+	stats.open("togo_data.csv", std::ios::out);
+	if (!stats.is_open())
+	{
+		cout << "Failed to open file." << endl;
+	}
+	else
+	{
+		stats << "br_node_idx,";
+		std::copy(br_node_idx->begin(), br_node_idx->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_sum_lb,";
+		std::copy(br_sum_lb->begin(), br_sum_lb->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_sum_fval,";
+		std::copy(br_sum_fval->begin(), br_sum_fval->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_sum_cost,";
+		std::copy(br_sum_cost->begin(), br_sum_cost->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_num_conflicts,";
+		std::copy(br_num_conflicts->begin(), br_num_conflicts->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_remained_flex,";
+		std::copy(br_remained_flex->begin(), br_remained_flex->end(), std::ostream_iterator<double>(stats, ","));
+		stats << endl;
+		stats << "br_subopt,";
+		std::copy(br_subopt->begin(), br_subopt->end(), std::ostream_iterator<double>(stats, ","));
+		stats << endl;
+		stats << "br_sum_ll_generate,";
+		std::copy(br_sum_ll_generate->begin(), br_sum_ll_generate->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+		stats << "br_is_merged,";
+		std::copy(br_is_merged->begin(), br_is_merged->end(), std::ostream_iterator<uint64_t>(stats, ","));
+		stats << endl;
+
+		stats << "br_node_cost_to_go,";
+		std::copy(br_node_cost_to_go->begin(), br_node_cost_to_go->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_node_distance_to_go,";
+		std::copy(br_node_distance_to_go->begin(), br_node_distance_to_go->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+
+		stats << "br_node_best_focal_cost_to_go,";
+		std::copy(br_node_best_focal_cost_to_go->begin(), br_node_best_focal_cost_to_go->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_node_best_focal_distance_to_go,";
+		std::copy(br_node_best_focal_distance_to_go->begin(), br_node_best_focal_distance_to_go->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+
+		stats << "br_node_best_open_cost_to_go,";
+		std::copy(br_node_best_open_cost_to_go->begin(), br_node_best_open_cost_to_go->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_node_best_open_distance_to_go,";
+		std::copy(br_node_best_open_distance_to_go->begin(), br_node_best_open_distance_to_go->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+
+		stats << "br_node_best_cleanup_cost_to_go,";
+		std::copy(br_node_best_cleanup_cost_to_go->begin(), br_node_best_cleanup_cost_to_go->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+		stats << "br_node_best_cleanup_distance_to_go,";
+		std::copy(br_node_best_cleanup_distance_to_go->begin(), br_node_best_cleanup_distance_to_go->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+
+		stats << "br_node_real_cost_to_go,";
+		std::copy(br_node_real_cost_to_go->begin(), br_node_real_cost_to_go->end(), std::ostream_iterator<int>(stats, ","));
+		stats << endl;
+	}
+}
+
 void CBS::saveNumNodesInLists(void)
 {
 	ofstream stats;
-	stats.open("nodes_in_list.txt", std::ios::out);
+	stats.open("nodes_in_list.csv", std::ios::out);
 	if (!stats.is_open())
 	{
 		cout << "Failed to open file." << endl;
@@ -2030,6 +2065,9 @@ CBS::CBS(const Instance& instance, bool sipp, int screen) :
 	// Initialize for nested framework
 	ma_vec.resize(num_of_agents, false);  // checking if need to solve agent
 	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
+
+	// for debug
+	initializeIterAnalysis();
 }
 
 
@@ -2294,6 +2332,21 @@ void CBS::getBranchEval(HLNode* __node__, int open_head_lb)
 		br_sum_cost->push_back(__node__->sum_of_costs);
 		br_num_conflicts->push_back(__node__->conflicts.size() + __node__->unknownConf.size());
 		br_remained_flex->push_back(suboptimality * __node__->g_val - __node__->sum_of_costs);
+		br_is_merged->push_back(__node__->is_merged);
+
+		// Estimate cost to go
+		br_node_cost_to_go->push_back(__node__->cost_to_go);
+		br_node_best_focal_cost_to_go->push_back(__node__->f_hat_of_best_in_focal - __node__->c_of_best_in_focal);
+		br_node_best_open_cost_to_go->push_back(__node__->f_hat_of_best_in_open - __node__->c_of_best_in_open);
+		br_node_best_cleanup_cost_to_go->push_back(__node__->f_hat_of_best_in_cleanup - __node__->c_of_best_in_cleanup);
+		br_node_real_cost_to_go->push_back(solution_cost - __node__->sum_of_costs);
+
+		// Estimate distance to go
+		br_node_distance_to_go->push_back(__node__->distance_to_go);
+		br_node_best_focal_distance_to_go->push_back(__node__->d_of_best_in_focal);
+		br_node_best_open_distance_to_go->push_back(__node__->d_of_best_in_open);
+		br_node_best_cleanup_distance_to_go->push_back(__node__->d_of_best_in_cleanup);
+
 		if (open_head_lb != 0)
 			br_subopt->push_back((double) __node__->sum_of_costs / (double) open_head_lb);
 
@@ -2335,11 +2388,25 @@ void CBS::getBranchEval(HLNode* __node__, int open_head_lb)
 	// Reverse the vectors
 	std::reverse(br_node_idx->begin(), br_node_idx->end());
 	std::reverse(br_sum_lb->begin(), br_sum_lb->end());
+	std::reverse(br_sum_fval->begin(), br_sum_fval->end());
 	std::reverse(br_sum_cost->begin(), br_sum_cost->end());
 	std::reverse(br_num_conflicts->begin(), br_num_conflicts->end());
 	std::reverse(br_remained_flex->begin(), br_remained_flex->end());
 	std::reverse(br_subopt->begin(), br_subopt->end());
 	std::reverse(br_sum_ll_generate->begin(), br_sum_ll_generate->end());
+	std::reverse(br_is_merged->begin(), br_is_merged->end());
+
+	std::reverse(br_node_cost_to_go->begin(), br_node_cost_to_go->end());
+	std::reverse(br_node_best_focal_cost_to_go->begin(), br_node_best_focal_cost_to_go->end());
+	std::reverse(br_node_best_open_cost_to_go->begin(), br_node_best_open_cost_to_go->end());
+	std::reverse(br_node_best_cleanup_cost_to_go->begin(), br_node_best_cleanup_cost_to_go->end());
+	std::reverse(br_node_real_cost_to_go->begin(), br_node_real_cost_to_go->end());
+
+	std::reverse(br_node_distance_to_go->begin(), br_node_distance_to_go->end());
+	std::reverse(br_node_best_focal_distance_to_go->begin(), br_node_best_focal_distance_to_go->end());
+	std::reverse(br_node_best_open_distance_to_go->begin(), br_node_best_open_distance_to_go->end());
+	std::reverse(br_node_best_cleanup_distance_to_go->begin(), br_node_best_cleanup_distance_to_go->end());
+
 	for (int __ag__ = 0; __ag__ < num_of_agents; __ag__++)
 	{
 		std::reverse(br_ag_lb->at(__ag__).begin(), br_ag_lb->at(__ag__).end());
@@ -2483,4 +2550,78 @@ void CBS::printAgentPath(int ag, Path* path_ptr) const
 	for (const auto & t : *p)
 		cout << t.location << "->";
 	cout << endl;
+}
+
+void CBS::initializeIterAnalysis(void)
+{
+	if (screen > 3)
+	{
+		// Initialize for agents analysis
+		iter_sum_lb = make_shared<vector<int>>();
+		br_sum_lb = make_shared<vector<int>>();
+		all_sum_lb = make_shared<vector<int>>();
+		open_sum_lb = make_shared<vector<int>>();
+
+		iter_sum_fval = make_shared<vector<int>>();
+		br_sum_fval = make_shared<vector<int>>();
+		all_sum_fval = make_shared<vector<int>>();
+		open_sum_fval = make_shared<vector<int>>();
+
+		iter_sum_cost = make_shared<vector<int>>();
+		br_sum_cost = make_shared<vector<int>>();
+		all_sum_cost = make_shared<vector<int>>();
+		open_sum_cost = make_shared<vector<int>>();
+
+		iter_num_conflicts = make_shared<vector<int>>();
+		br_num_conflicts = make_shared<vector<int>>();
+		all_num_conflicts = make_shared<vector<int>>();
+		open_num_conflicts = make_shared<vector<int>>();
+
+		iter_remained_flex = make_shared<vector<double>>();
+		br_remained_flex = make_shared<vector<double>>();
+		all_remained_flex = make_shared<vector<double>>();
+		open_remained_flex = make_shared<vector<double>>();
+
+		iter_subopt = make_shared<vector<double>>();
+		br_subopt = make_shared<vector<double>>();
+		all_subopt = make_shared<vector<double>>();
+
+		iter_sum_ll_generate = make_shared<vector<uint64_t>>();
+		br_sum_ll_generate = make_shared<vector<uint64_t>>();
+		all_sum_ll_generate = make_shared<vector<uint64_t>>();
+
+		iter_node_idx = make_shared<vector<int>>();
+		br_node_idx = make_shared<vector<int>>();
+		all_node_idx = make_shared<vector<int>>();
+		open_node_idx = make_shared<vector<int>>();
+
+		iter_ag_lb = make_shared<vector<vector<int>>>(num_of_agents);
+		br_ag_lb = make_shared<vector<vector<int>>>(num_of_agents);
+
+		iter_ag_cost = make_shared<vector<vector<int>>>(num_of_agents);
+		br_ag_cost = make_shared<vector<vector<int>>>(num_of_agents);
+
+		br_is_merged = make_shared<vector<bool>>();
+
+		br_node_cost_to_go = make_shared<vector<int>>();
+		br_node_distance_to_go = make_shared<vector<int>>();
+		br_node_best_focal_cost_to_go = make_shared<vector<int>>();
+		br_node_best_focal_distance_to_go = make_shared<vector<int>>();
+		br_node_best_open_cost_to_go = make_shared<vector<int>>();
+		br_node_best_open_distance_to_go = make_shared<vector<int>>();
+		br_node_best_cleanup_cost_to_go = make_shared<vector<int>>();
+		br_node_best_cleanup_distance_to_go = make_shared<vector<int>>();
+		br_node_real_cost_to_go = make_shared<vector<int>>();
+	}
+
+	if (screen == 5)
+	{
+		iter_num_focal = make_shared<vector<uint64_t>>();
+		iter_num_open = make_shared<vector<uint64_t>>();
+		iter_num_cleanup = make_shared<vector<uint64_t>>();
+		iter_node_type = make_shared<vector<int>>();
+		iter_use_flex = make_shared<vector<bool>>();
+		iter_no_more_flex = make_shared<vector<bool>>();
+		iter_cannot_use_flex = make_shared<vector<bool>>();
+	}
 }

@@ -233,6 +233,8 @@ bool CBSHeuristic::computeInformedHeuristics(CBSNode& curr, double _time_limit)
 	this->time_limit = _time_limit;
 	int num_of_CGedges;
 	vector<int> HG(num_of_agents * num_of_agents, 0); // heuristic graph
+	unordered_map<vector<int>, int, container_hash<vector<int>>> hyper_edges;  // Not use in CBS
+	vector<int> no_use_f_vals;
 	int h = -1;
 
 	// compute admissible heuristics
@@ -263,7 +265,7 @@ bool CBSHeuristic::computeInformedHeuristics(CBSNode& curr, double _time_limit)
 	case heuristics_type::WDG:
 		if (!buildWeightedDependencyGraph(curr, HG))
 			return false;
-		h = minimumWeightedVertexCover(HG);
+		h = minimumWeightedVertexCover(HG, no_use_f_vals, hyper_edges);
 		break;
 	default:
 		break;
@@ -295,6 +297,7 @@ bool CBSHeuristic::computeInformedHeuristics(ECBSNode& curr, const vector<int>& 
 	int num_of_CGedges;
 	vector<int> HG(num_of_agents * num_of_agents, 0); // heuristic graph
 	int h = -1;
+	unordered_map<vector<int>, int, container_hash<vector<int>>> hyper_edges;  // This is for meta-agent constraints (hyper-edge) WDG
 
 	/* compute admissible heuristics */
 	switch (type)
@@ -322,12 +325,30 @@ bool CBSHeuristic::computeInformedHeuristics(ECBSNode& curr, const vector<int>& 
 		break;*/
 	case heuristics_type::WDG:
 	    int delta_g;
-		if (!buildWeightedDependencyGraph(curr, min_f_vals, HG, delta_g))
+		if (!buildWeightedDependencyGraph(curr, min_f_vals, HG, delta_g, hyper_edges))
 			return false;
-		assert(delta_g >= 0);
-		// cout << curr.g_val << "+" << delta_g << endl;
-		h = minimumWeightedVertexCover(HG) + delta_g;
 
+		if (curr.is_merged)
+		{
+			cout << "hyper_edges:" << endl;
+			for (const auto& _edge_ : hyper_edges)
+			{
+				cout << "[";
+				for (const int& _ag_ : _edge_.first)
+					cout << _ag_ << ", ";
+				cout << "]: " << _edge_.second << endl;
+			}
+			cout << endl;
+
+			h = minimumWeightedVertexCover(HG, min_f_vals, hyper_edges);
+		}
+		else
+		{
+			assert(delta_g >= 0);
+			// cout << curr.g_val << "+" << delta_g << endl;
+			h = minimumWeightedVertexCover(HG, min_f_vals, hyper_edges) + delta_g;
+		}
+		
 		break;
 	default:
 		cerr << "ERROR in computing informed heuristics" << endl;
@@ -592,7 +613,8 @@ bool CBSHeuristic::buildWeightedDependencyGraph(CBSNode& node, vector<int>& CG)
 }
 
 
-bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int>& min_f_vals, vector<int>& CG, int& delta_g)
+bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int>& min_f_vals, vector<int>& CG, int& delta_g, 
+	unordered_map<vector<int>, int, container_hash<vector<int>>>& hyper_edges)
 {
     delta_g = 0;
     vector<bool> counted(num_of_agents, false); // record the agents whose delta_g has been counted
@@ -601,28 +623,32 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int
 		int a1 = min(conflict->a1, conflict->a2);
 		int a2 = max(conflict->a1, conflict->a2);
 		int idx = a1 * num_of_agents + a2;
-		auto got = lookupTable[a1][a2].find(HTableEntry(a1, a2, &node));
+		auto got = lookupTable[a1][a2].find(HTableEntry(a1, a2, &node));  // We have computed WDG of this node before
 		if (got != lookupTable[a1][a2].end()) // check the lookup table first
 		{
 			num_memoization++;
-            CG[idx]  = get<0>(got->second);
+            CG[idx]  = get<0>(got->second);  // <0: h value, 1: a1 f at root, 2: a2 f at root>
             CG[a2 * num_of_agents + a1] = CG[idx];
             if (!counted[a1])
             {
-                assert(get<1>(got->second) >= min_f_vals[a1]);
+				if (!is_solver)  // We can only guarantee the sum of f_OPT >= sum of LB, but not individual
+                	assert(get<1>(got->second) >= min_f_vals[a1]);
                 delta_g += get<1>(got->second) - min_f_vals[a1];
+				assert(delta_g >= 0);
                 counted[a1] = true;
             }
             if (!counted[a2])
             {
-                assert(get<2>(got->second) >= min_f_vals[a2]);
+				if (!is_solver)  // We can only guarantee the sum of f_OPT >= sum of LB, but not individual
+                	assert(get<2>(got->second) >= min_f_vals[a2]);
                 delta_g += get<2>(got->second) - min_f_vals[a2];
+				assert(delta_g >= 0);
                 counted[a2] = true;
             }
 		}
 		else
 		{
-			auto rst = solve2Agents(a1, a2, node);
+			auto rst = solve2Agents(a1, a2, node);  // < delta_12, number of HL nodes >
             lookupTable[a1][a2][HTableEntry(a1, a2, &node)] = rst;
             if ((clock() - start_time) / CLOCKS_PER_SEC > time_limit) // run out of time
             {
@@ -633,14 +659,18 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int
             CG[a2 * num_of_agents + a1] = CG[idx];
             if (!counted[a1])
             {
-                assert(get<1>(rst) >= min_f_vals[a1]);
+				if (!is_solver)  // We can only guarantee the sum of f_OPT >= sum of LB, but not individual
+                	assert(get<1>(rst) >= min_f_vals[a1]);
                 delta_g += get<1>(rst) - min_f_vals[a1];
+				assert(delta_g >= 0);
                 counted[a1] = true;
             }
             if (!counted[a2])
             {
-                assert(get<2>(rst) >= min_f_vals[a2]);
+				if (!is_solver)  // We can only guarantee the sum of f_OPT >= sum of LB, but not individual
+                	assert(get<2>(rst) >= min_f_vals[a2]);
                 delta_g += get<2>(rst) - min_f_vals[a2];
+				assert(delta_g >= 0);
                 counted[a2] = true;
             }
 		}
@@ -657,18 +687,22 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int
         if (got != lookupTable[a1][a2].end()) // check the lookup table first
         {
             num_memoization++;
-            CG[idx]  = get<0>(got->second);
+            CG[idx]  = get<0>(got->second);  // <0: h value, 1: a1 f at root, 2: a2 f at root>
             CG[a2 * num_of_agents + a1] = CG[idx];
             if (!counted[a1])
             {
-                assert(get<1>(got->second) >= min_f_vals[a1]);
+				if (!is_solver)  // We can only guarantee the sum of f_OPT >= sum of LB, but not individual
+                	assert(get<1>(got->second) >= min_f_vals[a1]);
                 delta_g += get<1>(got->second) - min_f_vals[a1];
+				assert(delta_g >= 0);
                 counted[a1] = true;
             }
             if (!counted[a2])
             {
-                assert(get<2>(got->second) >= min_f_vals[a2]);
+				if (!is_solver)  // We can only guarantee the sum of f_OPT >= sum of LB, but not individual
+                	assert(get<2>(got->second) >= min_f_vals[a2]);
                 delta_g += get<2>(got->second) - min_f_vals[a2];
+				assert(delta_g >= 0);
                 counted[a2] = true;
             }
         }
@@ -685,14 +719,18 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int
             CG[a2 * num_of_agents + a1] = CG[idx];
             if (!counted[a1])
             {
-                assert(get<1>(rst) >= min_f_vals[a1]);
+				if (!is_solver)  // We can only guarantee the sum of f_OPT >= sum of LB, but not individual
+	                assert(get<1>(rst) >= min_f_vals[a1]);
                 delta_g += get<1>(rst) - min_f_vals[a1];
+				assert(delta_g >= 0);
                 counted[a1] = true;
             }
             if (!counted[a2])
             {
-                assert(get<2>(rst) >= min_f_vals[a2]);
+				if (!is_solver)  // We can only guarantee the sum of f_OPT >= sum of LB, but not individual
+                	assert(get<2>(rst) >= min_f_vals[a2]);
                 delta_g += get<2>(rst) - min_f_vals[a2];
+				assert(delta_g >= 0);
                 counted[a2] = true;
             }
         }
@@ -700,6 +738,29 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int
         if (CG[idx] == MAX_COST) // no solution
             return false;
     }
+
+	if (node.is_merged)
+	{
+		vector<bool> is_ma(num_of_agents, false);
+		for (int _ag_ = 0; _ag_ < num_of_agents; _ag_++)  // get the hyper_edges
+		{
+			if (counted[_ag_] && !is_ma[_ag_])  // The agent has conflicts and not yet in the meta-agent
+			{
+				vector<int> tmp_ma = node.findMetaAgent(_ag_);
+				if (tmp_ma.size() > 1)  // The conflicting agent is in a meta-agent
+				{
+					int tmp_lb = 0;  // LB(N, meta_agents)
+					for (const int& tmp_ag : tmp_ma)
+					{
+						is_ma[tmp_ag] = true;
+						tmp_lb += min_f_vals[tmp_ag];
+					}
+					hyper_edges[tmp_ma] = tmp_lb;
+				}
+			}
+		}
+	}
+
 	runtime_build_dependency_graph += (double)(clock() - start_time) / CLOCKS_PER_SEC;
 	return true;
 }
@@ -788,14 +849,28 @@ tuple<int, int, int> CBSHeuristic::solve2Agents(int a1, int a2, const ECBSNode& 
 		sub_instances.emplace_back(a1, a2, &node, cbs.num_HL_expanded, (int)cbs.num_HL_expanded);
 	}
 
-	if (cbs.runtime >= time_limit - runtime || cbs.num_HL_expanded > node_limit) // time out or node out
-		return make_tuple(cbs.getLowerBound() - cbs.dummy_start->g_val,
-		        cbs.getInitialPathLength(0), cbs.getInitialPathLength(1)); // using lowerbound to approximate
-	else if (cbs.solution_cost  < 0) // no solution
-		return make_tuple(MAX_COST, cbs.getInitialPathLength(0), cbs.getInitialPathLength(1));
+	if (node.is_merged)
+	{
+		if (cbs.runtime >= time_limit - runtime || cbs.num_HL_expanded > node_limit) // time out or node out
+			return make_tuple(cbs.getLowerBound(),
+				cbs.getInitialPathLength(0), cbs.getInitialPathLength(1)); // using lowerbound to approximate
+		else if (cbs.solution_cost  < 0) // no solution
+			return make_tuple(MAX_COST, cbs.getInitialPathLength(0), cbs.getInitialPathLength(1));
+		else
+			return make_tuple(cbs.solution_cost,
+				cbs.getInitialPathLength(0), cbs.getInitialPathLength(1));
+	}
 	else
-		return make_tuple(cbs.solution_cost - cbs.dummy_start->g_val,
-		        cbs.getInitialPathLength(0), cbs.getInitialPathLength(1));
+	{
+		if (cbs.runtime >= time_limit - runtime || cbs.num_HL_expanded > node_limit) // time out or node out
+			return make_tuple(cbs.getLowerBound() - cbs.dummy_start->g_val,
+		        cbs.getInitialPathLength(0), cbs.getInitialPathLength(1)); // using lowerbound to approximate
+		else if (cbs.solution_cost  < 0) // no solution
+			return make_tuple(MAX_COST, cbs.getInitialPathLength(0), cbs.getInitialPathLength(1));
+		else
+			return make_tuple(cbs.solution_cost - cbs.dummy_start->g_val,
+				cbs.getInitialPathLength(0), cbs.getInitialPathLength(1));
+	}
 }
 
 /*
@@ -1125,10 +1200,36 @@ int CBSHeuristic::greedyWeightedMatching(const std::vector<int>& CG,  int cols)
     }
 }
 
-int CBSHeuristic::minimumWeightedVertexCover(const vector<int>& HG)
+// cols is the number of agents in this connected component
+int CBSHeuristic::greedyWeightedMatching(const unordered_map<vector<int>, int, container_hash<vector<int>>>& G,  int cols)
+{
+    int rst = 0;
+    std::vector<bool> used(cols, false);
+	unordered_map<vector<int>, int, container_hash<vector<int>>> tmp_G;
+	for (const auto& ele : G)
+		tmp_G[ele.first] = (double) ele.second / (double) ele.first.size();
+
+    while(true)
+    {
+		if (std::all_of(used.begin(), used.end(), [](bool v) { return v; }))  // If all the vertices are covered
+			return rst;
+        pair<vector<int>, int> max_ele = myfindMaxValuePair(tmp_G);
+        rst += max_ele.second;
+		for (const int& ele : max_ele.first)
+			used[ele] = true;
+		tmp_G.erase(max_ele.first);
+    }
+}
+
+int CBSHeuristic::minimumWeightedVertexCover(const vector<int>& HG, const vector<int>& min_f_vals,
+	const unordered_map<vector<int>, int, container_hash<vector<int>>>& hyper_edges)
 {
 	clock_t t = clock();
-	int rst = weightedVertexCover(HG);
+	int rst;
+	if (hyper_edges.size() == 0)
+		rst = weightedVertexCover(HG);
+	else
+		rst = weightedHyperEdgeVertexCover(HG, min_f_vals, hyper_edges);
 	num_solve_MVC++;
 	runtime_solve_MVC += (double)(clock() - t) / CLOCKS_PER_SEC;
 	return rst;
@@ -1230,6 +1331,116 @@ int CBSHeuristic::weightedVertexCover(const std::vector<int>& CG)
 	return rst;
 }
 
+int CBSHeuristic::weightedHyperEdgeVertexCover(const vector<int>& HG, const vector<int> min_f_vals,
+	const unordered_map<vector<int>, int, container_hash<vector<int>>>& HE)
+{
+	int rst = 0;
+	int agents_lg = 0;
+	std::vector<bool> done(num_of_agents, false);
+	for (int i = 0; i < num_of_agents; i++)
+	{
+		if (done[i])  // agent i is already in the previous connected component
+			continue;
+		std::vector<int> range;
+		std::vector<int> indices;
+		unordered_map<vector<int>, int, container_hash<vector<int>>> connected_edges;  // Include connected edges from HG and HE for agent i
+		range.reserve(num_of_agents);
+		indices.reserve(num_of_agents);
+		connected_edges.reserve(num_of_agents);
+		int num = 0;
+		std::queue<int> Q;
+		Q.push(i);
+		done[i] = true;
+		while (!Q.empty())  // get the connected component of agent i (BFS)
+		{
+			int j = Q.front(); Q.pop();
+			range.push_back(0);
+			indices.push_back(j);
+			for (int k = 0; k < num_of_agents; k++)
+			{
+				if (HG[j * num_of_agents + k] > 0)  // There is an edge between j and k
+				{
+					range[num] = std::max(range[num], HG[j * num_of_agents + k]);  // Find the upper bound of x_j
+					vector<int> tmp_edge{min(j,k), max(j,k)}; // Record the edge
+					connected_edges[tmp_edge] = max(HG[j * num_of_agents + k], HG[k * num_of_agents + j]);
+					if (!done[k])
+					{
+						Q.push(k);
+						done[k] = true;
+					}
+				}
+				else if (HG[k * num_of_agents + j] > 0)  // There is an edge between j and k
+				{
+					range[num] = std::max(range[num], HG[k * num_of_agents + j]);  // Find the upper bound of x_j
+					vector<int> tmp_edge{min(j,k), max(j,k)}; // Record the edge
+					connected_edges[tmp_edge] = max(HG[j * num_of_agents + k], HG[k * num_of_agents + j]);
+					if (!done[k])
+					{
+						Q.push(k);
+						done[k] = true;
+					}
+				}
+			}
+
+			for (const auto& h_edge : HE)  // There is a hyper-edge between j and k
+			{
+				if (find(h_edge.first.begin(), h_edge.first.end(), j) != h_edge.first.end())
+				{
+					range[num] = max(range[num], h_edge.second);  // Find the upper bound of x_j
+					connected_edges[h_edge.first] = h_edge.second;  // Record the hyper-edge
+					for (const int& k : h_edge.first)
+					{
+						if (!done[k])
+						{
+							Q.push(k);
+							done[k] = true;
+						}
+					}
+				}
+			}
+			num++;
+		}
+		if (num  == 1) // no edges
+			continue;
+		else if (num == 2) // only one edge
+		{
+			assert(range[0] == max(HG[indices[0] * num_of_agents + indices[1]], HG[indices[1] * num_of_agents + indices[0]]));
+			assert(range[1] == max(HG[indices[0] * num_of_agents + indices[1]], HG[indices[1] * num_of_agents + indices[0]]));
+			rst += std::max(HG[indices[0] * num_of_agents + indices[1]], HG[indices[1] * num_of_agents + indices[0]]); // add edge weight
+			continue;
+		}
+		// std::vector<int> G(num * num, 0);
+		// for (int j = 0; j < num; j++)
+		// {
+		// 	for (int k = j + 1; k < num; k++)
+		// 	{
+		// 		G[j * num + k] = std::max(HG[indices[j] * num_of_agents + indices[k]], HG[indices[k] * num_of_agents + indices[j]]);
+		// 	}
+		// }
+		rst += greedyWeightedMatching(connected_edges, num);
+		// if (num > ILP_node_threshold)
+		// {
+		//     rst += greedyWeightedMatching(connected_edges, num);
+		// 	// rst += ILPForWMVC(G, range);
+		// }
+		// else
+		// {
+		// 	std::vector<int> x(num);
+		// 	int best_so_far = MAX_COST;
+		// 	rst += DPForWMVC(x, 0, 0, G, range, best_so_far);
+		// }
+		double runtime = (double)(clock() - start_time) / CLOCKS_PER_SEC;
+		if (runtime > time_limit)
+			return -1; // run out of time
+	}
+
+	for (int i = 0; i < num_of_agents; i++)
+		if (done[i])
+			agents_lg += min_f_vals[i];
+	return rst;
+}
+
+
 // recusive component of weighted vertex cover
 int CBSHeuristic::DPForWMVC(std::vector<int>& x, int i, int sum, const std::vector<int>& CG,
 	const std::vector<int>& range, int& best_so_far)
@@ -1262,6 +1473,8 @@ int CBSHeuristic::DPForWMVC(std::vector<int>& x, int i, int sum, const std::vect
 	{
 		if (min_cost + x[j] < CG[j * cols + i]) // infeasible assignment
 		{
+			// for all contraints containing x_i
+			// if x_j, x_k, ... in the current constraint are all assigned, then we check the min_cost (lower bound) of x_i
 			min_cost = CG[j * cols + i] - x[j]; // cost should be at least CG[i][j] - x[j];
 		}
 	}

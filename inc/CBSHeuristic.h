@@ -132,6 +132,7 @@ public:
 	bool mutex_reasoning; // using mutex reasoning
 	bool disjoint_splitting; // disjoint splitting
 	bool PC; // prioritize conflicts
+	bool is_solver;  // check if we are calculating the heuristic of outer ECBS or Inner ECBS
 
 	bool save_stats;
 	conflict_selection conflict_selection_rule;
@@ -230,7 +231,8 @@ private:
 	void buildCardinalConflictGraph(CBSNode& curr, vector<int>& CG, int& num_of_CGedges);
 	bool buildDependenceGraph(CBSNode& node, vector<int>& CG, int& num_of_CGedges);
 	bool buildWeightedDependencyGraph(CBSNode& curr, vector<int>& CG);
-	bool buildWeightedDependencyGraph(ECBSNode& node, const vector<int>& min_f_vals, vector<int>& CG, int& delta_g);
+	bool buildWeightedDependencyGraph(ECBSNode& node, const vector<int>& min_f_vals, vector<int>& CG, int& delta_g, 
+		unordered_map<vector<int>, int, container_hash<vector<int>>>& hyper_edges);
 	bool dependent(int a1, int a2, HLNode& node); // return true if the two agents are dependent
 	pair<int, int> solve2Agents(int a1, int a2, const CBSNode& node, bool cardinal); // return h value and num of CT nodes
     tuple<int, int, int> solve2Agents(int a1, int a2, const ECBSNode& node); // return h value and num of CT nodes
@@ -241,10 +243,14 @@ private:
 	bool KVertexCover(const vector<int>& CG, int num_of_CGnodes, int num_of_CGedges, int k, int cols);
 	int greedyMatching(const vector<bool>& CG, int cols);
     static int greedyMatching(const std::vector<int>& CG,  int cols);
-    static int greedyWeightedMatching(const vector<int>& CG, int cols);
-	int minimumWeightedVertexCover(const vector<int>& CG);
+    int greedyWeightedMatching(const vector<int>& CG, int cols);
+	int greedyWeightedMatching(const unordered_map<vector<int>, int, container_hash<vector<int>>>& G,  int cols);
+	int minimumWeightedVertexCover(const vector<int>& HG, const vector<int>& min_f_vals,
+		const unordered_map<vector<int>, int, container_hash<vector<int>>>& hyper_edges);
 	// int minimumConstrainedWeightedVertexCover(const vector<int>& CG);
 	int weightedVertexCover(const vector<int>& CG);
+	int weightedHyperEdgeVertexCover(const vector<int>& HG, const vector<int> min_f_vals, 
+		const unordered_map<vector<int>, int, container_hash<vector<int>>>& HE);
 	int DPForWMVC(vector<int>& x, int i, int sum, const vector<int>& CG, const vector<int>& range, int& best_so_far); // dynamic programming
 	int ILPForWMVC(const vector<int>& CG, const vector<int>& range) const; // Integer linear programming
 	int ILPForConstrainedWMVC(const std::vector<int>& CG, const std::vector<int>& range);

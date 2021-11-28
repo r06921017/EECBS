@@ -28,12 +28,18 @@ public:
 	int f_of_best_in_cleanup = 0;
 	int f_hat_of_best_in_cleanup = 0;
 	int d_of_best_in_cleanup = 0;
+	int c_of_best_in_cleanup = 0;
+
 	int f_of_best_in_open = 0;
 	int f_hat_of_best_in_open = 0;
 	int d_of_best_in_open = 0;
+	int c_of_best_in_open = 0;
+
 	int f_of_best_in_focal = 0;
 	int f_hat_of_best_in_focal = 0;
 	int d_of_best_in_focal = 0;
+	int c_of_best_in_focal = 0;
+
 	int ll_generated = 0;
 	bool use_flex = false;
 	bool no_more_flex = false;
@@ -72,6 +78,7 @@ public:
 	// void printConflictGraph(int num_of_agents) const;
 	void updateDistanceToGo();
 	void printConstraints(int id) const;
+	vector<int> findMetaAgent(int __ag__) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const HLNode& node);

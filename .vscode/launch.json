@@ -103,25 +103,27 @@
             "program": "${workspaceFolder}/build/eecbs",
             "args": [
                 "-m/home/rdaneel/mapf_benchmark/mapf-map/random-32-32-20.map",
-                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-22.scen", //22
+                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-1.scen", //22
                 // "-m/home/rdaneel/mapf_benchmark/mapf-map/den520d.map", 
                 // "-a/home/rdaneel/mapf_benchmark/scen-even/den520d-even-2.scen",
-                "-k90",
+                "-k100",  // 60
                 "-o${workspaceFolder}/result_debug.csv", 
-                "-t300",
+                "-t60",
                 "-b", "1",
                 // "--nl", "349",
-                "--highLevelSolver", "A*eps",
-                "--inadmissibleH", "Zero",
-                "--heuristics", "Zero",
-                "--suboptimality","1.05",
+                // "--highLevelSolver", "A*eps",
+                "--highLevelSolver", "EES",
+                "--inadmissibleH", "Zero",  // Global
+                "--heuristics", "Zero",  // WDG
+                "--suboptimality","1.05",  // 1.05
                 // "--flex", "true",
-                "--prioritizingConflicts", "true",
-                "--bypass", "true",
+                "--saveCT", "false",
+                "--prioritizingConflicts", "false",
+                "--bypass", "false",
                 "--rectangleReasoning", "false",
                 "--corridorReasoning", "false",
                 "--targetReasoning", "false",
-                "-s1"],
+                "-s3"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -141,7 +143,8 @@
             "request": "launch",
             // "program": "${workspaceFolder}/script/data_processor.py",
             "program": "${workspaceFolder}/script/plot_ins_upperbound.py",
-            "args": ["--config", "${workspaceFolder}/script/new_config.yaml"],
+            "args": ["--config", "${workspaceFolder}/script/new_config_backup.yaml"],
+            // "args": ["--config", "${workspaceFolder}/script/new_config.yaml"],
             "console": "integratedTerminal"
         },
         {
@@ -149,7 +152,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/script/plot_suboptimality.py",
-            "args": ["--config", "${workspaceFolder}/script/new_config.yaml"],
+            "args": ["--config", "${workspaceFolder}/script/new_config_backup.yaml"],
             "console": "integratedTerminal"
         },
         {
@@ -157,7 +160,8 @@
             "type": "python",
             "request": "launch",
             // "program": "${workspaceFolder}/script/plot_nodes_in_lists.py",
-            "program": "${workspaceFolder}/script/plot_iter.py",
+            // "program": "${workspaceFolder}/script/plot_iter.py",
+            "program": "${workspaceFolder}/script/plot_togo.py",
             "console": "integratedTerminal"
         }
     ]

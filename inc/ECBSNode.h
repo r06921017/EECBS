@@ -74,6 +74,7 @@ public:
 
 	ECBSNode* parent;
 	list< pair< int, pair<Path, int> > > paths; // new paths <agent id, <path, min f>>	
+	unordered_map<vector<int>, int, container_hash<vector<int>>> ma_lb;
 	inline int getFHatVal() const { return sum_of_costs + cost_to_go; }
 	inline int getNumNewPaths() const { return (int) paths.size(); }
 	inline string getName() const { return "ECBS Node"; }

@@ -105,6 +105,18 @@ public:
 
 	std::shared_ptr<vector<vector<int>>> iter_ag_cost;
 	std::shared_ptr<vector<vector<int>>> br_ag_cost;
+
+	std::shared_ptr<vector<bool>> br_is_merged;
+
+	std::shared_ptr<vector<int>> br_node_cost_to_go;
+	std::shared_ptr<vector<int>> br_node_distance_to_go;
+	std::shared_ptr<vector<int>> br_node_best_focal_cost_to_go;
+	std::shared_ptr<vector<int>> br_node_best_focal_distance_to_go;
+	std::shared_ptr<vector<int>> br_node_best_open_cost_to_go;
+	std::shared_ptr<vector<int>> br_node_best_open_distance_to_go;
+	std::shared_ptr<vector<int>> br_node_best_cleanup_cost_to_go;
+	std::shared_ptr<vector<int>> br_node_best_cleanup_distance_to_go;
+	std::shared_ptr<vector<int>> br_node_real_cost_to_go;
 	// end of statistics for branch and every iteration
 
 	// CBSNode* dummy_start = nullptr;
@@ -119,10 +131,11 @@ public:
 
 	/////////////////////////////////////////////////////////////////////////////////////////
 	// set params
-	void setHeuristicType(heuristics_type h, heuristics_type h_hat)
+	void setHeuristicType(heuristics_type h, heuristics_type h_hat, bool is_solver=false)
 	{
 	    heuristic_helper.type = h;
 	    heuristic_helper.setInadmissibleHeuristics(h_hat);
+		heuristic_helper.is_solver = is_solver;
 	}
 	void setPrioritizeConflicts(bool p) {PC = p;	heuristic_helper.PC = p; }
 	void setRectangleReasoning(bool r) {rectangle_reasoning = r; heuristic_helper.rectangle_reasoning = r; }
@@ -341,6 +354,7 @@ protected:
 	inline void releaseNodes();
 
 	// print and save
+	void initializeIterAnalysis(void);
 	void printResults() const;
 	static void printConflicts(const HLNode &curr, int a1=-1, int a2=-1) ;
 
@@ -353,6 +367,7 @@ protected:
 
 	void getBranchEval(HLNode* __node__, int open_head_lb);
 	void saveEval(void);
+	void saveBrToGoEval(void);
 	void saveNumNodesInLists(void);
 	void printAgentInitCT(int __ag__) const;
 	void printAgentPath(int ag, Path* path_ptr=nullptr) const;

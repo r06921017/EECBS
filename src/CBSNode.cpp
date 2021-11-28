@@ -69,6 +69,29 @@ void HLNode::printConstraints(int id) const
     }
 }
 
+vector<int> HLNode::findMetaAgent(int __ag__) const
+{
+	vector<int> out_list;
+	if (ma_vec[__ag__])
+	{
+		for (const auto& __ma__: meta_agents)
+		{
+			if (std::find(__ma__.begin(), __ma__.end(), __ag__) != __ma__.end())
+			{
+				out_list = __ma__;
+				break;
+			}
+		}
+		
+		if (out_list.size() == 0)
+		{
+			cout << "No such meta_agent!!!" << endl;
+			exit(1);
+		}
+	}
+	return out_list;
+}
+
 std::ostream& operator<<(std::ostream& os, const HLNode& node)
 {
 	os << "Node " << node.time_generated << " from " << node.chosen_from << " ( f = "<< node.g_val << " + " <<

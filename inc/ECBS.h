@@ -6,7 +6,7 @@
 class ECBS : public CBS
 {
 public:
-	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) { initializeIterAnalysis();}
+	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {}
 	ECBS(vector<SingleAgentSolver*>& search_engines, 
 		const vector<ConstraintTable>& init_constraints,
 		vector<Path>& init_paths, 
@@ -17,7 +17,7 @@ public:
 			setInitialPath(_ag_, init_paths[_ag_], init_min_f_vals[_ag_]);
 			setMinFVal(_ag_, init_min_f_vals[_ag_]);
 		}
-	};
+	}
 	void setInitialPath(int agent, Path _path, int _min_f_val=0)
 	{ 
 		if (paths_found_initially.empty())
@@ -49,7 +49,7 @@ private:
 	bool generateChild(ECBSNode* child, ECBSNode* curr, int child_idx=0);
 	bool generateRoot();
 	bool findPathForSingleAgent(ECBSNode*  node, int ag);
-	bool findPathForMetaAgent(ECBSNode* node, const vector<int>& meta_ag);
+	bool findPathForMetaAgent(ECBSNode* node, const vector<int>& ma1, const vector<int>& ma2=vector<int>());
 	void classifyConflicts(ECBSNode &node);
 	void computeConflictPriority(shared_ptr<Conflict>& con, ECBSNode& node);
 
