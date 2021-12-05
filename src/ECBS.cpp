@@ -20,7 +20,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		start = clock();
 	}
 
-	if (is_solver)  // Debug: check initial constraints
+	if (is_solver && screen > 1)  // Debug: check initial constraints
 	{
 		cout << "Inner ECBS:" << endl;
 		for (const vector<int>& _ma_ : meta_agents)
@@ -104,35 +104,38 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 
 		if (terminate(curr))
 		{
-			// debug, update individual fmin according to open_head
-			ECBSNode* tmp_node = cleanup_head;
-			for (int i = 0; i < num_of_agents; i++)
-				if (ma_vec[i])
-					min_f_vals[i] = init_min_f_vals[i];
-
-			vector<int> updated(num_of_agents, false);
-			while (tmp_node != nullptr)
+			if (screen > 1)
 			{
-				for (const auto& tmp_p : tmp_node->paths)
+				// debug, update individual fmin according to open_head
+				ECBSNode* tmp_node = cleanup_head;
+				for (int i = 0; i < num_of_agents; i++)
+					if (ma_vec[i])
+						min_f_vals[i] = init_min_f_vals[i];
+
+				vector<int> updated(num_of_agents, false);
+				while (tmp_node != nullptr)
 				{
-					int cor_ag = tmp_p.first;
-					if (ma_vec[cor_ag] && !updated[cor_ag])
+					for (const auto& tmp_p : tmp_node->paths)
 					{
-						min_f_vals[cor_ag] = tmp_p.second.second; 
-						updated[cor_ag] = true;
+						int cor_ag = tmp_p.first;
+						if (ma_vec[cor_ag] && !updated[cor_ag])
+						{
+							min_f_vals[cor_ag] = tmp_p.second.second; 
+							updated[cor_ag] = true;
+						}
 					}
+					tmp_node = tmp_node->parent;
 				}
-				tmp_node = tmp_node->parent;
+				
+				int debug_lb = 0;
+				for (int i = 0; i < num_of_agents; i++)
+					if (ma_vec[i])
+						debug_lb += min_f_vals[i];
+				cout << "cost_lowerbound: " << cost_lowerbound << endl;
+				cout << "debug_lb: " << debug_lb << endl;
+				assert(debug_lb <= cost_lowerbound);
+				// end debug
 			}
-			
-			int debug_lb = 0;
-			for (int i = 0; i < num_of_agents; i++)
-				if (ma_vec[i])
-					debug_lb += min_f_vals[i];
-			cout << "cost_lowerbound: " << cost_lowerbound << endl;
-			cout << "debug_lb: " << debug_lb << endl;
-			assert(debug_lb <= cost_lowerbound);
-			// end debug
 			return solution_found;
 		}
 
@@ -960,18 +963,28 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	assert(!isSamePath(*paths[ag], new_path.first));
 	assert((int)(new_path.first.size()-1) <= suboptimality * new_path.second);
 	
-	cout << "old path lb:" << min_f_vals[ag] << endl;
-	cout << "new path lb:" << new_path.second << endl;
-	cout << "old path cost: " << paths[ag]->size() - 1 << endl;
-	cout << "new path cost: " << new_path.first.size() - 1 << endl;
+	if (screen > 1)
+	{
+		cout << "old path lb:" << min_f_vals[ag] << endl;
+		cout << "new path lb:" << new_path.second << endl;
+		cout << "old path cost: " << paths[ag]->size() - 1 << endl;
+		cout << "new path cost: " << new_path.first.size() - 1 << endl;
+		cout << "old node soc: " << node->sum_of_costs << endl;
+	}
 
 	node->g_val = node->g_val + max(new_path.second - min_f_vals[ag], 0);
 	if (node->parent != nullptr)
 	    node->h_val = max(0, node->parent->getFVal() - node->g_val); // pathmax
 
 	node->sum_of_costs = node->sum_of_costs - (int) paths[ag]->size() + (int) new_path.first.size();
+	if (screen > 1)
+	{
+		cout << "new node soc: " << node->sum_of_costs << endl;
+	}
 	min_f_vals[ag] = max(new_path.second, min_f_vals[ag]);  // make sure the recorded lower bound is always the maximum
 	new_path = make_pair(new_path.first, min_f_vals[ag]);
+
+	removeNodeAgentPath(node, ag);  // Remove existing path from the node before emplacing new path for this agent
 	node->paths.emplace_back(ag, new_path);
 	paths[ag] = &node->paths.back().second.first;
 	node->makespan = max(node->makespan, new_path.first.size() - 1);
@@ -1030,7 +1043,14 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		{
 			if (paths[_ag_] != nullptr)
 			{
-				_path_cost_ += paths[_ag_]->size() - 1;
+				int ag_path_cost = (int) paths[_ag_]->size() - 1;
+				if ((isSameMetaAgent(_ma_, ma1) || isSameMetaAgent(_ma_, ma2)) && 
+					(ag_path_cost > suboptimality * min_f_vals[_ag_]))  // Need to replan this agent
+				{
+					findPathForSingleAgent(node, _ag_);  // Replan and update paths and min_f_vals
+					num_pre_replan_ma += 1;
+				}
+				_path_cost_ += ag_path_cost;
 				inner_init_paths[_ag_] = Path(*paths[_ag_]);
 				inner_min_f_vals[_ag_] = min_f_vals[_ag_];
 			}
@@ -1148,11 +1168,11 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 
 	// Remove old meta-agent (if is merging) and add new meta-agent to global variable and curr CT node
 	vector<int> joint_ma;
-	if (ma2.empty())
+	if (ma2.empty())  // Replan meta-agent while branching
 	{
 		joint_ma = ma1;
 	}
-	else
+	else  // Replan due to merging
 	{
 		node->ma_lb.erase(ma1);
 		node->ma_lb.erase(ma2);
@@ -1186,7 +1206,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	inner_solver->setUseFlex(use_flex);
 	inner_solver->setRootReplan(root_replan, fmin_ascend, conf_ascend);
 	inner_solver->setRandomInit(random_init);
-	inner_solver->setScreen(screen);
+	inner_solver->setScreen(0);
 
 	// if (screen == 2)
 	// {
@@ -1244,21 +1264,22 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		for (const int& ag : joint_ma)
 		{
 			// new_sum_lb += inner_solver->getminFVal(ag);  // never record the individual lb of agents in the meta-agent any more, since it is wrong!!
-			for (list<pair<int, pair<Path, int>>>::iterator p_it = node->paths.begin(); p_it != node->paths.end();)
-			{
-				if (ag == p_it->first)  // Delete repeated paths in node
-				{
-					paths[ag] = nullptr;
-					p_it = node->paths.erase(p_it ++);
-				}
-				else
-				{
-					++ p_it;
-				}
-			}
+			// for (list<pair<int, pair<Path, int>>>::iterator p_it = node->paths.begin(); p_it != node->paths.end();)
+			// {
+			// 	if (ag == p_it->first)  // Delete repeated paths in node
+			// 	{
+			// 		paths[ag] = nullptr;
+			// 		p_it = node->paths.erase(p_it ++);
+			// 	}
+			// 	else
+			// 	{
+			// 		++ p_it;
+			// 	}
+			// }
+			removeNodeAgentPath(node, ag);
 		}
-		cout << "new_sum_lb: " << new_sum_lb << endl;
-		cout << "inner_solver->solution_cost: " << inner_solver->solution_cost << endl;
+		// cout << "new_sum_lb: " << new_sum_lb << endl;
+		// cout << "inner_solver->solution_cost: " << inner_solver->solution_cost << endl;
 
 		node->g_val = node->g_val + max(new_sum_lb - init_ma_sum_lb, 0);
 		node->sum_of_costs = node->sum_of_costs - init_ma_soc + inner_solver->solution_cost;
@@ -2000,6 +2021,23 @@ void ECBS::computeConflictPriority(shared_ptr<Conflict>& con, ECBSNode& node)
 }
 
 
+void ECBS::removeNodeAgentPath(ECBSNode* node, int agent)
+{
+	for (list<pair<int, pair<Path, int>>>::iterator p_it = node->paths.begin(); p_it != node->paths.end();)
+	{
+		if (agent == p_it->first)  // Delete repeated paths in node
+		{
+			paths[agent] = nullptr;
+			p_it = node->paths.erase(p_it ++);
+		}
+		else
+		{
+			++ p_it;
+		}
+	}
+	return;
+}
+
 // used for rapid random  restart
 void ECBS::clear()
 {
@@ -2275,6 +2313,13 @@ const vector<pair<Path*, int>> ECBS::collectPaths(ECBSNode* node)
 				tmp_paths[agent].first = &p.second.first;
 				tmp_paths[agent].second = p.second.second;
 				updated[agent] = true;
+
+				if (screen > 1)
+				{
+					printAgentPath(agent, paths[agent]);
+					printAgentPath(agent, tmp_paths[agent].first);
+					assert(paths[agent] == tmp_paths[agent].first);
+				}
 			}
 		}
 		tmp_node = tmp_node->parent;

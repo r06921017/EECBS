@@ -55,6 +55,7 @@ private:
 
 	// For NFECBS and NFEECBS
 	void getFlex(const vector<int>& agent);
+	void removeNodeAgentPath(ECBSNode* node, int agent);
 
 	//update information
 	void updatePaths(ECBSNode* curr);

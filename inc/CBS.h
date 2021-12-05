@@ -40,6 +40,7 @@ public:
 	uint64_t num_LL_expanded = 0;
 	uint64_t num_LL_generated = 0;
 	uint64_t num_merged = 0;
+	uint64_t num_pre_replan_ma = 0;
 
 	uint64_t solver_counter;
 	uint64_t solver_num_HL_expanded = 0;
@@ -287,6 +288,13 @@ protected:
 	void printAllMetaAgents(void) const;
 	void printAllSingleAgents(void) const;
 	bool shouldMerge(const vector<int>& __ma1__, const vector<int>& __ma2__, int mode=0);
+	inline bool isSameMetaAgent(const vector<int>& _ma1, const vector<int>& _ma2)
+	{
+		if (_ma1.empty() || _ma2.empty())
+			return false;
+		else
+			return _ma1 == _ma2;
+	}
 
 	template <typename T, typename S>
     void sortMetaAgents(const vector<T>& first_based, bool first_ascend, const vector<S>& second_based=vector<S>(), bool second_ascend=true)
