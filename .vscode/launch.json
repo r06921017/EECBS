@@ -52,28 +52,25 @@
             ]
         },
         {
-            "name": "(gdb) (F)ECBS",
+            "name": "(gdb) EECBS",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/eecbs",
             "args": [
                 "-m/home/rdaneel/mapf_benchmark/mapf-map/random-32-32-20.map",
-                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-22.scen", 
+                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-17.scen", 
                 // "-m/home/rdaneel/mapf_benchmark/mapf-map/den520d.map", 
                 // "-a/home/rdaneel/mapf_benchmark/scen-even/den520d-even-2.scen",
-                "-k60",  // 90
+                "-k100",  // 90
                 "-o${workspaceFolder}/result_debug.csv", 
                 "-t60",
-                "-b", "1",
                 // "--nl", "349",
-                "--highLevelSolver", "A*eps",
-                // "--highLevelSolver", "CLEANUP_ASTAREPS",
-                // "--cth", "100",
-                "--inadmissibleH", "Zero",
-                "--heuristics", "Zero",
-                "--suboptimality","1.05",
+                // "--highLevelSolver", "A*eps",
+                // "--inadmissibleH", "Zero",
+                // "--heuristics", "Zero",
+                "--suboptimality","1.10",
                 // "--flex", "true",
-                "--prioritizingConflicts", "false",
+                // "--prioritizingConflicts", "false",
                 "--bypass", "false",
                 "--rectangleReasoning", "false",
                 "--corridorReasoning", "false",
@@ -81,8 +78,8 @@
                 // "--rp", "true",
                 // "--fa", "false",
                 // "--ca", "false",
-                // "--saveCT", "false",
-                "-s5"],
+                "--saveCT", "true",
+                "-s1"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -102,23 +99,23 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/eecbs",
             "args": [
-                "-m/home/rdaneel/mapf_benchmark/mapf-map/random-32-32-20.map",
-                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-22.scen", //22
-                // "-m/home/rdaneel/mapf_benchmark/mapf-map/den520d.map", 
-                // "-a/home/rdaneel/mapf_benchmark/scen-even/den520d-even-2.scen",
+                // "-m/home/rdaneel/mapf_benchmark/mapf-map/random-32-32-20.map",
+                // "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-17.scen", //22
+                "-m/home/rdaneel/mapf_benchmark/mapf-map/den520d.map", 
+                "-a/home/rdaneel/mapf_benchmark/scen-even/den520d-even-2.scen",
                 "-k100",  // 60
                 "-o${workspaceFolder}/result_debug.csv", 
                 "-t60",
-                "-b", "1",
+                "-b", "25",
                 // "--nl", "349",
                 // "--highLevelSolver", "A*eps",
                 "--highLevelSolver", "EES",
-                "--inadmissibleH", "Zero",  // Global
-                "--heuristics", "Zero",  // WDG
-                "--suboptimality","1.05",  // 1.05
+                "--inadmissibleH", "Global",  // Global
+                "--heuristics", "WDG",  // WDG
+                "--suboptimality","1.01",  // 1.05
                 // "--flex", "true",
-                "--saveCT", "false",
-                "--prioritizingConflicts", "false",
+                "--saveCT", "true",
+                "--prioritizingConflicts", "true",
                 "--bypass", "false",
                 "--rectangleReasoning", "false",
                 "--corridorReasoning", "false",

@@ -19,6 +19,8 @@ public:
 	double runtime_build_CT = 0; // runtime of building constraint table
 	double runtime_build_CAT = 0; // runtime of building conflict avoidance table
 	double runtime_path_finding = 0; // runtime of finding paths for single agents
+	double runtime_ma_path_finding = 0;  // runtime of finding paths for meta-agents
+	double runtime_replan_ma = 0;  // runtime of finding paths for meta-agents
 	double runtime_detect_conflicts = 0;
 	double runtime_preprocessing = 0; // runtime of building heuristic table for the low level
 	double runtime_solver = 0;  // runtime for using inner solver for meta-agents

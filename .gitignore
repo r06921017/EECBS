@@ -4,7 +4,6 @@ build
 result_debug.csv
 togo_data*
 iteration_data*
-run
 result_debug*
 config
 nodes_in_list*

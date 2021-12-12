@@ -1153,7 +1153,7 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 			"runtime of detecting conflicts," <<
 			"runtime of rectangle conflicts,runtime of corridor conflicts,runtime of mutex conflicts," <<
 			"runtime of building MDDs,runtime of building constraint tables,runtime of building CATs," <<
-			"runtime of path finding,runtime of generating child nodes," <<
+			"runtime of path finding,runtime of MA path finding,runtime of generating child nodes," <<
 			"preprocessing runtime,solver name,instance name,#pushFOCAL," <<
 			"#use pri,#use_type,#use second pri,#use increased flex,#use increased lb,#use reduced conf,#use count,#tie,#has seen conf,restart_cnt,restart_th," <<
 			"#merged,#solver high-level expanded,#solver high-level generated,#solver low-level expanded,#solver low-level generated," << endl;
@@ -1186,7 +1186,7 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 		runtime_detect_conflicts << "," << 
 		rectangle_helper.accumulated_runtime << "," << corridor_helper.accumulated_runtime << "," << mutex_helper.accumulated_runtime << "," <<
 		mdd_helper.accumulated_runtime << "," << runtime_build_CT << "," << runtime_build_CAT << "," <<
-		runtime_path_finding << "," << runtime_generate_child << "," <<
+		runtime_path_finding << "," << runtime_ma_path_finding << "," << runtime_generate_child << "," <<
 
 		runtime_preprocessing << "," << getSolverName() << "," << instanceName << "," << num_push_focal << "," <<
 		num_use_priority << "," << num_use_type << "," << num_use_second_priority << "," << num_use_increased_flex << "," << 

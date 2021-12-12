@@ -2,7 +2,7 @@
 #include "CBSHeuristic.h"
 #include "CBS.h"
 #include <queue>
-// #include <ilcplex/ilocplex.h>
+#include <ilcplex/ilocplex.h>
 
 
 void CBSHeuristic::updateInadmissibleHeuristics(HLNode& curr)
@@ -233,7 +233,7 @@ bool CBSHeuristic::computeInformedHeuristics(CBSNode& curr, double _time_limit)
 	this->time_limit = _time_limit;
 	int num_of_CGedges;
 	vector<int> HG(num_of_agents * num_of_agents, 0); // heuristic graph
-	unordered_map<vector<int>, int, container_hash<vector<int>>> hyper_edges;  // Not use in CBS
+	HyperGraph hyper_edges;  // Not use in CBS
 	vector<int> no_use_f_vals;
 	int h = -1;
 
@@ -297,7 +297,7 @@ bool CBSHeuristic::computeInformedHeuristics(ECBSNode& curr, const vector<int>& 
 	int num_of_CGedges;
 	vector<int> HG(num_of_agents * num_of_agents, 0); // heuristic graph
 	int h = -1;
-	unordered_map<vector<int>, int, container_hash<vector<int>>> hyper_edges;  // This is for meta-agent constraints (hyper-edge) WDG
+	HyperGraph hyper_edges;  // This is for meta-agent constraints (hyper-edge) WDG
 
 	/* compute admissible heuristics */
 	switch (type)
@@ -614,7 +614,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(CBSNode& node, vector<int>& CG)
 
 
 bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int>& min_f_vals, vector<int>& CG, int& delta_g, 
-	unordered_map<vector<int>, int, container_hash<vector<int>>>& hyper_edges)
+	HyperGraph& hyper_edges)
 {
     delta_g = 0;
     vector<bool> counted(num_of_agents, false); // record the agents whose delta_g has been counted
@@ -1201,11 +1201,11 @@ int CBSHeuristic::greedyWeightedMatching(const std::vector<int>& CG,  int cols)
 }
 
 // cols is the number of agents in this connected component
-int CBSHeuristic::greedyWeightedMatching(const unordered_map<vector<int>, int, container_hash<vector<int>>>& G,  int cols)
+int CBSHeuristic::greedyWeightedMatching(const HyperGraph& G,  int cols)
 {
     int rst = 0;
     std::vector<bool> used(cols, false);
-	unordered_map<vector<int>, int, container_hash<vector<int>>> tmp_G;
+	HyperGraph tmp_G;
 	for (const auto& ele : G)
 		tmp_G[ele.first] = (double) ele.second / (double) ele.first.size();
 
@@ -1221,15 +1221,14 @@ int CBSHeuristic::greedyWeightedMatching(const unordered_map<vector<int>, int, c
     }
 }
 
-int CBSHeuristic::minimumWeightedVertexCover(const vector<int>& HG, const vector<int>& min_f_vals,
-	const unordered_map<vector<int>, int, container_hash<vector<int>>>& hyper_edges)
+int CBSHeuristic::minimumWeightedVertexCover(const vector<int>& HG, const vector<int>& min_f_vals, const HyperGraph& HE)
 {
 	clock_t t = clock();
 	int rst;
-	if (hyper_edges.size() == 0)
+	if (HE.size() == 0)
 		rst = weightedVertexCover(HG);
 	else
-		rst = weightedHyperEdgeVertexCover(HG, min_f_vals, hyper_edges);
+		rst = weightedHyperEdgeVertexCover(HG, min_f_vals, HE);
 	num_solve_MVC++;
 	runtime_solve_MVC += (double)(clock() - t) / CLOCKS_PER_SEC;
 	return rst;
@@ -1298,8 +1297,8 @@ int CBSHeuristic::weightedVertexCover(const std::vector<int>& CG)
 		}
 		if (num > ILP_node_threshold)
 		{
-		    rst += greedyWeightedMatching(G, num);
-			// rst += ILPForWMVC(G, range);
+		    // rst += greedyWeightedMatching(G, num);
+			rst += ILPForWMVC(G, range);
 		}
 		else
 		{
@@ -1331,8 +1330,7 @@ int CBSHeuristic::weightedVertexCover(const std::vector<int>& CG)
 	return rst;
 }
 
-int CBSHeuristic::weightedHyperEdgeVertexCover(const vector<int>& HG, const vector<int> min_f_vals,
-	const unordered_map<vector<int>, int, container_hash<vector<int>>>& HE)
+int CBSHeuristic::weightedHyperEdgeVertexCover(const vector<int>& HG, const vector<int> min_f_vals, const HyperGraph& HE)
 {
 	int rst = 0;
 	int agents_lg = 0;
@@ -1343,7 +1341,7 @@ int CBSHeuristic::weightedHyperEdgeVertexCover(const vector<int>& HG, const vect
 			continue;
 		std::vector<int> range;
 		std::vector<int> indices;
-		unordered_map<vector<int>, int, container_hash<vector<int>>> connected_edges;  // Include connected edges from HG and HE for agent i
+		HyperGraph connected_edges;  // Include connected edges from HG and HE for agent i
 		range.reserve(num_of_agents);
 		indices.reserve(num_of_agents);
 		connected_edges.reserve(num_of_agents);
@@ -1417,7 +1415,10 @@ int CBSHeuristic::weightedHyperEdgeVertexCover(const vector<int>& HG, const vect
 		// 		G[j * num + k] = std::max(HG[indices[j] * num_of_agents + indices[k]], HG[indices[k] * num_of_agents + indices[j]]);
 		// 	}
 		// }
-		rst += greedyWeightedMatching(connected_edges, num);
+
+		// rst += greedyWeightedMatching(connected_edges, num);
+		rst += ILPForHyperEdgeWMVC(HG, range, min_f_vals, connected_edges);
+		
 		// if (num > ILP_node_threshold)
 		// {
 		//     rst += greedyWeightedMatching(connected_edges, num);
@@ -1499,7 +1500,7 @@ int CBSHeuristic::DPForWMVC(std::vector<int>& x, int i, int sum, const std::vect
 	return best_so_far;
 }
 
-/*int CBSHeuristic::ILPForWMVC(const vector<int>& CG, const vector<int>& node_max_value) const
+int CBSHeuristic::ILPForWMVC(const vector<int>& CG, const vector<int>& node_max_value) const
 {
 		int N = (int)node_max_value.size();
 		IloEnv env = IloEnv();
@@ -1528,7 +1529,7 @@ int CBSHeuristic::DPForWMVC(std::vector<int>& x, int i, int sum, const std::vect
 		double runtime = (double)(clock() - start_time) / CLOCKS_PER_SEC;
 		if (time_limit - runtime <= 0)
 			return 0;
-		cplex.setParam(IloCplex::TiLim, time_limit - runtime);
+		cplex.setParam(IloCplex::Param::TimeLimit, time_limit - runtime);
 		cplex.extract(model);
 		cplex.setOut(env.getNullStream());
 		int rst=0;
@@ -1536,7 +1537,56 @@ int CBSHeuristic::DPForWMVC(std::vector<int>& x, int i, int sum, const std::vect
 			rst = (int)cplex.getObjValue();
 		env.end();
 		return rst;
-}*/
+}
+
+int CBSHeuristic::ILPForHyperEdgeWMVC(const vector<int>& CG, const vector<int>& node_max_value, 
+	const vector<int>& min_f_vals, const HyperGraph& HE) const
+{
+	int N = (int)node_max_value.size();
+	IloEnv env = IloEnv();
+	IloModel model = IloModel(env);
+	IloExpr sum_obj = IloExpr(env);
+	IloNumVarArray var(env);
+	IloRangeArray con(env);
+	for (int i = 0; i < N; i++)
+	{
+		var.add(IloNumVar(env, min_f_vals[i], node_max_value[i] + 1, ILOINT));
+		sum_obj += var[i];
+	}
+	model.add(IloMinimize(env, sum_obj));
+	for (int i = 0; i < N; i++)
+	{
+		for (int j = i + 1; j < N; j++)
+		{
+			if (CG[i * N + j] > 0)
+			{
+				con.add(var[i] + var[j] >= CG[i * N + j]);
+			}
+		}
+	}
+	for (const auto& he : HE)  // Constraint on the hyper edge
+	{
+		IloExpr ma_sum(env);
+		for (const int& ag : he.first)
+		{
+			ma_sum += var[ag];
+		}
+		con.add(ma_sum >= he.second);
+	}
+	model.add(con);
+	IloCplex cplex(env);
+	double runtime = (double)(clock() - start_time) / CLOCKS_PER_SEC;
+	if (time_limit - runtime <= 0)
+		return 0;
+	cplex.setParam(IloCplex::Param::TimeLimit, time_limit - runtime);
+	cplex.extract(model);
+	cplex.setOut(env.getNullStream());
+	int rst=0;
+	if (cplex.solve())
+		rst = (int)cplex.getObjValue();
+	env.end();
+	return rst;
+}
 
 /*int CBSHeuristic::ILPForConstrainedWMVC(const std::vector<int>& CG, const std::vector<int>& node_weights)
 {

@@ -1047,7 +1047,9 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 				if ((isSameMetaAgent(_ma_, ma1) || isSameMetaAgent(_ma_, ma2)) && 
 					(ag_path_cost > suboptimality * min_f_vals[_ag_]))  // Need to replan this agent
 				{
+					clock_t replan_t = clock();
 					findPathForSingleAgent(node, _ag_);  // Replan and update paths and min_f_vals
+					runtime_replan_ma += (double)(clock() - replan_t) / CLOCKS_PER_SEC;
 					num_pre_replan_ma += 1;
 				}
 				_path_cost_ += ag_path_cost;
@@ -1192,7 +1194,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	inner_solver->setPrioritizeConflicts(PC);
 	// inner_solver->setHeuristicType(heuristic_helper.type, 
 	// 	heuristic_helper.getInadmissibleHeuristics(), true);
-	inner_solver->setHeuristicType(heuristics_type::ZERO, heuristics_type::ZERO, true);
+	inner_solver->setHeuristicType(heuristics_type::WDG, heuristics_type::GLOBAL, true);
 	inner_solver->setDisjointSplitting(disjoint_splitting);
 	inner_solver->setBypass(bypass);
 	inner_solver->setRectangleReasoning(rectangle_reasoning);
@@ -1227,11 +1229,16 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 
 	clock_t t = clock();
 	double inner_time_limit = time_limit - ((t-start) / CLOCKS_PER_SEC);
-	if (joint_ma == vector<int>({34,56,81}))
+	if (screen > 1)
 	{
+		cout << "Solving the meta-agent ";
+		for (const int& _ag_ : joint_ma)
+			cout << _ag_ << ", ";
 		cout << endl;
 	}
 	bool foundSol = inner_solver->solve(inner_time_limit, init_ma_sum_lb, MAX_COST);  // Run solver for meta-agent
+	if (screen > 1)
+		cout << "Done!" << endl;
 
 	// Update Outer ECBS parameters from Inner ECBS
 	solver_num_HL_expanded += inner_solver->num_HL_expanded;
@@ -1324,8 +1331,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		// }
 		// inner_solver.setInitSumLB(0);  // Reset sum of fmin
 		// inner_solver.setFlex(0);  // Reset flex
-
-		runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
+		runtime_ma_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
 		return true;
 	}
 
@@ -1341,7 +1347,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	else  // No solution for the meta-agent
 	{
 		delete node;
-		runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
+		runtime_ma_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
 		return false;
 	}
 }

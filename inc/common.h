@@ -145,6 +145,6 @@ struct container_hash {
         return boost::hash_range(c.begin(), c.end());
     }
 };
+typedef unordered_map<vector<int>, int, container_hash<vector<int>>> HyperGraph;
 
-pair<vector<int>, int> myfindMaxValuePair(
-    unordered_map<vector<int>, int, container_hash<vector<int>>> const &x);
+pair<vector<int>, int> myfindMaxValuePair(HyperGraph const &x);
