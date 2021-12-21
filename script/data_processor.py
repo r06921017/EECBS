@@ -1,202 +1,276 @@
+#! /home/rdaneel/anaconda3/lib/python3.8
 # -*- coding: UTF-8 -*-
+"""Data processor"""
 
-import argparse
-import logging
 import os
-import sys
-from copy import deepcopy
-from functools import reduce
-from operator import index
-from os.path import split
-from typing import AnyStr, Dict, List, Tuple
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
+import argparse
+from typing import Dict, List, Tuple
 import yaml
-from matplotlib.pyplot import axis, tick_params, xticks
+import matplotlib.pyplot as plt
+import util
+import numpy as np
 
 class DataProcessor:
-    def __init__(self, in_config):
-        config_dict = dict()
-        config_dict = os.path.join(os.path.dirname(os.path.realpath(__file__)), in_config)
-        with open(config_dict, 'r') as fin:
-            config_dict = yaml.load(fin, Loader=yaml.FullLoader)
-
-        self.exp_config = {'dir': '/home/rdaneel/my_exp_discovery3',
-                           'ins_num': 25,
-                           'time_limit': 60}
-
-        self.map_config = {'name': 'random-32-32-20',
-                            'scen': ['even', 'random'],
-                            'sid': 0,
-                            'num_of_ag': [20, 40, 60, 80]}
-
-        self.scen_list: List[str] = list(config_dict['scen_dict'].keys())  # even, random
-        self.solvers = [{'sol':'EECBS2', 'w':1.05, 'mth': -1, 'plot': ('grey', '+'), 'label': 'Vanilla EECBS'}]
-        self.result = dict()
+    def __init__(self, in_config) -> None:
+        self.config: Dict = dict()
+        config_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), in_config)
+        with open(config_dir, 'r') as fin:
+            self.config = yaml.load(fin, Loader=yaml.FullLoader)
 
         # Plot parameters
-        self.plot_config= {'width': 12, 'height': 9,
-                          'ms': 18, 'lw': 2, 'ws': 35, 'mew': 2.5}
-        # self.styles = {0: ('grey', '+'),
-        #                1: ('purple', '>'),
-        #                2: ('deepskyblue', 'o')}
+        self.fig_size:Tuple[int,int] = (12, 8)
+        self.marker_size:int = 15
+        self.line_width:float = 1.8
+        self.text_size:int = 20
 
-    @staticmethod
-    def readFile(f_name: str):
-        if os.path.exists(f_name):
-            return pd.read_csv(f_name)
-        else:
-            logging.error('{0} does not exist!'.format(f_name))
-            sys.exit()
+    def get_num_val(self, in_index:str='succ'):
+        """Compute the success rate versus the numbers of agents
 
-    def getFileDir(self, cbs_type, num_of_ag=None, in_map=None):
-        if num_of_ag is None:
-            num_of_ag = self.map_config['num_of_ag']
-        if in_map is None:
-            in_map = self.map_config['name']
+        Args:
+            in_index (str, optional): which data we want to analyze. Defaults to 'succ'.
 
-        map_dir = os.path.join(self.exp_config['dir'], in_map)
-        out_dir = os.path.join(map_dir, cbs_type)
+        Returns:
+            Dict: the success rate (versus the numbers of agents) of each solver
+        """
 
-        return out_dir
+        result: Dict = dict()
+        for solver in self.config['solvers']:
+            result[solver['name']] = dict()
+            for _map_ in self.config['maps']:
+                result[solver['name']][_map_['name']] = {'num': list(), 'val': list(), 'ci': list()}
 
-    def getFileName(self, scen_name, f_weight, cbs_type, sid=0, merge_th=-1, num_of_ag=None, in_map=None):
-        if num_of_ag is None:
-            num_of_ag = self.map_config['num_of_ag']
-        if in_map is None:
-            in_map = self.map_config['name']
-        
-        out_name =  in_map + '-' + scen_name + '-' + str(num_of_ag) + '-' + \
-            '{0:.2f}'.format(f_weight) + '-' + str(sid)
-        
-        if merge_th == -1:
-            out_name = out_name + '-' + cbs_type + '.csv'
-        else:
-            out_name = out_name + '-' + str(merge_th) + '-' + cbs_type  + '.csv'
-        
-        return out_name
+                for ag_num in _map_['num_of_agents']:
+                    total_val = 0.0
+                    total_num = 0.0
+                    _data_:List = list()
+                    for scen in _map_['scens']:
+                        data_frame = util.get_csv_instance(self.config['exp_path'], _map_['name'],
+                                                scen, ag_num, solver)
+                        for _, row in data_frame.iterrows():
+                            if (in_index == 'succ'
+                                and row['solution cost'] >= 0
+                                and row['runtime'] <= self.config['time_limit']):
+                                total_val += 1
 
-    def getCSVIns(self, scen_name, f_weight, cbs_type, sid=0, merge_th=-1, num_of_ag=None, in_map=None):
-        return self.readFile(os.path.join(
-            self.getFileDir(cbs_type, merge_th, num_of_ag, in_map),
-            self.getFileName(scen_name, f_weight, cbs_type, sid, merge_th, num_of_ag, in_map)))
+                            elif in_index != 'succ':
+                                if in_index == 'runtime':
+                                    _data_.append(min(row[in_index], 60))
+                                    total_val += min(row[in_index], 60)
 
-    def getIns(self, scen_name, f_weight, cbs_type, merge_th=-1):
-        sid_list = self.sid_dict[scen_name]
-        df = self.getCSVIns(scen_name, f_weight, cbs_type, min(sid_list), merge_th)
-        tmp_key: Tuple[str, float, int, int, str] = (scen_name, f_weight, min(sid_list), merge_th, cbs_type)
-        out_dict: Dict[Tuple[str, float, int, int, str], pd.Series] = {tmp_key: df['instance name']}
-        
-        for sid in sid_list:
-            if sid > min(sid_list):
-                tmp_df = self.getCSVIns(scen_name, f_weight, cbs_type, sid, merge_th)
-                out_dict[(scen_name, f_weight, sid, merge_th, cbs_type)] = tmp_df['instance name']
-                df = df.append(tmp_df, ignore_index=True)
-        
-        return df, out_dict
+                                else:
+                                    _data_.append(row[in_index])
+                                    total_val += row[in_index]
 
-    def getInsByDF(self, f_ins, scen_name, f_weight, cbs_type, merge_th=-1):
-        sid_list = self.sid_dict[scen_name]
-        df = self.getCSVIns(scen_name, f_weight, cbs_type, min(sid_list), merge_th)
-        cond = df['instance name'].isin(f_ins) == False
-        df = df.drop(df[cond].index)
-        
-        for sid in sid_list:
-            if sid > min(sid_list):
-                tmp_df = self.getCSVIns(scen_name, f_weight, cbs_type, sid, merge_th)
-                cond = tmp_df['instance name'].isin(f_ins) == False
-                tmp_df = tmp_df.drop(tmp_df[cond].index)
-                df = df.append(tmp_df, ignore_index=True)
+                        total_num += self.config['ins_num']
 
-        return df
-    
-    def plot_best_case(self):
-        
-        type_list = [(-1, 'ECBS_rt30'),  (-1, 'ECBS_flex_rt30')]  # socs2021
-        # type_list = [(-1, 'ECBS'), (-1, 'ECBS_flex'), (-1, 'ECBS_rt5'),  (-1, 'ECBS_flex_rt5')]  # socs2021
+                    _rate_ = total_val / total_num  # average value
+                    result[solver['name']][_map_['name']]['num'].append(ag_num)
+                    result[solver['name']][_map_['name']]['val'].append(_rate_)
 
-        if self.plot_common:
-            self.common_ins = self.get_common_ins_best()
+                    if len(_data_) > 0:  # non empty list
+                        _ci_ = 1.96*np.std(_data_) / np.sqrt(total_num)  # confident interval
+                        result[solver['name']][_map_['name']]['ci'].append(_ci_)
 
-        self.result = dict()  # Reset the dictionary
-        for tp in type_list:
-            if tp[1] in self.opt_list:  # optimal cases
-                if tp[1] == 'CBS':
-                    self.cal_iteration(tp[1], [1.00], [-1], in_mode)
+        return result
+
+    def get_w_val(self, in_index:str, f_weights:List):
+        """Compute the success rate versus the numbers of agents
+
+        Args:
+            in_index (str, optional): which data we want to analyze.
+            f_weights (List[int], optional): focal weights for x-axis.
+
+        Returns:
+            Dict: the success rate (versus the numbers of agents) of each solver
+        """
+
+        result: Dict = dict()
+        for solver in self.config['solvers']:
+            result[solver['name']] = dict()
+            for _map_ in self.config['maps']:
+                result[solver['name']][_map_['name']] = {'w': list(), 'val': list(), 'ci': list()}
+                default_w = solver['w']
+
+                for tmp_fw in f_weights:
+                    solver['w'] = tmp_fw
+                    total_val = 0.0
+                    total_num = 0.0
+                    _data_:List = list()
+
+                    for ag_num in _map_['num_of_agents']:
+                        for scen in _map_['scens']:
+                            data_frame = util.get_csv_instance(self.config['exp_path'],
+                                                    _map_['name'], scen, ag_num, solver)
+                            for _, row in data_frame.iterrows():
+                                if in_index == 'runtime':
+                                    _data_.append(min(row[in_index], 60))
+                                    total_val += min(row[in_index], 60)
+
+                                else:
+                                    _data_.append(row[in_index])
+                                    total_val += row[in_index]
+
+                            total_num += self.config['ins_num']
+
+                    _rate_ = total_val / total_num  # average value
+                    result[solver['name']][_map_['name']]['w'].append(tmp_fw)
+                    result[solver['name']][_map_['name']]['val'].append(_rate_)
+
+                    if len(_data_) > 0:  # non empty list
+                        _ci_ = 1.96*np.std(_data_) / np.sqrt(total_num)  # confident interval
+                        result[solver['name']][_map_['name']]['ci'].append(_ci_)
+
+                solver['w'] = default_w
+
+        return result
+
+    def plot_num_val(self, in_index:str='succ'):
+        """Plot the success rate versus the number of agents
+        """
+        fig_align = (2, len(self.config['maps'])//2) if len(self.config['maps']) > 1 else (1,1)
+        result = self.get_num_val(in_index)
+        fig, axs = plt.subplots(nrows=fig_align[0],
+                                ncols=fig_align[1],
+                                figsize=(17,8),
+                                dpi=80,
+                                facecolor='w',
+                                edgecolor='k')
+
+        for idx, _map_ in enumerate(self.config['maps']):
+            frow = idx // (len(self.config['maps']) // 2)
+            fcol = idx % (len(self.config['maps']) // 2)
+            for solver in self.config['solvers']:
+                _num_ = result[solver['name']][_map_['name']]['num']
+                _val_ = result[solver['name']][_map_['name']]['val']
+                _ci_  = result[solver['name']][_map_['name']]['ci']
+
+                if len(_ci_) > 0:
+                    _lb_ = [_val_[i] - _ci_[i] for i in range(len(_val_))]
+                    _ub_ = [_val_[i] + _ci_[i] for i in range(len(_val_))]
+                    axs[frow, fcol].fill_between(_num_, _lb_, _ub_,
+                                                 color=solver['color'], alpha=0.2)
+
+                if frow == 0 and fcol == 0:
+                    axs[frow, fcol].plot(_num_, _val_,
+                                         label=solver['label'],
+                                         linewidth=self.line_width,
+                                         markerfacecolor='white',
+                                         markeredgewidth=self.line_width,
+                                         ms=self.marker_size,
+                                         color=solver['color'],
+                                         marker=solver['marker'])
                 else:
-                    self.cal_iteration(tp[1], [1.00], [tp[0]], in_mode)
-                    
-            elif tp[1] in self.subopt_list:  # sub-optimal cases
-                print(tp[1])
-                if tp[1] == 'ECBS' or tp[1] ==  'ECBS_flex' or tp[1] == 'ECBS_flex2' or tp[1] == 'ECBS_rt10' or tp[1] == 'ECBS_rt20' or tp[1] == 'ECBS_rt30' or tp[1] == 'ECBS_rt40':
-                    self.cal_iteration(tp[1], self.focal_w, [-1], in_mode)
-                else:
-                    self.cal_iteration(tp[1], self.focal_w, [tp[0]], in_mode)
+                    axs[frow, fcol].plot(_num_, _val_,
+                                         linewidth=self.line_width,
+                                         markerfacecolor='white',
+                                         markeredgewidth=self.line_width,
+                                         ms=self.marker_size,
+                                         color=solver['color'],
+                                         marker=solver['marker'])
 
-        # Plot figure
-        f = plt.figure(num=None, figsize=(self.fig_h, self.fig_w), dpi=80, facecolor='w', edgecolor='k')
-        ax = f.add_subplot(111)
-        ax.tick_params(labelright=False)
+                axs[frow, fcol].set_title(_map_['label'], fontsize=self.text_size)
+                axs[frow, fcol].set_xlabel('Number of agents', fontsize=self.text_size)
+                axs[frow, fcol].axes.set_xticks(_num_)
+                axs[frow, fcol].axes.set_xticklabels(_num_, fontsize=self.text_size)
 
-        for tp in type_list:
-            if tp[1] in self.opt_list:  # optimal cases
-                if tp[1] in self.ma_list:
-                    self.plot_y_val(tp[1], [1.00], [tp[0]], in_mode)
-                else:
-                    self.plot_y_val(tp[1], [1.00], [-1], in_mode)
+                if in_index == 'succ':
+                    y_list = [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+                    axs[frow, fcol].set_ylabel('Success rate', fontsize=self.text_size)
+                    axs[frow, fcol].axes.set_yticks(y_list)
+                    axs[frow, fcol].axes.set_yticklabels(y_list, fontsize=self.text_size)
 
-            elif tp[1] in self.subopt_list:
-                if tp[1] in self.ma_list:
-                    self.plot_y_val(tp[1], self.focal_w, [tp[0]], in_mode)
-                else:
-                    self.plot_y_val(tp[1], self.focal_w, [-1], in_mode)
+                elif in_index == 'runtime':
+                    y_list = range(0, 61, 10)
+                    axs[frow, fcol].set_ylabel('Runtime (sec)', fontsize=self.text_size)
+                    axs[frow, fcol].axes.set_yticks(y_list)
+                    axs[frow, fcol].axes.set_yticklabels(y_list, fontsize=self.text_size)
 
-        # ax.yaxis.grid(True)
-        params = {
-            'legend.fontsize': self.legend_size,
-            'legend.handlelength': 2,
-        }
-
-        out_file: str = "temp.png"
-        if in_mode == 0:  # num-success rate
-            plt.yticks(np.arange(0, 105, 20))
-            plt.ylabel('Success rate (%)', fontsize=self.label_size)
-            out_file = self.map_name + '_' + str(self.num_of_agent) + '_num_success.png'
-
-        elif in_mode == 1:  # num-runtime
-            plt.ylabel('Average runtime (sec)', fontsize=self.label_size)
-            out_file: str = self.map_name + '_' + str(self.num_of_agent) + '_num_runtime.png'
-
-        elif in_mode == 2:  # num-max MA size
-            _, end = ax.get_ylim()
-            plt.yticks(np.arange(0, np.ceil(end), 1))
-            plt.ylabel('Average max size of meta-agent', fontsize=self.label_size)
-            out_file = self.map_name + '_' + str(self.num_of_agent) + '_num_maxMA.png'
-
-        elif in_mode == 3:  # avg # generated nodes
-            _, end = ax.get_ylim()
-            # plt.yticks(np.arange(0, np.ceil(end), 10000))
-            plt.ylabel('Average generated nodes', fontsize=self.label_size)
-            out_file = self.map_name + '_' + str(self.num_of_agent) + '_num_gnode.png'
-
-        else:
-            logging.error("in_mode is required!")
-            exit(1)
-
-        plt.rcParams.update(params)
-        plt.xticks(self.num_list)
-        plt.xlabel('#Agents', fontsize=self.label_size)
-        ax.tick_params(labelsize=self.num_size, width=3)
-        ax.legend(fontsize=self.legend_size)
-        plt.subplots_adjust(left=0.15, bottom=0.15, right=0.98, top=0.98, wspace=0.2, hspace=0.2)
-
-        # ax.legend(fontsize=self.legend_size, loc='lower center', bbox_to_anchor=(0.42, -0.57),
-        #     labelspacing=0.1, columnspacing=0.4, ncol=2, borderpad=0.1, borderaxespad=1.1, handletextpad=0.05)
-        # plt.subplots_adjust(left=0.165, bottom=0.32, right=0.98, top=0.98, wspace=0.2, hspace=0.2)
-        
-        plt.savefig(os.path.join(os.path.dirname(os.path.realpath(__file__)), out_file))
+        fig.tight_layout(rect=[0, 0, 1, 0.95])
+        fig.legend(loc="upper center", bbox_to_anchor=(0.5, 1.01),
+                   ncol=len(self.config['solvers']), fontsize=self.text_size)
+        plt.savefig('./tmp.png')
         plt.show()
-        return
 
+
+    def plot_w_val(self, in_index:str, f_weights:List):
+        """Plot the success rate versus the focal weights
+        """
+        fig_align = (2, len(self.config['maps'])//2) if len(self.config['maps']) > 1 else (1,1)
+        result = self.get_w_val(in_index, f_weights)
+        fig, axs = plt.subplots(nrows=fig_align[0],
+                                ncols=fig_align[1],
+                                figsize=(15,8),
+                                dpi=80,
+                                facecolor='w',
+                                edgecolor='k')
+
+        for idx, _map_ in enumerate(self.config['maps']):
+            frow = idx // (len(self.config['maps']) // 2)
+            fcol = idx % (len(self.config['maps']) // 2)
+            for solver in self.config['solvers']:
+                # _num_ = result[solver['name']][_map_['name']]['w']
+                _num_ =  range(0, len(f_weights), 1)
+                _val_ = result[solver['name']][_map_['name']]['val']
+                _ci_  = result[solver['name']][_map_['name']]['ci']
+
+                if len(_ci_) > 0:
+                    _lb_ = [_val_[i] - _ci_[i] for i in range(len(_val_))]
+                    _ub_ = [_val_[i] + _ci_[i] for i in range(len(_val_))]
+                    axs[frow, fcol].fill_between(_num_, _lb_, _ub_,
+                                                 color=solver['color'], alpha=0.2)
+
+                if frow == 0 and fcol == 0:
+                    axs[frow, fcol].plot(_num_, _val_,
+                                         label=solver['label'],
+                                         linewidth=self.line_width,
+                                         markerfacecolor='white',
+                                         markeredgewidth=self.line_width,
+                                         ms=self.marker_size,
+                                         color=solver['color'],
+                                         marker=solver['marker'])
+                else:
+                    axs[frow, fcol].plot(_num_, _val_,
+                                         linewidth=self.line_width,
+                                         markerfacecolor='white',
+                                         markeredgewidth=self.line_width,
+                                         ms=self.marker_size,
+                                         color=solver['color'],
+                                         marker=solver['marker'])
+
+                axs[frow, fcol].set_title(_map_['label'], fontsize=self.text_size)
+                axs[frow, fcol].set_xlabel('Suboptimality factor', fontsize=self.text_size)
+                axs[frow, fcol].axes.set_xticks(_num_)
+                axs[frow, fcol].axes.set_xticklabels(f_weights, fontsize=self.text_size)
+
+                if in_index == 'succ':
+                    y_list = [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+                    axs[frow, fcol].set_ylabel('Success rate', fontsize=self.text_size)
+                    axs[frow, fcol].axes.set_yticks(y_list)
+                    axs[frow, fcol].axes.set_yticklabels(y_list, fontsize=self.text_size)
+
+                elif in_index == 'runtime':
+                    y_list = [0, 10, 20, 30, 40, 50, 60]
+                    axs[frow, fcol].set_ylabel('Runtime (sec)', fontsize=self.text_size)
+                    axs[frow, fcol].axes.set_yticks(y_list)
+                    axs[frow, fcol].axes.set_yticklabels(y_list, fontsize=self.text_size)
+                    axs[frow, fcol].set_ylim(-5+min(y_list), max(y_list)+5)
+
+        fig.tight_layout(rect=[0, 0, 1, 0.95])
+        fig.legend(loc="upper center", bbox_to_anchor=(0.5, 1.01),
+                   ncol=len(self.config['solvers']), fontsize=self.text_size)
+        plt.savefig('./tmp2.png')
+        plt.show()
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Take config.yaml as input!')
+    parser.add_argument('--config', type=str, default='config.yaml')
+
+    args = parser.parse_args()
+
+    # Create data processor
+    date_processor = DataProcessor(args.config)
+    # date_processor.plot_num_val('runtime')
+    # date_processor.plot_num_val('succ')
+    date_processor.plot_w_val('runtime', [1.01, 1.02, 1.05, 1.10])

@@ -65,11 +65,7 @@
         "map": "cpp",
         "memory_resource": "cpp",
         "set": "cpp",
-        "*.txx": "cpp",
-        "bit": "cpp",
-        "condition_variable": "cpp",
-        "mutex": "cpp",
-        "variant": "cpp"
+        "*.txx": "cpp"
     },
     "cmake.useCMakeServer": false,
     "autoDocstring.docstringFormat": "google",
@@ -92,7 +88,7 @@
     },
     "python.linting.pylintEnabled": true,
     "editor.rulers": [
-        120
+        100
     ],
     "cSpell.words": [
         "astareps",
