@@ -114,8 +114,8 @@
                 "-b", "1",
                 // "--nl", "349",
                 "--highLevelSolver", "A*eps",
-                "--inadmissibleH", "Zero",
-                "--heuristics", "Zero",
+                "--inadmissibleH", "Global",  // "Zero"
+                "--heuristics", "WDG",  // "Zero"
                 "--suboptimality","1.05",
                 // "--flex", "true",
                 "--prioritizingConflicts", "false",
@@ -123,7 +123,7 @@
                 "--rectangleReasoning", "false",
                 "--corridorReasoning", "false",
                 "--targetReasoning", "false",
-                "-s1"],
+                "-s3"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

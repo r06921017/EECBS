@@ -1255,11 +1255,12 @@ void CBS::saveCT(const string &fileName) const // write the CT to a file
 		}
 		for (const auto& node : allNodes_table)
 		{
-			output << node->time_generated << " [label=\"g=" << node->g_val << ", h=" << node->h_val
-				<< "\nd=" << node->distance_to_go << ", h^=" << node->getFHatVal() - node->g_val;
+			// output << node->time_generated << " [label=\"g=" << node->g_val << ", h=" << node->h_val
+			// 	<< "\nd=" << node->distance_to_go << ", h^=" << node->getFHatVal() - node->g_val;
+			output << "[";
 			if (node->time_expanded > 0) // the node has been expanded
 			{
-				output << "\n #" << node->time_expanded << " from " << node->chosen_from;
+				// output << "\n #" << node->time_expanded << " from " << node->chosen_from;
 				output << "\", color=";
 				if (node->chosen_from == "focal")
 					output << "blue]" << endl;
