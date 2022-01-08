@@ -168,6 +168,11 @@ public:
 		}
 	}
 
+	inline void setNumOfAgents(int num_of_ags)
+	{
+		num_of_agents = num_of_ags;
+	}
+
 	void setInadmissibleHeuristics(heuristics_type h)
     {
         inadmissible_heuristic = h;

@@ -133,7 +133,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 						debug_lb += min_f_vals[i];
 				cout << "cost_lowerbound: " << cost_lowerbound << endl;
 				cout << "debug_lb: " << debug_lb << endl;
-				assert(debug_lb <= cost_lowerbound);
+				if (solution_found)
+					assert(debug_lb <= cost_lowerbound);
 				// end debug
 			}
 			return solution_found;
@@ -980,6 +981,8 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	if (screen > 1)
 	{
 		cout << "new node soc: " << node->sum_of_costs << endl;
+		if (!use_flex)
+			assert(new_path.first.size() - 1 <= suboptimality * new_path.second);
 	}
 	min_f_vals[ag] = max(new_path.second, min_f_vals[ag]);  // make sure the recorded lower bound is always the maximum
 	new_path = make_pair(new_path.first, min_f_vals[ag]);
@@ -1008,7 +1011,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 			cout << a1 << ", ";
 		for (const int& a2 : ma2)
 			cout << a2 << ", ";
-		cout << "] at " << *node << "on " << *(node->conflict) << endl;
+		// cout << "] at " << *node << "on " << *(node->conflict) << endl;
 	}
 
 	// Set constraint to inner solver
@@ -1135,7 +1138,10 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		{
 			// Determine sum of costs of the meta-agent
 			if (paths[_ag_] != nullptr)
+			{
+				cout << "ag" << " cost: " << endl;
 				init_ma_soc += (int) paths[_ag_]->size() - 1;
+			}
 			else
 				init_ma_soc += min_f_vals[_ag_];
 
@@ -1195,6 +1201,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	// inner_solver->setHeuristicType(heuristic_helper.type, 
 	// 	heuristic_helper.getInadmissibleHeuristics(), true);
 	inner_solver->setHeuristicType(heuristics_type::WDG, heuristics_type::GLOBAL, true);
+	// inner_solver->setHeuristicType(heuristics_type::ZERO, heuristics_type::ZERO, true);
 	inner_solver->setDisjointSplitting(disjoint_splitting);
 	inner_solver->setBypass(bypass);
 	inner_solver->setRectangleReasoning(rectangle_reasoning);
