@@ -10,7 +10,8 @@ public:
 	ECBS(vector<SingleAgentSolver*>& search_engines, 
 		const vector<ConstraintTable>& init_constraints,
 		vector<Path>& init_paths, 
-		vector<int>& init_min_f_vals, int screen) : CBS(search_engines, init_constraints, init_paths, screen){
+		vector<int>& init_min_f_vals, int screen) : CBS(search_engines, init_constraints, init_paths, screen)
+	{
 		paths_found_initially.resize(num_of_agents);
 		for (int _ag_ = 0; _ag_ < num_of_agents; _ag_ ++)
 		{
@@ -18,6 +19,25 @@ public:
 			setMinFVal(_ag_, init_min_f_vals[_ag_]);
 		}
 	}
+
+	ECBS(vector<SingleAgentSolver*>& search_engines,
+		const vector<ConstraintTable>& init_constraints,
+		const list<Constraint>& root_constaints,  // The same property as init_constraints
+		vector<Path>& init_paths,
+		vector<int>& init_min_f_vals,
+		int screen,
+		CBSHeuristic& heuristic_helper, MDDTable& mdd_helper) : 
+		CBS(search_engines, init_constraints, root_constaints, init_paths, screen, 
+			heuristic_helper, mdd_helper)
+	{
+		paths_found_initially.resize(num_of_agents);
+		for (int _ag_ = 0; _ag_ < num_of_agents; _ag_ ++)
+		{
+			setInitialPath(_ag_, init_paths[_ag_], init_min_f_vals[_ag_]);
+			setMinFVal(_ag_, init_min_f_vals[_ag_]);
+		}
+	}
+
 	void setInitialPath(int agent, Path _path, int _min_f_val=0)
 	{ 
 		if (paths_found_initially.empty())

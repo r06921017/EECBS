@@ -520,7 +520,7 @@ bool CBSHeuristic::buildDependenceGraph(CBSNode& node, vector<int>& CG, int& num
             num_of_CGedges++;
             continue;
 		}
-        auto got = lookupTable[a1][a2].find(HTableEntry(a1, a2, &node));
+        auto got = lookupTable[a1][a2].find(DoubleConstraintsHasher(a1, a2, &node));
         if (got != lookupTable[a1][a2].end()) // check the lookup table first
         {
             CG[idx] = get<0>(got->second) > 0 ? 1 : 0;
@@ -531,7 +531,7 @@ bool CBSHeuristic::buildDependenceGraph(CBSNode& node, vector<int>& CG, int& num
         {
             CG[idx] = dependent(a1, a2, node)? 1 : 0;
             CG[a2 * num_of_agents + a1] = CG[idx];
-            lookupTable[a1][a2][HTableEntry(a1, a2, &node)] = make_tuple(CG[idx], 1, 0);
+            lookupTable[a1][a2][DoubleConstraintsHasher(a1, a2, &node)] = make_tuple(CG[idx], 1, 0);
             if ((clock() - start_time) / CLOCKS_PER_SEC > time_limit) // run out of time
             {
                 runtime_build_dependency_graph += (double)(clock() - start_time) / CLOCKS_PER_SEC;
@@ -556,7 +556,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(CBSNode& node, vector<int>& CG)
 		int a1 = min(conflict->a1, conflict->a2);
 		int a2 = max(conflict->a1, conflict->a2);
 		int idx = a1 * num_of_agents + a2;
-		auto got = lookupTable[a1][a2].find(HTableEntry(a1, a2, &node));
+		auto got = lookupTable[a1][a2].find(DoubleConstraintsHasher(a1, a2, &node));
 		if (got != lookupTable[a1][a2].end()) // check the lookup table first
 		{
 			num_memoization++;
@@ -567,7 +567,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(CBSNode& node, vector<int>& CG)
 		{
 			auto rst = solve2Agents(a1, a2, node, false);
 			assert(rst.first >= 0);
-			lookupTable[a1][a2][HTableEntry(a1, a2, &node)] = make_tuple(rst.first, rst.second, 1);
+			lookupTable[a1][a2][DoubleConstraintsHasher(a1, a2, &node)] = make_tuple(rst.first, rst.second, 1);
 			CG[idx] = rst.first;
 			CG[a2 * num_of_agents + a1] = rst.first;
 		}
@@ -582,13 +582,13 @@ bool CBSHeuristic::buildWeightedDependencyGraph(CBSNode& node, vector<int>& CG)
 			{
 				auto rst = solve2Agents(a1, a2, node, cardinal);
 				assert(rst.first >= 1);
-				lookupTable[a1][a2][HTableEntry(a1, a2, &node)] = make_tuple(rst.first, rst.second, 1);
+				lookupTable[a1][a2][DoubleConstraintsHasher(a1, a2, &node)] = make_tuple(rst.first, rst.second, 1);
 				CG[idx] = rst.first;
 				CG[a2 * num_of_agents + a1] = rst.first;
 			}
 			else
 			{
-				lookupTable[a1][a2][HTableEntry(a1, a2, &node)]  = make_tuple(0, 1, 0); // h=0, #CT nodes = 1
+				lookupTable[a1][a2][DoubleConstraintsHasher(a1, a2, &node)]  = make_tuple(0, 1, 0); // h=0, #CT nodes = 1
 				CG[idx] = 0;
 				CG[a2 * num_of_agents + a1] = 0;
 			}
@@ -623,7 +623,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int
 		int a1 = min(conflict->a1, conflict->a2);
 		int a2 = max(conflict->a1, conflict->a2);
 		int idx = a1 * num_of_agents + a2;
-		auto got = lookupTable[a1][a2].find(HTableEntry(a1, a2, &node));  // We have computed WDG of this node before
+		auto got = lookupTable[a1][a2].find(DoubleConstraintsHasher(a1, a2, &node));  // We have computed WDG of this node before
 		if (got != lookupTable[a1][a2].end()) // check the lookup table first
 		{
 			num_memoization++;
@@ -649,7 +649,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int
 		else
 		{
 			auto rst = solve2Agents(a1, a2, node);  // < delta_12, number of HL nodes >
-            lookupTable[a1][a2][HTableEntry(a1, a2, &node)] = rst;
+            lookupTable[a1][a2][DoubleConstraintsHasher(a1, a2, &node)] = rst;
             if ((clock() - start_time) / CLOCKS_PER_SEC > time_limit) // run out of time
             {
                 runtime_build_dependency_graph += (double)(clock() - start_time) / CLOCKS_PER_SEC;
@@ -683,7 +683,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int
         int a1 = min(conflict->a1, conflict->a2);
         int a2 = max(conflict->a1, conflict->a2);
         int idx = a1 * num_of_agents + a2;
-        auto got = lookupTable[a1][a2].find(HTableEntry(a1, a2, &node));
+        auto got = lookupTable[a1][a2].find(DoubleConstraintsHasher(a1, a2, &node));
         if (got != lookupTable[a1][a2].end()) // check the lookup table first
         {
             num_memoization++;
@@ -709,7 +709,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, const vector<int
         else
         {
             auto rst = solve2Agents(a1, a2, node);
-            lookupTable[a1][a2][HTableEntry(a1, a2, &node)] = rst;
+            lookupTable[a1][a2][DoubleConstraintsHasher(a1, a2, &node)] = rst;
             if ((clock() - start_time) / CLOCKS_PER_SEC > time_limit) // run out of time
             {
                 runtime_build_dependency_graph += (double)(clock() - start_time) / CLOCKS_PER_SEC;
@@ -876,7 +876,7 @@ tuple<int, int, int> CBSHeuristic::solve2Agents(int a1, int a2, const ECBSNode& 
 /*
 int CBSHeuristic::getEdgeWeight(int a1, int a2, CBSNode& node, bool cardinal)
 {
-	HTableEntry newEntry(a1, a2, &node);
+	DoubleConstraintsHasher newEntry(a1, a2, &node);
 	if (type != heuristics_type::CG)
 	{
 		HTable::const_iterator got = lookupTable[a1][a2].find(newEntry);
@@ -1242,11 +1242,11 @@ int CBSHeuristic::weightedVertexCover(const std::vector<int>& CG)
 	std::vector<bool> done(num_of_agents, false);
 	for (int i = 0; i < num_of_agents; i++)
 	{
-		if (done[i])  // agent i is already in the previous connected component
+		if (done[i] || !ma_vec[i])  // agent i is already in the previous connected component or not a meta-agent
 			continue;
 		std::vector<int> range;
 		std::vector<int> indices;
-		range.reserve(num_of_agents);
+		range.reserve(num_of_agents);  // The max value of x_i in WEMVC
 		indices.reserve(num_of_agents);
 		int num = 0;
 		std::queue<int> Q;
@@ -1259,6 +1259,9 @@ int CBSHeuristic::weightedVertexCover(const std::vector<int>& CG)
 			indices.push_back(j);
 			for (int k = 0; k < num_of_agents; k++)
 			{
+				if (!ma_vec[k])
+					continue;
+
 				if (CG[j * num_of_agents + k] > 0)
 				{
 					range[num] = std::max(range[num], CG[j * num_of_agents + k]);

@@ -41,7 +41,7 @@ public:
 	void printCT(void) const;
 
 protected:
-    // Constraint Table (CT)
+    // Constraint Table (CT), hard constraints
 	unordered_map<size_t, list<pair<int, int> > > ct; // location -> time range, or edge -> time range
 
 	unordered_map<size_t, size_t> landmarks; // <timestep, location>: the agent must be at the given location at the given timestep
@@ -52,7 +52,7 @@ protected:
 	inline size_t getEdgeIndex(size_t from, size_t to) const { return (1 + from) * map_size + to; }
 
 private:
-	vector<vector<bool> > cat; // conflict avoidance table
+	vector<vector<bool> > cat; // conflict avoidance table, soft constraints
 
 };
 

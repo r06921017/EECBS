@@ -2031,6 +2031,29 @@ CBS::CBS(vector<SingleAgentSolver*>& search_engines,
 	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
 }
 
+CBS::CBS(vector<SingleAgentSolver*>& search_engines,
+	const vector<ConstraintTable>& initial_constraints,
+	const list<Constraint>& root_constraints,
+	vector<Path>& paths_found_initially, int screen,
+	CBSHeuristic& heuristic_helper, MDDTable& mdd_helper):
+	screen(screen), suboptimality(1),
+	initial_constraints(initial_constraints),
+	root_constraints(root_constraints),
+	paths_found_initially(paths_found_initially),
+	search_engines(search_engines), 
+	mdd_helper(mdd_helper),
+	rectangle_helper(search_engines[0]->instance),
+	mutex_helper(search_engines[0]->instance, initial_constraints),
+	corridor_helper(search_engines, initial_constraints),
+	heuristic_helper(heuristic_helper)
+{
+	num_of_agents = (int) search_engines.size();
+	mutex_helper.search_engines = search_engines;
+	// Initialize for nested framework
+	ma_vec.resize(num_of_agents, false);  // checking if need to solve agent
+	conflict_matrix.resize(num_of_agents, vector<int>(num_of_agents, 0));
+}
+
 CBS::CBS(const Instance& instance, bool sipp, int screen) :
 	screen(screen), suboptimality(1),
 	num_of_agents(instance.getDefaultNumberOfAgents()),

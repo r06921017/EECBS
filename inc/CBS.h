@@ -205,6 +205,11 @@ public:
 	CBS(vector<SingleAgentSolver*>& search_engines,
 		const vector<ConstraintTable>& constraints,
 		vector<Path>& paths_found_initially, int screen);
+	CBS(vector<SingleAgentSolver*>& search_engines,
+		const vector<ConstraintTable>& initial_constraints,
+		const list<Constraint>& root_constraints,
+		vector<Path>& paths_found_initially, int screen,
+		CBSHeuristic& heuristic_helper, MDDTable& mdd_helper);
 	void clearSearchEngines();
 	virtual ~CBS();
 
@@ -250,6 +255,7 @@ protected:
 	int cost_upperbound = MAX_COST;
 
 	vector<ConstraintTable> initial_constraints;
+	list<Constraint> root_constraints;
 	clock_t start;
 
 	int num_of_agents;

@@ -6,65 +6,65 @@
 
 enum heuristics_type { ZERO, CG, DG, WDG, GLOBAL, PATH, LOCAL, CONFLICT, STRATEGY_COUNT }; //  GREEDY,
 
-struct HTableEntry // look-up table entry 
+struct DoubleConstraintsHasher // Hash a CT node by constraints on two agents (look-up table entry)
 {
 	int a1{};
 	int a2{};
 	HLNode* n{};
 
-	HTableEntry() = default;
-	HTableEntry(int a1, int a2, HLNode* n) : a1(a1), a2(a2), n(n) {};
+	DoubleConstraintsHasher() = default;
+	DoubleConstraintsHasher(int a1, int a2, HLNode* n) : a1(a1), a2(a2), n(n) {};
 
 	struct EqNode
 	{
-		bool operator() (const HTableEntry& h1, const HTableEntry& h2) const
+		bool operator() (const DoubleConstraintsHasher& h1, const DoubleConstraintsHasher& h2) const
 		{
+			if (h1.a1 != h2.a1 || h1.a2 != h2.a2)
+				return false;
 			std::set<Constraint> cons1[2], cons2[2];
-			auto curr = h1.n;
-			while (curr->parent != nullptr)
+			HLNode* curr = h1.n;
+			while (true)
 			{
-				if (get<4>(curr->constraints.front()) == constraint_type::LEQLENGTH ||
-					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_VERTEX ||
-					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_EDGE) {
-					for (auto con : curr->constraints)
+				for (const auto& constraint : curr->constraints)
+				{
+					if (get<4>(constraint) == constraint_type::LEQLENGTH ||
+						get<4>(constraint) == constraint_type::POSITIVE_VERTEX ||
+						get<4>(constraint) == constraint_type::POSITIVE_EDGE)
 					{
-						cons1[0].insert(con);
-						cons2[0].insert(con);
+						cons1[0].insert(constraint);
+						cons2[0].insert(constraint);
 					}
+					else if (get<0>(constraint) == h1.a1)
+						cons1[0].insert(constraint);
+					else if (get<0>(constraint) == h1.a2)
+						cons2[0].insert(constraint);
 				}
-				else {
-					if (get<0>(curr->constraints.front()) == h1.a1)
-						for (auto con : curr->constraints)
-							cons1[0].insert(con);
-					else if (get<0>(curr->constraints.front()) == h1.a2)
-						for (auto con : curr->constraints)
-							cons2[0].insert(con);
-				}
-
-				curr = curr->parent;
+				if (curr->parent != nullptr)
+					curr = curr->parent;
+				else  // The root CT node may containt constraints (for inner solver)
+					break;				
 			}
 			curr = h2.n;
-			while (curr->parent != nullptr)
+			while (true)
 			{
-				if (get<4>(curr->constraints.front()) == constraint_type::LEQLENGTH ||
-					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_VERTEX ||
-					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_EDGE) {
-					for (auto con : curr->constraints)
+				for (const auto& constraint : curr->constraints)
+				{
+					if (get<4>(constraint) == constraint_type::LEQLENGTH ||
+						get<4>(constraint) == constraint_type::POSITIVE_VERTEX ||
+						get<4>(constraint) == constraint_type::POSITIVE_EDGE)
 					{
-						cons1[1].insert(con);
-						cons2[1].insert(con);
+						cons1[1].insert(constraint);
+						cons2[1].insert(constraint);
 					}
+					else if (get<0>(constraint) == h2.a1)
+						cons1[1].insert(constraint);
+					else if (get<0>(constraint) == h2.a2)
+						cons2[1].insert(constraint);
 				}
-				else {
-					if (get<0>(curr->constraints.front()) == h2.a1)
-						for (auto con : curr->constraints)
-							cons1[1].insert(con);
-					else if (get<0>(curr->constraints.front()) == h2.a2)
-						for (auto con : curr->constraints)
-							cons2[1].insert(con);
-				}
-
-				curr = curr->parent;
+				if (curr->parent != nullptr)
+					curr = curr->parent;
+				else  // The root CT node may containt constraints (for inner solver)
+					break;	
 			}
 			if (cons1[0].size() != cons1[1].size() || cons2[0].size() != cons2[1].size())
 				return false;
@@ -78,39 +78,46 @@ struct HTableEntry // look-up table entry
 
 	struct Hasher
 	{
-		size_t operator()(const HTableEntry& entry) const
+		size_t operator()(const DoubleConstraintsHasher& entry) const
 		{
-			auto curr = entry.n;
+			HLNode* curr = entry.n;
 			size_t cons1_hash = 0, cons2_hash = 0;
-			while (curr->parent != nullptr)
+			while (true)
 			{
-				if (get<0>(curr->constraints.front()) == entry.a1 ||
-					get<4>(curr->constraints.front()) == constraint_type::LEQLENGTH ||
-					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_VERTEX ||
-					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_EDGE)
+				for (const auto& constraint : curr->constraints)
 				{
-					for (auto con : curr->constraints)
+					if (get<0>(constraint) == entry.a1)
 					{
-						cons1_hash += 3 * std::hash<int>()(std::get<0>(con)) +
-							5 * std::hash<int>()(std::get<1>(con)) +
-							7 * std::hash<int>()(std::get<2>(con)) +
-							11 * std::hash<int>()(std::get<3>(con));
+						cons1_hash += 3 * std::hash<int>()(std::get<0>(constraint)) +
+							5 * std::hash<int>()(std::get<1>(constraint)) +
+							7 * std::hash<int>()(std::get<2>(constraint)) +
+							11 * std::hash<int>()(std::get<3>(constraint));
+					}
+					else if (get<0>(constraint) == entry.a2)
+					{
+						cons2_hash += 3 * std::hash<int>()(std::get<0>(constraint)) +
+							5 * std::hash<int>()(std::get<1>(constraint)) +
+							7 * std::hash<int>()(std::get<2>(constraint)) +
+							11 * std::hash<int>()(std::get<3>(constraint));
+					}
+					else if (get<4>(constraint) == constraint_type::LEQLENGTH ||
+						get<4>(constraint) == constraint_type::POSITIVE_VERTEX ||
+						get<4>(constraint) == constraint_type::POSITIVE_EDGE)
+					{
+						cons1_hash += 3 * std::hash<int>()(std::get<0>(constraint)) +
+							5 * std::hash<int>()(std::get<1>(constraint)) +
+							7 * std::hash<int>()(std::get<2>(constraint)) +
+							11 * std::hash<int>()(std::get<3>(constraint));
+						cons2_hash += 3 * std::hash<int>()(std::get<0>(constraint)) +
+							5 * std::hash<int>()(std::get<1>(constraint)) +
+							7 * std::hash<int>()(std::get<2>(constraint)) +
+							11 * std::hash<int>()(std::get<3>(constraint));
 					}
 				}
-				else if (get<0>(curr->constraints.front()) == entry.a2 ||
-					get<4>(curr->constraints.front()) == constraint_type::LEQLENGTH ||
-					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_VERTEX ||
-					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_EDGE)
-				{
-					for (auto con : curr->constraints)
-					{
-						cons2_hash += 3 * std::hash<int>()(std::get<0>(con)) +
-							5 * std::hash<int>()(std::get<1>(con)) +
-							7 * std::hash<int>()(std::get<2>(con)) +
-							11 * std::hash<int>()(std::get<3>(con));
-					}
-				}
-				curr = curr->parent;
+				if (curr->parent != nullptr)
+					curr = curr->parent;
+				else
+					break;
 			}
 			return cons1_hash ^ (cons2_hash << 1);
 		}
@@ -119,7 +126,7 @@ struct HTableEntry // look-up table entry
 
 // <h value, num of CT nodes, 0> for CBS
 // <h value, a1 f at root, a2 f at root> for ECBS
-typedef unordered_map<HTableEntry, tuple<int, int, int>, HTableEntry::Hasher, HTableEntry::EqNode> HTable;
+typedef unordered_map<DoubleConstraintsHasher, tuple<int, int, int>, DoubleConstraintsHasher::Hasher, DoubleConstraintsHasher::EqNode> HTable;
 
 
 class CBSHeuristic
@@ -148,7 +155,6 @@ public:
 	 //stats
 	list<tuple<int, int, const HLNode*, uint64_t, int> > sub_instances; 	// <agent 1, agent 2, node, number of expanded CT nodes, h value> 
 
-
 	CBSHeuristic(int num_of_agents,
 							const vector<Path*>& paths,
 							vector<SingleAgentSolver*>& search_engines,
@@ -171,6 +177,25 @@ public:
 	inline void setNumOfAgents(int num_of_ags)
 	{
 		num_of_agents = num_of_ags;
+	}
+
+	inline void setMetaAgents(vector<int> in_ags)
+	{
+		meta_agents.clear();
+		ma_vec = vector<bool>(num_of_agents, false);
+		for (const int& _ag_ : in_ags)
+		{
+			meta_agents.push_back(vector<int>({_ag_}));
+			ma_vec[_ag_] = true;
+		}
+	}
+
+	inline void setMetaAgents(vector<vector<int>> in_ma)
+	{
+		meta_agents = in_ma;
+		for (const vector<int>& _ma_ : meta_agents)
+			for (const int& _ag_ : _ma_)
+				ma_vec[_ag_] = true;
 	}
 
 	void setInadmissibleHeuristics(heuristics_type h)
@@ -203,7 +228,12 @@ public:
 	double getDistanceError(int i = 0) const { return (num_of_errors[i] == 0)? 0 : sum_distance_errors[i]  / num_of_errors[i]; }
 	heuristics_type getInadmissibleHeuristics(void) {return inadmissible_heuristic;};
 	// void copyConflictGraph(HLNode& child, const HLNode& parent);
-	void clear() { lookupTable.clear(); }
+	void clear()
+	{
+		lookupTable.clear(); 
+		meta_agents.clear();
+		ma_vec.clear();
+	}
 
 private:
     heuristics_type inadmissible_heuristic;
@@ -211,6 +241,9 @@ private:
 	int screen = 0;
 	int num_of_agents;
 	vector<vector<HTable> > lookupTable;
+
+	vector<vector<int>> meta_agents;
+	vector<bool> ma_vec;
 
 	// double sum_distance_error = 0;
 	// double sum_cost_error = 0;
@@ -229,7 +262,7 @@ private:
 	// TODO: run some experiments to pick a good ILP_node_threshold
 	const vector<Path*>& paths;
 	const vector<SingleAgentSolver*>& search_engines;
-	const vector<ConstraintTable>& initial_constraints;
+	const vector<ConstraintTable>& initial_constraints;  // This is for solve2agent function
 	MDDTable& mdd_helper;
 
 	void buildConflictGraph(vector<bool>& HG, const HLNode& curr);

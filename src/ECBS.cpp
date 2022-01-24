@@ -86,7 +86,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					iter_ag_cost->at(ag).push_back(paths[ag]->size()-1);
 				}
 			}
-			
+
 			if (screen == 5)  // Debug
 			{
 				iter_use_flex->push_back(curr->use_flex);
@@ -126,7 +126,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					}
 					tmp_node = tmp_node->parent;
 				}
-				
+
 				int debug_lb = 0;
 				for (int i = 0; i < num_of_agents; i++)
 					if (ma_vec[i])
@@ -617,8 +617,19 @@ bool ECBS::generateRoot()
 
 	paths.resize(num_of_agents, nullptr);
 	init_min_f_vals.resize(num_of_agents);
-	mdd_helper.init(num_of_agents);
-	heuristic_helper.init();
+
+	if (!is_solver)
+	{
+		mdd_helper.init(num_of_agents);
+		heuristic_helper.init();
+		vector<int> flatten_ma;
+		flatten_ma.reserve(meta_agents.size());
+		for (const vector<int>& _ma_ : meta_agents)
+			for (const int& _ag_ : _ma_)
+				flatten_ma.push_back(_ag_);
+		heuristic_helper.setMetaAgents(flatten_ma);
+	}
+
 	if (!path_initialize)
 	{
 		// initialize paths_found_initially
@@ -722,7 +733,7 @@ bool ECBS::generateRoot()
 					num_LL_expanded += search_engines[ag]->num_expanded;
 					num_LL_generated += search_engines[ag]->num_generated;
 				}
-								
+
 				if (candidate_paths[ag].first.empty())
 				{
 					cout << "No path exists for agent " << ag << endl;
@@ -813,14 +824,13 @@ bool ECBS::generateRoot()
 		}
 		findConflicts(*root);
 	}
-	
 	path_initialize = true;
-
 	if (screen > 3)
 		root->ll_generated = num_LL_generated;
 
 	root->h_val = 0;
 	root->depth = 0;
+	root->constraints = root_constraints;
     heuristic_helper.computeQuickHeuristics(*root);
 	pushNode(root);
 	dummy_start = root;
@@ -1010,7 +1020,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		for (const int& a1 : ma1)
 			cout << a1 << ", ";
 		for (const int& a2 : ma2)
-			cout << a2 << ", ";
+			cout << a2 << "]" << endl;
 		// cout << "] at " << *node << "on " << *(node->conflict) << endl;
 	}
 
@@ -1190,8 +1200,32 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		meta_agents.push_back(joint_ma);
 	}
 
-	inner_solver = make_shared<ECBS>(ECBS(search_engines, inner_constraints, 
-		inner_init_paths, inner_min_f_vals, 0));
+	// Collect constraints for lookup table in the inner solver
+	list<Constraint> inner_root_cons;
+	ECBSNode* tmp_node = node;
+	while (true)
+	{
+		for (const auto& con : tmp_node->constraints)
+		{
+			int _ag_ = get<0>(con);
+			if (_ma_vec_[_ag_])
+			{
+				// Add the initial constraint if the constraint is rerlated to the meta-agent
+				// Can be combined with ConstraintTable
+				inner_root_cons.push_back(con);
+			}
+		}
+		if (tmp_node->parent != nullptr)
+			tmp_node = tmp_node->parent;
+		else
+			break;
+	}
+
+	// Set the meta_agents for heuristic_helper
+	heuristic_helper.setMetaAgents(joint_ma);
+
+	inner_solver = make_shared<ECBS>(ECBS(search_engines, inner_constraints, inner_root_cons,
+		inner_init_paths, inner_min_f_vals, 0, heuristic_helper, mdd_helper));
 
 	inner_solver->setMetaAgents(joint_ma);  // Set the meta-agent for inner solver
 	inner_solver->setMAVector(_ma_vec_);
@@ -1255,6 +1289,8 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	node->ll_generated = inner_solver->num_HL_generated;  // Debug
 
 	runtime_solver += inner_solver->runtime;
+
+	heuristic_helper.setMetaAgents(meta_agents);  // Reset the meta_agent in heuristic helper
 
 	if (foundSol)
 	{
@@ -2161,7 +2197,6 @@ bool ECBS::validatePathswithCurrConflicts(ECBSNode* node)
 				int loc2 = tmp_paths[a2].first->at(timestep).location;
 				if (loc1 == loc2)
 				{
-					cout << "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP" << endl;
 					cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
 					printAgentPath(a1);
 					printAgentPath(a2);
