@@ -1149,7 +1149,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 			// Determine sum of costs of the meta-agent
 			if (paths[_ag_] != nullptr)
 			{
-				cout << "ag" << " cost: " << endl;
+				// cout << "ag" << " cost: " << endl;
 				init_ma_soc += (int) paths[_ag_]->size() - 1;
 			}
 			else
@@ -1234,8 +1234,8 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	inner_solver->setPrioritizeConflicts(PC);
 	// inner_solver->setHeuristicType(heuristic_helper.type, 
 	// 	heuristic_helper.getInadmissibleHeuristics(), true);
-	inner_solver->setHeuristicType(heuristics_type::WDG, heuristics_type::GLOBAL, true);
-	// inner_solver->setHeuristicType(heuristics_type::ZERO, heuristics_type::ZERO, true);
+	// inner_solver->setHeuristicType(heuristics_type::WDG, heuristics_type::GLOBAL, true);
+	inner_solver->setHeuristicType(heuristics_type::ZERO, heuristics_type::ZERO, true);
 	inner_solver->setDisjointSplitting(disjoint_splitting);
 	inner_solver->setBypass(bypass);
 	inner_solver->setRectangleReasoning(rectangle_reasoning);
