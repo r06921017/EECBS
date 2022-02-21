@@ -596,6 +596,9 @@ MDD * MDDTable::getMDD(HLNode& node, int id, size_t mdd_levels)
 	auto got = lookupTable[c.a].find(c);
 	if (got != lookupTable[c.a].end())
 	{
+		// cout << "node name: " << node.getName() << endl;
+		// cout << "lookupTable MDD levels: " << got->second->levels.size() << endl;
+		// cout << "current MDD levels: " << mdd_levels << endl;
 		assert((node.getName() == "CBS Node" &&  got->second->levels.size() == mdd_levels) ||
 			(node.getName() == "ECBS Node" &&  got->second->levels.size() <= mdd_levels));
 		return got->second;
@@ -613,6 +616,7 @@ MDD * MDDTable::getMDD(HLNode& node, int id, size_t mdd_levels)
 	{
 		// ConstraintsHasher c(id, &node);
 		lookupTable[c.a][c] = mdd;
+		is_init = false;
 	}
 	accumulated_runtime += (double)(clock() - t) / CLOCKS_PER_SEC;
 	return mdd;
@@ -651,6 +655,7 @@ void MDDTable::releaseMDDMemory(int id)
 			mdd++;
 		}
 	}
+	is_init = true;
 }
 
 void MDDTable::clear()

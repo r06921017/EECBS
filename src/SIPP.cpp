@@ -24,7 +24,7 @@ void SIPP::updatePath(const LLNode* goal, vector<PathEntry> &path)
 }
 
 Path SIPP::findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
-	const vector<Path*>& paths, int agent, int lowerbound)
+	vector<Path*>& paths, int agent, int lowerbound)
 {
 	return findSuboptimalPath(node, initial_constraints, paths, agent, lowerbound, 1).first;
 }
@@ -33,7 +33,7 @@ Path SIPP::findOptimalPath(const HLNode& node, const ConstraintTable& initial_co
 // minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).
 // lowerbound is an underestimation of the length of the path in order to speed up the search.
 pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
-	const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb, int other_sum_cost, 
+	vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb, int other_sum_cost, 
 	int outer_sum_lb, double single_flex, int hl_h_val)
 {
 	this->w = w;

@@ -17,6 +17,7 @@ public:
 	size_t depth = 0; // depth of this CT node
 	size_t makespan = 0; // makespan over all paths
 	bool h_computed = false;
+	double potential = 0;  // This is for DPS
 
 	int sum_of_costs = 0;  // sum of costs of the paths, for ECBSNode
 
@@ -225,7 +226,7 @@ struct ConstraintsHasher // Hash a CT node by constraints on one agent
 				
 			std::set<Constraint> cons1, cons2;
 			auto curr = c1.n;
-			while (curr->parent != nullptr)
+			while (true)
 			{
 				if (get<4>(curr->constraints.front()) == constraint_type::LEQLENGTH ||
 					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_VERTEX ||
@@ -234,10 +235,15 @@ struct ConstraintsHasher // Hash a CT node by constraints on one agent
 					for (auto con : curr->constraints)
 						cons1.insert(con);
 				}
-				curr = curr->parent;
+
+				// curr = curr->parent;
+				if (curr->parent != nullptr)
+					curr = curr->parent;
+				else  // The root CT node may containt constraints (for inner solver)
+					break;
 			}
 			curr = c2.n;
-			while (curr->parent != nullptr)
+			while (true)
 			{
 				if (get<4>(curr->constraints.front()) == constraint_type::LEQLENGTH ||
 					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_VERTEX ||
@@ -247,7 +253,11 @@ struct ConstraintsHasher // Hash a CT node by constraints on one agent
 						cons2.insert(con);
 				}
 
-				curr = curr->parent;
+				// curr = curr->parent;
+				if (curr->parent != nullptr)
+					curr = curr->parent;
+				else  // The root CT node may containt constraints (for inner solver)
+					break;
 			}
 
 			return equal(cons1.begin(), cons1.end(), cons2.begin(), cons2.end());
@@ -260,7 +270,7 @@ struct ConstraintsHasher // Hash a CT node by constraints on one agent
 		{
 			auto curr = entry.n;
 			size_t cons_hash = 0;
-			while (curr->parent != nullptr)
+			while (true)
 			{
 				if (get<4>(curr->constraints.front()) == constraint_type::LEQLENGTH ||
 					get<4>(curr->constraints.front()) == constraint_type::POSITIVE_VERTEX ||
@@ -275,7 +285,11 @@ struct ConstraintsHasher // Hash a CT node by constraints on one agent
 							11 * std::hash<int>()(std::get<3>(con));
 					}
 				}
-				curr = curr->parent;
+				// curr = curr->parent;
+				if (curr->parent != nullptr)
+					curr = curr->parent;
+				else  // The root CT node may containt constraints (for inner solver)
+					break;
 			}
 			return cons_hash;
 		}

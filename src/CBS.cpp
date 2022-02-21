@@ -1255,12 +1255,11 @@ void CBS::saveCT(const string &fileName) const // write the CT to a file
 		}
 		for (const auto& node : allNodes_table)
 		{
-			// output << node->time_generated << " [label=\"g=" << node->g_val << ", h=" << node->h_val
-			// 	<< "\nd=" << node->distance_to_go << ", h^=" << node->getFHatVal() - node->g_val;
-			output << "[";
+			output << node->time_generated << " [label=\"g=" << node->g_val << ", h=" << node->h_val
+				<< "\nd=" << node->distance_to_go << ", h^=" << node->getFHatVal() - node->g_val;
 			if (node->time_expanded > 0) // the node has been expanded
 			{
-				// output << "\n #" << node->time_expanded << " from " << node->chosen_from;
+				output << "\n #" << node->time_expanded << " from " << node->chosen_from;
 				output << "\", color=";
 				if (node->chosen_from == "focal")
 					output << "blue]" << endl;
@@ -2013,7 +2012,7 @@ void CBS::addConstraints(const HLNode* curr, HLNode* child1, HLNode* child2) con
 
 
 CBS::CBS(vector<SingleAgentSolver*>& search_engines,
-	const vector<ConstraintTable>& initial_constraints,
+	vector<ConstraintTable>& initial_constraints,
 	vector<Path>& paths_found_initially, int screen) :
 	screen(screen), suboptimality(1), 
 	initial_constraints(initial_constraints), paths_found_initially(paths_found_initially),
@@ -2032,8 +2031,8 @@ CBS::CBS(vector<SingleAgentSolver*>& search_engines,
 }
 
 CBS::CBS(vector<SingleAgentSolver*>& search_engines,
-	const vector<ConstraintTable>& initial_constraints,
-	const list<Constraint>& root_constraints,
+	vector<ConstraintTable>& initial_constraints,
+	list<Constraint>& root_constraints,
 	vector<Path>& paths_found_initially, int screen,
 	CBSHeuristic& heuristic_helper, MDDTable& mdd_helper):
 	screen(screen), suboptimality(1),

@@ -36,6 +36,7 @@ using std::cerr;
 using std::string;
 using std::stable_sort;
 using std::find;
+using std::remove;
 
 // #define NDEBUG 
 
@@ -145,6 +146,6 @@ struct container_hash {
         return boost::hash_range(c.begin(), c.end());
     }
 };
-typedef unordered_map<vector<int>, int, container_hash<vector<int>>> HyperGraph;
+typedef unordered_map<vector<int>, int, container_hash<vector<int>>> AdjEdges;
 
-pair<vector<int>, int> myfindMaxValuePair(HyperGraph const &x);
+pair<vector<int>, int> myfindMaxValuePair(AdjEdges const &x);

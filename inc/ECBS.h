@@ -8,7 +8,7 @@ class ECBS : public CBS
 public:
 	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {}
 	ECBS(vector<SingleAgentSolver*>& search_engines, 
-		const vector<ConstraintTable>& init_constraints,
+		vector<ConstraintTable>& init_constraints,
 		vector<Path>& init_paths, 
 		vector<int>& init_min_f_vals, int screen) : CBS(search_engines, init_constraints, init_paths, screen)
 	{
@@ -21,8 +21,8 @@ public:
 	}
 
 	ECBS(vector<SingleAgentSolver*>& search_engines,
-		const vector<ConstraintTable>& init_constraints,
-		const list<Constraint>& root_constaints,  // The same property as init_constraints
+		vector<ConstraintTable>& init_constraints,
+		list<Constraint>& root_constaints,  // The same property as init_constraints
 		vector<Path>& init_paths,
 		vector<int>& init_min_f_vals,
 		int screen,
@@ -57,6 +57,7 @@ private:
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_f> > cleanup_list; // it is called open list in ECBS
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_inadmissible_f> > open_list; // this is used for EES
 	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_d> > focal_list; // this is ued for both ECBS and EES
+	pairing_heap< ECBSNode*, compare<ECBSNode::compare_node_by_potential> > potential_list;
 
 	void adoptBypass(ECBSNode* curr, ECBSNode* child, const vector<int>& fmin_copy, const vector<Path*>& path_copy);
 
@@ -68,7 +69,8 @@ private:
 	// high level search
 	bool generateChild(ECBSNode* child, ECBSNode* curr, int child_idx=0);
 	bool generateRoot();
-	bool findPathForSingleAgent(ECBSNode*  node, int ag);
+	bool findPathForSingleAgent(ECBSNode* node, int ag, bool is_single=true);
+	pair<Path, int> refinePath(ECBSNode* node, int ag);
 	bool findPathForMetaAgent(ECBSNode* node, const vector<int>& ma1, const vector<int>& ma2=vector<int>());
 	void classifyConflicts(ECBSNode &node);
 	void computeConflictPriority(shared_ptr<Conflict>& con, ECBSNode& node);

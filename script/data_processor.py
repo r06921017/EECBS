@@ -102,7 +102,12 @@ class DataProcessor:
                             data_frame = util.get_csv_instance(self.config['exp_path'],
                                                     _map_['name'], scen, ag_num, solver)
                             for _, row in data_frame.iterrows():
-                                if in_index == 'runtime':
+                                if in_index == 'succ':
+                                    if row['solution cost'] >= 0 and \
+                                        row['runtime'] <= self.config['time_limit']:
+                                        total_val += 1
+
+                                elif in_index == 'runtime':
                                     _data_.append(min(row[in_index], 60))
                                     total_val += min(row[in_index], 60)
 
@@ -131,7 +136,7 @@ class DataProcessor:
         result = self.get_num_val(in_index)
         fig, axs = plt.subplots(nrows=fig_align[0],
                                 ncols=fig_align[1],
-                                figsize=(17,8),
+                                figsize=(15,8),
                                 dpi=80,
                                 facecolor='w',
                                 edgecolor='k')
@@ -186,8 +191,11 @@ class DataProcessor:
                     axs[frow, fcol].axes.set_yticklabels(y_list, fontsize=self.text_size)
 
         fig.tight_layout(rect=[0, 0, 1, 0.95])
-        fig.legend(loc="upper center", bbox_to_anchor=(0.5, 1.01),
-                   ncol=len(self.config['solvers']), fontsize=self.text_size)
+        fig.legend(loc="upper center",
+                   bbox_to_anchor= (0.5, 1.01),
+                   borderpad=0.25, handletextpad=0.1, labelspacing=0.75, columnspacing=0.75,
+                   ncol=len(self.config['solvers'])//2,
+                   fontsize=self.text_size)
         plt.savefig('./tmp.png')
         plt.show()
 
@@ -208,7 +216,6 @@ class DataProcessor:
             frow = idx // (len(self.config['maps']) // 2)
             fcol = idx % (len(self.config['maps']) // 2)
             for solver in self.config['solvers']:
-                # _num_ = result[solver['name']][_map_['name']]['w']
                 _num_ =  range(0, len(f_weights), 1)
                 _val_ = result[solver['name']][_map_['name']]['val']
                 _ci_  = result[solver['name']][_map_['name']]['ci']
@@ -249,15 +256,18 @@ class DataProcessor:
                     axs[frow, fcol].axes.set_yticklabels(y_list, fontsize=self.text_size)
 
                 elif in_index == 'runtime':
-                    y_list = [0, 10, 20, 30, 40, 50, 60]
+                    y_list = range(0, 61, 10)
                     axs[frow, fcol].set_ylabel('Runtime (sec)', fontsize=self.text_size)
                     axs[frow, fcol].axes.set_yticks(y_list)
                     axs[frow, fcol].axes.set_yticklabels(y_list, fontsize=self.text_size)
                     axs[frow, fcol].set_ylim(-5+min(y_list), max(y_list)+5)
 
         fig.tight_layout(rect=[0, 0, 1, 0.95])
-        fig.legend(loc="upper center", bbox_to_anchor=(0.5, 1.01),
-                   ncol=len(self.config['solvers']), fontsize=self.text_size)
+        fig.legend(loc="upper center",
+                   bbox_to_anchor= (0.5, 1.01),
+                   borderpad=0.25, handletextpad=0.1, labelspacing=0.75, columnspacing=0.75,
+                   ncol=len(self.config['solvers'])//2,
+                   fontsize=self.text_size)
         plt.savefig('./tmp2.png')
         plt.show()
 
@@ -272,5 +282,5 @@ if __name__ == '__main__':
     # Create data processor
     date_processor = DataProcessor(args.config)
     # date_processor.plot_num_val('runtime')
-    # date_processor.plot_num_val('succ')
-    date_processor.plot_w_val('runtime', [1.01, 1.02, 1.05, 1.10])
+    date_processor.plot_num_val('succ')
+    # date_processor.plot_w_val('succ', [1.01, 1.02, 1.05, 1.10])

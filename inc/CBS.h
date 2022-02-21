@@ -4,7 +4,7 @@
 #include "CorridorReasoning.h"
 #include "MutexReasoning.h"
 
-enum high_level_solver_type { ASTAR, ASTAREPS, NEW, EES, CLEANUP, CLEANUP_ASTAREPS};
+enum high_level_solver_type { ASTAR, ASTAREPS, NEW, EES, CLEANUP, CLEANUP_ASTAREPS, DPS};
 
 class CBS
 {
@@ -203,11 +203,11 @@ public:
 
 	CBS(const Instance& instance, bool sipp, int screen);
 	CBS(vector<SingleAgentSolver*>& search_engines,
-		const vector<ConstraintTable>& constraints,
+		vector<ConstraintTable>& constraints,
 		vector<Path>& paths_found_initially, int screen);
 	CBS(vector<SingleAgentSolver*>& search_engines,
-		const vector<ConstraintTable>& initial_constraints,
-		const list<Constraint>& root_constraints,
+		vector<ConstraintTable>& initial_constraints,
+		list<Constraint>& root_constraints,
 		vector<Path>& paths_found_initially, int screen,
 		CBSHeuristic& heuristic_helper, MDDTable& mdd_helper);
 	void clearSearchEngines();

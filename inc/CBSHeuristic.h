@@ -42,7 +42,7 @@ struct DoubleConstraintsHasher // Hash a CT node by constraints on two agents (l
 				if (curr->parent != nullptr)
 					curr = curr->parent;
 				else  // The root CT node may containt constraints (for inner solver)
-					break;				
+					break;
 			}
 			curr = h2.n;
 			while (true)
@@ -64,7 +64,7 @@ struct DoubleConstraintsHasher // Hash a CT node by constraints on two agents (l
 				if (curr->parent != nullptr)
 					curr = curr->parent;
 				else  // The root CT node may containt constraints (for inner solver)
-					break;	
+					break;
 			}
 			if (cons1[0].size() != cons1[1].size() || cons2[0].size() != cons2[1].size())
 				return false;
@@ -116,7 +116,7 @@ struct DoubleConstraintsHasher // Hash a CT node by constraints on two agents (l
 				}
 				if (curr->parent != nullptr)
 					curr = curr->parent;
-				else
+				else  // The root CT node may containt constraints (for inner solver)
 					break;
 			}
 			return cons1_hash ^ (cons2_hash << 1);
@@ -152,14 +152,14 @@ public:
 	uint64_t num_solve_2agent_problems = 0;
 	uint64_t num_memoization = 0; // number of times when memorization helps
 
-	 //stats
+	// stats
 	list<tuple<int, int, const HLNode*, uint64_t, int> > sub_instances; 	// <agent 1, agent 2, node, number of expanded CT nodes, h value> 
 
 	CBSHeuristic(int num_of_agents,
-							const vector<Path*>& paths,
-							vector<SingleAgentSolver*>& search_engines,
-							const vector<ConstraintTable>& initial_constraints,
-							MDDTable& mdd_helper) : num_of_agents(num_of_agents),
+				vector<Path*>& paths,
+				vector<SingleAgentSolver*>& search_engines,
+				vector<ConstraintTable>& initial_constraints,
+				MDDTable& mdd_helper) : num_of_agents(num_of_agents),
 		paths(paths), search_engines(search_engines), initial_constraints(initial_constraints), mdd_helper(mdd_helper) {}
 	
 	void init()
@@ -196,6 +196,16 @@ public:
 		for (const vector<int>& _ma_ : meta_agents)
 			for (const int& _ag_ : _ma_)
 				ma_vec[_ag_] = true;
+	}
+
+	inline void setInitConstraints(vector<ConstraintTable> in_cons_table)
+	{
+		initial_constraints = in_cons_table;
+	}
+
+	inline void setInitConstraints(ConstraintTable in_cons, int agent)
+	{
+		initial_constraints[agent] = in_cons;
 	}
 
 	void setInadmissibleHeuristics(heuristics_type h)
@@ -260,17 +270,16 @@ private:
 	int ILP_edge_threshold = 10; // when #edges >= ILP_edge_threshold, use ILP solver; otherwise, use DP solver
 	int ILP_value_threshold = 32; // when value >= ILP_value_threshold, use ILP solver; otherwise, use DP solver
 	// TODO: run some experiments to pick a good ILP_node_threshold
-	const vector<Path*>& paths;
+	vector<Path*>& paths;
 	const vector<SingleAgentSolver*>& search_engines;
-	const vector<ConstraintTable>& initial_constraints;  // This is for solve2agent function
+	vector<ConstraintTable>& initial_constraints;  // This is for solve2agent function
 	MDDTable& mdd_helper;
 
 	void buildConflictGraph(vector<bool>& HG, const HLNode& curr);
 	void buildCardinalConflictGraph(CBSNode& curr, vector<int>& CG, int& num_of_CGedges);
 	bool buildDependenceGraph(CBSNode& node, vector<int>& CG, int& num_of_CGedges);
 	bool buildWeightedDependencyGraph(CBSNode& curr, vector<int>& CG);
-	bool buildWeightedDependencyGraph(ECBSNode& node, const vector<int>& min_f_vals, vector<int>& CG, int& delta_g, 
-		HyperGraph& hyper_edges);
+	bool buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& WDG, vector<int>& ag_fmin, vector<int>& ag_fmax);
 	bool dependent(int a1, int a2, HLNode& node); // return true if the two agents are dependent
 	pair<int, int> solve2Agents(int a1, int a2, const CBSNode& node, bool cardinal); // return h value and num of CT nodes
     tuple<int, int, int> solve2Agents(int a1, int a2, const ECBSNode& node); // return h value and num of CT nodes
@@ -282,15 +291,12 @@ private:
 	int greedyMatching(const vector<bool>& CG, int cols);
     static int greedyMatching(const std::vector<int>& CG,  int cols);
     int greedyWeightedMatching(const vector<int>& CG, int cols);
-	int greedyWeightedMatching(const HyperGraph& G,  int cols);
-	int minimumWeightedVertexCover(const vector<int>& HG, const vector<int>& min_f_vals, const HyperGraph& HE);
+	int minimumWeightedVertexCover(const vector<int>& HG);
 	// int minimumConstrainedWeightedVertexCover(const vector<int>& CG);
 	int weightedVertexCover(const vector<int>& CG);
-	int weightedHyperEdgeVertexCover(const vector<int>& HG, const vector<int> min_f_vals, const HyperGraph& HE);
 	int DPForWMVC(vector<int>& x, int i, int sum, const vector<int>& CG, const vector<int>& range, int& best_so_far); // dynamic programming
-	int ILPForWMVC(const vector<int>& CG, const vector<int>& node_max_value) const; // Integer linear programming
-	int ILPForHyperEdgeWMVC(const vector<int>& CG, const vector<int>& node_max_value, 
-		const vector<int>& min_f_vals, const HyperGraph& HE) const; // Integer linear programming for hyper-edge WMVC
+	// int ILPForWMVC(const vector<int>& CG, const vector<int>& range) const; // Integer linear programming
+	int ILPForEWMVC(const AdjEdges& WDG, const vector<int>& ag_fmin, const vector<int>& ag_fmax);  // Integer linear programming for hyper-edge WMVC
 	int ILPForConstrainedWMVC(const std::vector<int>& CG, const std::vector<int>& range);
 	int DPForConstrainedWMVC(vector<bool>& x, int i, int sum, const vector<int>& CG, const vector<int>& range, int& best_so_far);
 };

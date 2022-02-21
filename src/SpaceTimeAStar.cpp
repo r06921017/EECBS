@@ -15,7 +15,7 @@ void SpaceTimeAStar::updatePath(const LLNode* goal, vector<PathEntry> &path)
 
 
 Path SpaceTimeAStar::findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
-	const vector<Path*>& paths, int agent, int lowerbound)
+	vector<Path*>& paths, int agent, int lowerbound)
 {
 	return findSuboptimalPath(node, initial_constraints, paths, agent, lowerbound, 1).first;
 }
@@ -26,7 +26,7 @@ Path SpaceTimeAStar::findOptimalPath(const HLNode& node, const ConstraintTable& 
 // minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).
 // lowerbound is an underestimation of the length of the path in order to speed up the search.
 pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
-	const vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb, int other_sum_cost,
+	vector<Path*>& paths, int agent, int lowerbound, double w, int other_sum_lb, int other_sum_cost,
 	int outer_sum_lb, double single_flex, int hl_h_val)
 {
 	this->w = w;
@@ -46,6 +46,22 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 
 	int holding_time = constraint_table.getHoldingTime(); // the earliest timestep that the agent can hold its goal location. The length_min is considered here.
 	t = clock();
+
+	// for (int i = 0; i < paths.size(); i++)
+	// {
+	// 	if (paths[i] == nullptr)
+	// 	{
+	// 		cout << "Agent " << i << " has no path!" << endl;
+	// 	}
+	// 	else
+	// 	{
+	// 		cout << "Agent " << i << " (" << paths[i]->size() - 1 << "): ";
+	// 		for (const auto & t : *paths[i])
+	// 			cout << t.location << "->";
+	// 		cout << endl;	
+	// 	}
+	// }
+
 	constraint_table.buildCAT(agent, paths, node.makespan + 1);
 	runtime_build_CAT = (double)(clock() - t) / CLOCKS_PER_SEC;
 
@@ -96,7 +112,7 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 				{
 					continue;
 				}
-				next_timestep--;
+				next_timestep--;  // fix the next_timestep to be spacial A* without timesteps
 			}
 
 			if (constraint_table.constrained(next_location, next_timestep) ||

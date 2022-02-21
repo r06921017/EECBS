@@ -34,7 +34,7 @@ public:
 	    cat.clear();
 	}
 	void build(const HLNode& node, int agent); // build the constraint table for the given agent at the give node 
-	void buildCAT(int agent, const vector<Path*>& paths, size_t cat_size); // build the conflict avoidance table
+	void buildCAT(int agent, vector<Path*>& paths, size_t cat_size); // build the conflict avoidance table
 
 	void insert2CT(size_t loc, int t_min, int t_max); // insert a vertex constraint to the constraint table
 	void insert2CT(size_t from, size_t to, int t_min, int t_max); // insert an edge constraint to the constraint table

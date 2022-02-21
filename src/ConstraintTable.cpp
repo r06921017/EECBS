@@ -218,7 +218,7 @@ void ConstraintTable::build(const HLNode& node, int agent)
 
 
 // build the conflict avoidance table
-void ConstraintTable::buildCAT(int agent, const vector<Path*>& paths, size_t cat_size)
+void ConstraintTable::buildCAT(int agent, vector<Path*>& paths, size_t cat_size)
 {
 	cat_size = std::max(cat_size, (size_t)latest_timestep);
 	cat.resize(cat_size, vector<bool>(map_size, false));
