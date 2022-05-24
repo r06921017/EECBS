@@ -57,7 +57,13 @@ void HLNode::printConstraints(int id) const
                     break;
                 case constraint_type::GLENGTH:
                 case constraint_type::VERTEX:
+					if (a == id)
+                        cout << constraint << ",";
+                    break;
                 case  constraint_type::EDGE:
+					if (a == id)
+                        cout << constraint << ",";
+                    break;
                 case constraint_type::BARRIER:
                 case constraint_type::RANGE:
                     if (a == id)

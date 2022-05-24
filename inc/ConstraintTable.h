@@ -23,9 +23,11 @@ public:
 	ConstraintTable() = default;
 	ConstraintTable(size_t num_col, size_t map_size, int goal_location = -1) : goal_location(goal_location), num_col(num_col), map_size(map_size) {}
 	ConstraintTable(const ConstraintTable& other) {copy(other); }
+	ConstraintTable(const ConstraintTable* other) {copy(other); }
     ~ConstraintTable() = default;
 
 	void copy(const ConstraintTable& other);
+	void copy(const ConstraintTable* other);
 	void init(const ConstraintTable& other) {copy(other); }
 	void clear()
 	{
@@ -34,11 +36,13 @@ public:
 	    cat.clear();
 	}
 	void build(const HLNode& node, int agent); // build the constraint table for the given agent at the give node 
+	void build(const list<Constraint>& _constraints_, int agent);  // build the constraint table for the given list of constraints
 	void buildCAT(int agent, vector<Path*>& paths, size_t cat_size); // build the conflict avoidance table
 
 	void insert2CT(size_t loc, int t_min, int t_max); // insert a vertex constraint to the constraint table
 	void insert2CT(size_t from, size_t to, int t_min, int t_max); // insert an edge constraint to the constraint table
 	void printCT(void) const;
+	inline bool isCTEmpty(void) const {return ct.empty();}
 
 protected:
     // Constraint Table (CT), hard constraints

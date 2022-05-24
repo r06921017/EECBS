@@ -7,10 +7,11 @@ class ECBS : public CBS
 {
 public:
 	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {}
-	ECBS(vector<SingleAgentSolver*>& search_engines, 
-		vector<ConstraintTable>& init_constraints,
-		vector<Path>& init_paths, 
-		vector<int>& init_min_f_vals, int screen) : CBS(search_engines, init_constraints, init_paths, screen)
+	ECBS(vector<SingleAgentSolver*>& search_engines,
+		vector<ConstraintTable*> init_constraints,
+		vector<Path>& init_paths,
+		vector<int>& init_min_f_vals, 
+		int screen): CBS(search_engines, init_constraints, init_paths, screen)
 	{
 		paths_found_initially.resize(num_of_agents);
 		for (int _ag_ = 0; _ag_ < num_of_agents; _ag_ ++)
@@ -21,12 +22,12 @@ public:
 	}
 
 	ECBS(vector<SingleAgentSolver*>& search_engines,
-		vector<ConstraintTable>& init_constraints,
+		vector<ConstraintTable*> init_constraints,
 		list<Constraint>& root_constaints,  // The same property as init_constraints
 		vector<Path>& init_paths,
 		vector<int>& init_min_f_vals,
 		int screen,
-		CBSHeuristic& heuristic_helper, MDDTable& mdd_helper) : 
+		CBSHeuristic* heuristic_helper, MDDTable* mdd_helper):
 		CBS(search_engines, init_constraints, root_constaints, init_paths, screen, 
 			heuristic_helper, mdd_helper)
 	{
@@ -69,8 +70,7 @@ private:
 	// high level search
 	bool generateChild(ECBSNode* child, ECBSNode* curr, int child_idx=0);
 	bool generateRoot();
-	bool findPathForSingleAgent(ECBSNode* node, int ag, bool is_single=true);
-	pair<Path, int> refinePath(ECBSNode* node, int ag);
+	bool findPathForSingleAgent(ECBSNode* node, int ag);
 	bool findPathForMetaAgent(ECBSNode* node, const vector<int>& ma1, const vector<int>& ma2=vector<int>());
 	void classifyConflicts(ECBSNode &node);
 	void computeConflictPriority(shared_ptr<Conflict>& con, ECBSNode& node);

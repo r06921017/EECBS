@@ -22,7 +22,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 
 	if (is_solver && screen > 1)  // Debug: check initial constraints
 	{
-		cout << "Inner ECBS:" << endl;
+		cout << "\n**********************" << endl;
+		cout << "Inner EECBS:" << endl;
 		for (const vector<int>& _ma_ : meta_agents)
 		{
 			for (const int& _ag_ : _ma_)
@@ -64,6 +65,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		auto curr = selectNode();  // update focal list and select the CT node
 
 		// Debug
+		assert(curr->g_val <= curr->sum_of_costs);
 		assert((double) curr->sum_of_costs <= suboptimality * max(curr->getFVal(), init_sum_lb));
 		assert((double) curr->sum_of_costs <= suboptimality * max(cleanup_head->getFVal(), init_sum_lb));
 
@@ -135,6 +137,17 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 				cout << "debug_lb: " << debug_lb << endl;
 				if (solution_found)
 					assert(debug_lb <= cost_lowerbound);
+
+				if (is_solver)  // Print the paths of meta-agents
+				{
+					for (const auto& ma : meta_agents)
+					{
+						for (const int& ag : ma)
+						{
+							printAgentPath(ag, paths[ag]);
+						}
+					}
+				}
 				// end debug
 			}
 			return solution_found;
@@ -154,7 +167,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		     !curr->h_computed) // heuristics has not been computed yet
 		{
             runtime = (double)(clock() - start) / CLOCKS_PER_SEC;
-            bool succ = heuristic_helper.computeInformedHeuristics(*curr, min_f_vals, time_limit - runtime);
+            bool succ = heuristic_helper->computeInformedHeuristics(*curr, min_f_vals, time_limit-runtime);
             runtime = (double)(clock() - start) / CLOCKS_PER_SEC;
             if (!succ) // no solution, so prune this node
             {
@@ -281,7 +294,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 						curr->is_merged = true;
 
 						findConflicts(*curr);
-						heuristic_helper.computeQuickHeuristics(*curr);
+						heuristic_helper->computeQuickHeuristics(*curr);
 						pushNode(curr);
 						assert(curr->g_val <= curr->sum_of_costs);
 						assert(curr->sum_of_costs <= suboptimality * curr->g_val);
@@ -371,7 +384,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					// 	printConflicts(*curr, 8, 72);
 					// 	cout << endl;
 					// }
-					heuristic_helper.computeQuickHeuristics(*curr);
+					heuristic_helper->computeQuickHeuristics(*curr);
 					pushNode(curr);
 
 					// // Debug
@@ -476,7 +489,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		if (curr->conflict->priority == conflict_priority::CARDINAL)
 			num_cardinal_conflicts++;
         if (!curr->children.empty())
-            heuristic_helper.updateOnlineHeuristicErrors(*curr); // update online heuristic errors
+            heuristic_helper->updateOnlineHeuristicErrors(*curr); // update online heuristic errors
 
 		if (!curr->is_merged)  // Only clear conflicts if curr is not reinserted to lists (due to merging)
 			curr->clear();
@@ -596,14 +609,14 @@ bool ECBS::generateRoot()
 
 	if (!is_solver)
 	{
-		mdd_helper.init(num_of_agents);
-		heuristic_helper.init();  // Reset lookupTable in the heuristic_helper
-		vector<int> flatten_ma;
-		flatten_ma.reserve(meta_agents.size());
-		for (const vector<int>& _ma_ : meta_agents)
-			for (const int& _ag_ : _ma_)
-				flatten_ma.push_back(_ag_);
-		heuristic_helper.setMetaAgents(flatten_ma);
+		mdd_helper->init(num_of_agents);
+		heuristic_helper->init();  // Reset lookupTable in the heuristic_helper
+		// vector<int> flatten_ma;
+		// flatten_ma.reserve(meta_agents.size());
+		// for (const vector<int>& _ma_ : meta_agents)
+		// 	for (const int& _ag_ : _ma_)
+		// 		flatten_ma.push_back(_ag_);
+		heuristic_helper->setMetaAgents(meta_agents);
 	}
 
 	if (!path_initialize)
@@ -633,7 +646,7 @@ bool ECBS::generateRoot()
 				min_f_vals[ag] = search_engines[ag]->my_heuristic[search_engines[ag]->start_location];
 			}
 
-			initial_g_val += min_f_vals[ag];
+			initial_g_val += min_f_vals[ag];  // This is the case we don't use flex
 		}
 	}
 
@@ -807,16 +820,20 @@ bool ECBS::generateRoot()
 	root->h_val = 0;
 	root->depth = 0;
 	root->constraints = root_constraints;
-    heuristic_helper.computeQuickHeuristics(*root);
+    heuristic_helper->computeQuickHeuristics(*root);
 	root->potential = (suboptimality * root->getFVal() - root->sum_of_costs) / root->h_val;
 	pushNode(root);
 	dummy_start = root;
 
-	if (is_solver && screen == 2)
-		printPaths();
-	
+	// if (is_solver && screen == 2)
+	// 	printPaths();
+
 	if (screen == 3)
 		cout << "Generate root" << endl;
+
+	if (!is_solver && screen > 1)
+		for (int tmp_ag = 0; tmp_ag < num_of_agents; tmp_ag++)
+			assert(initial_constraints[tmp_ag]->isCTEmpty());
 
 	return true;
 }
@@ -840,7 +857,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 	for (auto agent : agents)
 	{
 		vector<int> invalid_ma = findMetaAgent(agent);
-		if (invalid_ma.size() == 1)
+		if (invalid_ma.size() == 1)  // Replanning for a single agent
 		{
 			if (!findPathForSingleAgent(node, agent))
 			{
@@ -866,7 +883,7 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 	assert(parent->g_val <= node->g_val);
 
 	findConflicts(*node);
-	heuristic_helper.computeQuickHeuristics(*node);
+	heuristic_helper->computeQuickHeuristics(*node);
 	node->potential = (suboptimality * getLowerBound() - node->sum_of_costs) / node->h_val;  // For DPS
 
 	updateConflictImpacts(*node, *parent, child_idx);
@@ -875,10 +892,26 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 }
 
 
-bool ECBS::findPathForSingleAgent(ECBSNode* node, int ag, bool is_single)
+bool ECBS::findPathForSingleAgent(ECBSNode* node, int ag)
 {
 	clock_t t = clock();
 	pair<Path, int> new_path;
+	vector<int> related_ma = findMetaAgent(ag);
+	int max_lb = 0;
+	int other_ma_sum_indiv_lb = 0;
+	if (related_ma.size() > 1)  // This agent belongs to a meta-agent
+	{
+		max_lb = node->ma_lb[related_ma];
+		for (int tmp_ag : related_ma)
+			if (tmp_ag != ag)
+				other_ma_sum_indiv_lb += min_f_vals[tmp_ag];
+	}
+	else
+	{
+		assert(related_ma.size() == 1);
+		max_lb = min_f_vals[ag];
+	}
+
 	if (use_flex)
 	{
 		if (screen > 1)
@@ -901,8 +934,9 @@ bool ECBS::findPathForSingleAgent(ECBSNode* node, int ag, bool is_single)
 		int other_sum_lb = node->g_val - min_f_vals[ag];
 		int other_sum_cost = node->sum_of_costs - (int) paths[ag]->size() + 1;
 
-		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
-			suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
+		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], 
+			paths, ag, min_f_vals[ag], suboptimality, other_sum_lb, other_sum_cost,
+			init_sum_lb, flex, node->h_val);
 
 		// // Flex restriction
 		// bool not_use_flex;
@@ -940,7 +974,9 @@ bool ECBS::findPathForSingleAgent(ECBSNode* node, int ag, bool is_single)
 	}
 	else
 	{
-		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
+		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], 
+			paths, ag, min_f_vals[ag], suboptimality);
+		assert(new_path.second <= new_path.first.size() - 1);  // lower bound <= path cost
 	}
 
 	num_LL_expanded += search_engines[ag]->num_expanded;
@@ -952,7 +988,15 @@ bool ECBS::findPathForSingleAgent(ECBSNode* node, int ag, bool is_single)
 	runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
 	if (new_path.first.empty())
 		return false;
-	assert(!isSamePath(*paths[ag], new_path.first));
+
+	if (isSamePath(*paths[ag], new_path.first))
+	{
+		cout << "Old path: " << endl;
+		printAgentPath(ag, paths[ag]);
+		cout << "New path: " << endl;
+		printAgentPath(ag, &new_path.first);
+		assert(!isSamePath(*paths[ag], new_path.first));
+	}
 	
 	// if (screen > 1)
 	// {
@@ -963,13 +1007,12 @@ bool ECBS::findPathForSingleAgent(ECBSNode* node, int ag, bool is_single)
 	// 	cout << "old node soc: " << node->sum_of_costs << endl;
 	// }
 
-	if (is_single)
-	{
-		node->g_val = node->g_val + max(new_path.second - min_f_vals[ag], 0);
-		if (node->parent != nullptr)
-			node->h_val = max(0, node->parent->getFVal() - node->g_val); // pathmax
-	}
-
+	// max_lb could be the lower bound of the single agent if it does not belong to any meta-agent
+	// other_ma_sum_indiv_lb is 0 if the single agent does not belong to any meta-agent
+	node->g_val = node->g_val + max(new_path.second + other_ma_sum_indiv_lb - max_lb, 0);
+	// if (node->parent != nullptr)
+	// 	node->h_val = max(0, node->parent->getFVal() - node->g_val); // pathmax
+	heuristic_helper->computeQuickHeuristics(*node);
 	node->sum_of_costs = node->sum_of_costs - (int) paths[ag]->size() + (int) new_path.first.size();
 	if (screen > 1)
 	{
@@ -977,7 +1020,10 @@ bool ECBS::findPathForSingleAgent(ECBSNode* node, int ag, bool is_single)
 		if (!use_flex)
 			assert(new_path.first.size() - 1 <= suboptimality * new_path.second);
 	}
-	min_f_vals[ag] = max(new_path.second, min_f_vals[ag]);  // make sure the recorded lower bound is always the maximum
+	// make sure the recorded individual lower bound is always the maximum
+	min_f_vals[ag] = max(new_path.second, min_f_vals[ag]);
+	if (related_ma.size() > 1)
+		node->ma_lb[related_ma] = max(max_lb, new_path.second + other_ma_sum_indiv_lb);
 	new_path = make_pair(new_path.first, min_f_vals[ag]);
 
 	removeNodeAgentPath(node, ag);  // Remove existing path from the node before emplacing new path for this agent
@@ -993,124 +1039,6 @@ bool ECBS::findPathForSingleAgent(ECBSNode* node, int ag, bool is_single)
 	return true;
 }
 
-// pair<Path, int> ECBS::refinePath(ECBSNode* node, int ag)
-// {
-// 	clock_t t = clock();
-// 	pair<Path, int> new_path;
-// 	if (use_flex)
-// 	{
-// 		if (screen > 1)
-// 		{
-// 			assert((double) node->sum_of_costs <= suboptimality * node->getFVal());
-// 			int tmp_cost = 0;
-// 			int tmp_lb = 0;
-// 			for (const vector<int>& ma : meta_agents)
-// 			{
-// 				for (const int& ag : ma)
-// 				{
-// 					tmp_cost += (int) paths[ag]->size() - 1;
-// 					tmp_lb += min_f_vals[ag];
-// 				}
-// 			}
-// 			assert(tmp_cost == node->sum_of_costs);
-// 			assert(tmp_lb == node->g_val);
-// 		}
-
-// 		int other_sum_lb = node->g_val - min_f_vals[ag];
-// 		int other_sum_cost = node->sum_of_costs - (int) paths[ag]->size() + 1;
-
-// 		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
-// 			suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
-
-// 		// // Flex restriction
-// 		// bool not_use_flex;
-// 		// if (node == dummy_start || node->parent == dummy_start)
-// 		// {
-// 		// 	not_use_flex = true;
-// 		// }
-// 		// else
-// 		// {
-// 		// 	not_use_flex = node->parent->chosen_from == "cleanup" || 
-// 		// 		node->parent->conflict->priority == conflict_priority::CARDINAL || 
-// 		// 		node->parent->g_val < node->g_val;
-// 		// }
-
-// 		// if (suboptimality* (double) other_sum_lb - (double) other_sum_cost >= 0 && not_use_flex)
-// 		// {
-// 		// 	// Not use flex if the CT node is from cleanup or the conflict is cardinal
-// 		// 	new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
-
-// 		// 	node->use_flex = false;
-// 		// 	if (not_use_flex)
-// 		// 		node->cannot_use_flex = true;
-// 		// }
-
-// 		// else
-// 		// {
-// 		// 	new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag],
-// 		// 		suboptimality, other_sum_lb, other_sum_cost, init_sum_lb, flex, node->h_val);
-
-// 		// 	node->use_flex = true;
-// 		// 	if (suboptimality* (double) other_sum_lb - (double) other_sum_cost < 0)
-// 		// 		node->no_more_flex = true;
-// 		// }
-// 		// // End Flex restrictions
-// 	}
-// 	else
-// 	{
-// 		new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
-// 	}
-
-// 	num_LL_expanded += search_engines[ag]->num_expanded;
-// 	num_LL_generated += search_engines[ag]->num_generated;
-// 	node->ll_generated = search_engines[ag]->num_generated;
-
-// 	runtime_build_CT += search_engines[ag]->runtime_build_CT;
-// 	runtime_build_CAT += search_engines[ag]->runtime_build_CAT;
-// 	runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
-// 	if (new_path.first.empty())
-// 	{
-// 		cerr << "No such path!" << endl;
-// 		exit(-1);
-// 	}
-// 	assert(!isSamePath(*paths[ag], new_path.first));
-	
-// 	// if (screen > 1)
-// 	// {
-// 	// 	cout << "old path lb:" << min_f_vals[ag] << endl;
-// 	// 	cout << "new path lb:" << new_path.second << endl;
-// 	// 	cout << "old path cost: " << paths[ag]->size() - 1 << endl;
-// 	// 	cout << "new path cost: " << new_path.first.size() - 1 << endl;
-// 	// 	cout << "old node soc: " << node->sum_of_costs << endl;
-// 	// }
-
-// 	node->g_val = node->g_val + max(new_path.second - min_f_vals[ag], 0);
-// 	if (node->parent != nullptr)
-// 	    node->h_val = max(0, node->parent->getFVal() - node->g_val); // pathmax
-
-// 	node->sum_of_costs = node->sum_of_costs - (int) paths[ag]->size() + (int) new_path.first.size();
-// 	if (screen > 1)
-// 	{
-// 		// cout << "new node soc: " << node->sum_of_costs << endl;
-// 		if (!use_flex)
-// 			assert(new_path.first.size() - 1 <= suboptimality * new_path.second);
-// 	}
-// 	min_f_vals[ag] = max(new_path.second, min_f_vals[ag]);  // make sure the recorded lower bound is always the maximum
-// 	new_path = make_pair(new_path.first, min_f_vals[ag]);
-
-// 	removeNodeAgentPath(node, ag);  // Remove existing path from the node before emplacing new path for this agent
-// 	node->paths.emplace_back(ag, new_path);
-// 	paths[ag] = &node->paths.back().second.first;
-// 	node->makespan = max(node->makespan, new_path.first.size() - 1);
-
-// 	assert(node->sum_of_costs <= suboptimality * max(node->getFVal(), init_sum_lb));
-// 	assert(node->getFVal() >= node->parent->getFVal());
-// 	if (screen > 1)
-// 		collectPaths(node);
-
-// 	return true;
-// }
-
 
 // Plan a path for the meta agent in a child node
 // Collect constraints outside the function. 
@@ -1118,15 +1046,38 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 {
 	if (screen > 1)
 	{
-		cout << "\n--- find path for meta-agent ---" << endl;
+		cout << "\n--- Find path for meta-agent: " << num_merged << " ---" << endl;
 		cout << "At " << (*node) << endl;
-		cout << "Merge agents ";
+		if (ma2.empty())
+		{
+			cout << "Replan agents ";
+			for (const int& a1 : ma1)
+				cout << a1 << ", ";
+		}
+		else
+		{
+			cout << "Merge agents ";
+			for (const int& a1 : ma1)
+				cout << a1 << ", ";
+			cout << "and ";
+			for (const int& a2 : ma2)
+				cout << a2 << ", ";
+		}
+		cout << endl;	
+		cout << "Initial paths:" << endl;
 		for (const int& a1 : ma1)
-			cout << a1 << ", ";
-		cout << "and ";
-		for (const int& a2 : ma2)
-			cout << a2 << ", ";
-		cout << endl;
+		{
+			cout << "agent:" << a1 << " => init_lb:" << init_min_f_vals[a1];
+			cout << "; init_cost:" << getInitialPathLength(a1) << endl;
+		}
+		if (!ma2.empty())
+		{
+			for (const int& a2 : ma2)
+			{
+				cout << "agent:" << a2 << " => init_lb:" << init_min_f_vals[a2];
+				cout << "; init_cost:" << getInitialPathLength(a2) << endl;
+			}
+		}
 	}
 
 	// Set constraint to inner solver
@@ -1134,15 +1085,22 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	double outer_flex = 0.0;
 	int init_ma_sum_lb = 0;
 	int init_ma_soc = 0;
+	bool is_refined = false;
 
 	vector<bool> _ma_vec_ = vector<bool>(num_of_agents, false);
 	vector<Path> inner_init_paths(num_of_agents); 
 	vector<int> inner_min_f_vals(num_of_agents, 0);
-	vector<ConstraintTable> inner_constraints(initial_constraints);
+	vector<ConstraintTable*> inner_constraints(num_of_agents, nullptr);
+
+	if (!is_solver && screen > 1)
+		for (int tmp_ag = 0; tmp_ag < num_of_agents; tmp_ag++)
+			assert(initial_constraints[tmp_ag]->isCTEmpty());
 
 	if (screen > 1)
 	{
 		cout << "- joint lower bounds in the current meta-agents" << endl;
+		if (node->ma_lb.empty())
+			cout << "\tno meta-agents yet." << endl;
 		for (const auto& debug_lb : node->ma_lb)
 		{
 			cout << "[";
@@ -1156,7 +1114,8 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		int _tmp_cost_ = 0;
 		for (const int& _a1_ : ma1)
 		{
-			cout << "\t[" << _a1_ << "] cost: " << paths[_a1_]->size() - 1 << endl;
+			cout << "\t[" << _a1_ << "] cost: " << paths[_a1_]->size() - 1;
+			cout << ", lb: " << min_f_vals[_a1_] << endl;
 			_tmp_cost_ += paths[_a1_]->size() - 1;
 		}
 		cout << "\tSoC: " << _tmp_cost_ << endl;
@@ -1164,7 +1123,8 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		_tmp_cost_ = 0;
 		for (const int& _a2_ : ma2)
 		{
-			cout << "\t[" << _a2_ << "] cost: " << paths[_a2_]->size() - 1 << endl;
+			cout << "\t[" << _a2_ << "] cost: " << paths[_a2_]->size() - 1;
+			cout << ", lb: " << min_f_vals[_a2_] << endl;
 			_tmp_cost_ += paths[_a2_]->size() - 1;
 		}
 		cout << "\tSoC: " << _tmp_cost_ << endl;
@@ -1173,28 +1133,41 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		cout << "\tnode->sum_of_costs: " << node->sum_of_costs << endl;
 	}
 
-	// Determine sum of fmin of the meta-agent
-	if (ma1.size() > 1)
-		init_ma_sum_lb += node->ma_lb[ma1];
-	else
-		init_ma_sum_lb += min_f_vals[ma1.front()];
-
 	for (const int& _ag_ : ma1)
 	{
 		// Add external constraints to the meta-agent
-		inner_constraints[_ag_].build(*node, _ag_);
+		inner_constraints[_ag_] = new ConstraintTable(initial_constraints[_ag_]);
+		inner_constraints[_ag_]->build(*node, _ag_);
 		_ma_vec_[_ag_] = true;
+
+		if (screen > 1)
+			assert(initial_constraints[_ag_]->isCTEmpty());
 
 		// Initialize the paths, lowerbounds of the meta-agent
 		if (paths[_ag_] == nullptr)
 			init_ma_soc += min_f_vals[_ag_];
 		else
 		{
-			// Refine paths and min_f_vals if not bounded-suboptimal
-			if ((int)paths[_ag_]->size() - 1 > suboptimality * min_f_vals[_ag_])
+			// Refine paths and min_f_vals if not bounded-suboptimal or 
+			// there is constraint for replanning the meta-agent
+			bool need_refined = false;
+			if (ma2.empty())
 			{
+				for (const auto& tmp_con : node->constraints)
+				{
+					if (get<0>(tmp_con) == _ag_)
+					{
+						need_refined = true;
+						break;
+					}
+				}
+			}
+
+			if ((int)paths[_ag_]->size() - 1 > suboptimality * min_f_vals[_ag_] || need_refined)
+			{
+				is_refined = true;
 				clock_t replan_t = clock();
-				findPathForSingleAgent(node, _ag_, false);
+				findPathForSingleAgent(node, _ag_);
 				runtime_replan_ma += (double)(clock() - replan_t) / CLOCKS_PER_SEC;
 				num_pre_replan_ma += 1;
 				if (screen > 1) cout << "Refine [" << _ag_ << "]" << endl;
@@ -1204,20 +1177,23 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		}
 		inner_min_f_vals[_ag_] = min_f_vals[_ag_];
 	}
+	// Determine sum of fmin of the meta-agent
+	if (ma1.size() > 1)
+		init_ma_sum_lb += node->ma_lb[ma1];
+	else
+		init_ma_sum_lb += min_f_vals[ma1.front()];
 
 	if (!ma2.empty())  // If ma2 is not empty, then it must be merging ma1 and ma2
 	{
-		// Determine sum of fmin of the meta-agent
-		if (ma2.size() > 1)
-			init_ma_sum_lb += node->ma_lb[ma2];
-		else
-			init_ma_sum_lb += min_f_vals[ma2.front()];
-
 		for (const int& _ag_ : ma2)
 		{
 			// Add external constraints to the meta-agent
-			inner_constraints[_ag_].build(*node, _ag_);
+			inner_constraints[_ag_] = new ConstraintTable(initial_constraints[_ag_]);
+			inner_constraints[_ag_]->build(*node, _ag_);
 			_ma_vec_[_ag_] = true;
+
+			if (screen > 1)
+				assert(initial_constraints[_ag_]->isCTEmpty());
 
 			// Initialize the paths, lowerbounds of the meta-agent
 			if (paths[_ag_] == nullptr)
@@ -1227,8 +1203,9 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 				// Refine paths and min_f_vals if not bounded-suboptimal
 				if ((int)paths[_ag_]->size() - 1 > suboptimality * min_f_vals[_ag_])
 				{
+					is_refined = true;
 					clock_t replan_t = clock();
-					findPathForSingleAgent(node, _ag_, false);
+					findPathForSingleAgent(node, _ag_);
 					runtime_replan_ma += (double)(clock() - replan_t) / CLOCKS_PER_SEC;
 					num_pre_replan_ma += 1;
 					if (screen > 1) cout << "Refine [" << _ag_ << "]" << endl;
@@ -1238,6 +1215,11 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 			}
 			inner_min_f_vals[_ag_] = min_f_vals[_ag_];
 		}
+		// Determine sum of fmin of the meta-agent
+		if (ma2.size() > 1)
+			init_ma_sum_lb += node->ma_lb[ma2];
+		else
+			init_ma_sum_lb += min_f_vals[ma2.front()];
 
 		// Remove old meta-agents from the meta_agents and the ma_lb
 		node->ma_lb.erase(ma1);
@@ -1247,6 +1229,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	}
 
 	// Initialize the paths and the lower bounds of the rest of the agents
+	// ma1 and ma2 are already removed from the meta_agents
 	for (const vector<int>& _ma_ : meta_agents)
 	{
 		for (const int& _ag_ : _ma_)
@@ -1261,22 +1244,31 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	// Show the SoC after refining the initial paths in the meta-agent
 	if (screen > 1)
 	{
-		cout << "- costs in the current meta-agents AFTER refinement" << endl;
-		int _tmp_cost_ = 0;
-		for (const int& _a1_ : ma1)
+		if (is_refined)
 		{
-			cout << "\t[" << _a1_ << "] cost: " << paths[_a1_]->size() - 1 << endl;
-			_tmp_cost_ += paths[_a1_]->size() - 1;
-		}
-		cout << "\tSoC: " << _tmp_cost_ << endl;
+			cout << "- costs in the current meta-agents AFTER refinement" << endl;
+			int _tmp_cost_ = 0;
+			for (const int& _a1_ : ma1)
+			{
+				cout << "\t[" << _a1_ << "] cost: " << paths[_a1_]->size() - 1;
+				cout << ", lb: " << min_f_vals[_a1_] << endl;
+				_tmp_cost_ += paths[_a1_]->size() - 1;
+			}
+			cout << "\tSoC: " << _tmp_cost_ << endl;
 
-		_tmp_cost_ = 0;
-		for (const int& _a2_ : ma2)
-		{
-			cout << "\t[" << _a2_ << "] cost: " << paths[_a2_]->size() - 1 << endl;
-			_tmp_cost_ += paths[_a2_]->size() - 1;
+			if (!ma2.empty())
+			{
+				_tmp_cost_ = 0;
+				for (const int& _a2_ : ma2)
+				{
+					cout << "\t[" << _a2_ << "] cost: " << paths[_a2_]->size() - 1;
+					cout << ", lb: " << min_f_vals[_a2_] << endl;
+					_tmp_cost_ += paths[_a2_]->size() - 1;
+				}
+				cout << "\tSoC: " << _tmp_cost_ << endl;
+			}
 		}
-		cout << "\tSoC: " << _tmp_cost_ << endl;
+
 		cout << "\tnode->g_val: " << node->g_val << endl;
 		cout << "\tnode->sum_of_costs: " << node->sum_of_costs << endl;
 		cout << "- init_ma_sum_lb: " << init_ma_sum_lb << endl;
@@ -1285,7 +1277,6 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		int tmp_ag_lb = 0;
 		for (const int& a1 : ma1) tmp_ag_lb += min_f_vals[a1];
 		for (const int& a2 : ma2) tmp_ag_lb += min_f_vals[a2];
-		assert(tmp_ag_lb <= init_ma_sum_lb);
 	}
 	assert(init_ma_soc <= suboptimality * init_ma_sum_lb);
 
@@ -1307,38 +1298,91 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	}
 
 	// Collect constraints for lookup table in the inner solver
+	// Root CT node in Outer EECBS has no constraints
 	list<Constraint> inner_root_cons;
 	ECBSNode* tmp_node = node;
-	while (true)
+	while (tmp_node->parent != nullptr)
 	{
-		for (const auto& con : tmp_node->constraints)
+		// cout << "&&&&&&&&&&&&&&&& tmp_node: " << tmp_node->time_generated << endl;  // debug
+		for (const auto& constraint : tmp_node->constraints)
 		{
-			int _ag_ = get<0>(con);
-			// Add the initial constraint if the constraint is rerlated to the meta-agent
+			// cout << constraint << ", ";  // debug
+			int _ag_ = get<0>(constraint);
+			// Add the initial constraint if the constraint is related to the meta-agent
 			// Can be combined with ConstraintTable
 			if (_ma_vec_[_ag_])
-				inner_root_cons.push_back(con);
+			{
+				inner_root_cons.push_back(constraint);
+			}
+			else if (get<4>(constraint) == constraint_type::LEQLENGTH ||
+				get<4>(constraint) == constraint_type::POSITIVE_VERTEX ||
+				get<4>(constraint) == constraint_type::POSITIVE_EDGE)
+			{
+				inner_root_cons.push_back(constraint);
+			}
 		}
-		if (tmp_node->parent != nullptr)
-			tmp_node = tmp_node->parent;
-		else
-			break;
+		tmp_node = tmp_node->parent;
+		// cout << "end" << endl;  // debug
 	}
+
+	// if (screen > 1)
+	// {
+	// 	// Debug: check if the inner_root_cons and inner_constraints are the same
+	// 	for (int ag = 0; ag < num_of_agents; ag++)
+	// 	{
+	// 		if (_ma_vec_[ag])
+	// 		{
+	// 			ConstraintTable tmp_table = ConstraintTable(initial_constraints[ag]);
+	// 			cout << "***** initial tmp_table[" << ag << "] *****" << endl;
+	// 			initial_constraints[ag]->printCT();
+	// 			assert(initial_constraints[ag]->isCTEmpty());
+
+	// 			tmp_table.build(inner_root_cons, ag);
+	// 			cout << "***** tmp_table[" << ag << "] *****" << endl;
+	// 			tmp_table.printCT();
+	// 			cout << "***** end tmp_table[" << ag << "] *****" << endl;
+
+	// 			cout << "***** inner_constraints[" << ag << "] *****" << endl;
+	// 			inner_constraints[ag]->printCT();
+	// 			cout << "***** END inner_constraints[" << ag << "] *****" << endl;
+	// 			cout << endl;
+	// 		}
+	// 	}
+	// }
 
 	// Set the meta_agents for heuristic_helper
 	// CBSHeuristic inner_heuristic_helper(heuristic_helper);
 	// inner_heuristic_helper.setMetaAgents(joint_ma);
 	// inner_heuristic_helper.setInitConstraints(inner_constraints);
-	heuristic_helper.setMetaAgents(joint_ma);
-	heuristic_helper.setInitConstraints(inner_constraints);
+	heuristic_helper->setMetaAgents(joint_ma);
+	heuristic_helper->setInitConstraints(inner_constraints);
+
+	// if (!is_solver && screen > 1)
+	// 	for (int tmp_ag = 0; tmp_ag < num_of_agents; tmp_ag++)
+	// 	{
+	// 		if (!initial_constraints[tmp_ag]->isCTEmpty())
+	// 		{
+	// 			cout << "init constraint of ag:" << tmp_ag << " is not empty!" << endl;
+	// 			initial_constraints[tmp_ag]->printCT();
+	// 		}
+	// 		assert(initial_constraints[tmp_ag]->isCTEmpty());
+	// 	}
 
 	// Set initial constraints for MDD
 	// MDDTable inner_mdd_helper(mdd_helper);
 	// inner_mdd_helper.setInitConstraints(inner_constraints);
-	mdd_helper.setInitConstraints(inner_constraints);
+	mdd_helper->setInitConstraints(inner_constraints);
+
+	if (!is_solver && screen > 1)
+		for (int tmp_ag = 0; tmp_ag < num_of_agents; tmp_ag++)
+			assert(initial_constraints[tmp_ag]->isCTEmpty());
 
 	inner_solver = make_shared<ECBS>(ECBS(search_engines, inner_constraints, inner_root_cons,
 		inner_init_paths, inner_min_f_vals, 0, heuristic_helper, mdd_helper));
+
+	// if (!is_solver && screen > 1)
+	// 	for (int tmp_ag = 0; tmp_ag < num_of_agents; tmp_ag++)
+	// 		assert(initial_constraints[tmp_ag]->isCTEmpty());
 
 	inner_solver->setMetaAgents(joint_ma);  // Set the meta-agent for inner solver
 	inner_solver->setMAVector(_ma_vec_);
@@ -1347,8 +1391,8 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 	inner_solver->setPrioritizeConflicts(PC);
 	// inner_solver->setHeuristicType(heuristic_helper.type, 
 	// 	heuristic_helper.getInadmissibleHeuristics(), true);
-	// inner_solver->setHeuristicType(heuristics_type::WDG, heuristics_type::GLOBAL, true);
-	inner_solver->setHeuristicType(heuristics_type::ZERO, heuristics_type::ZERO, true);
+	inner_solver->setHeuristicType(heuristics_type::WDG, heuristics_type::GLOBAL, true);
+	// inner_solver->setHeuristicType(heuristics_type::ZERO, heuristics_type::ZERO, true);
 	inner_solver->setDisjointSplitting(disjoint_splitting);
 	inner_solver->setBypass(bypass);
 	inner_solver->setRectangleReasoning(rectangle_reasoning);
@@ -1391,6 +1435,10 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		cout << endl;
 	}
 
+	if (!is_solver && screen > 1)
+		for (int tmp_ag = 0; tmp_ag < num_of_agents; tmp_ag++)
+			assert(initial_constraints[tmp_ag]->isCTEmpty());
+
 	// Run inner solver for meta-agent
 	bool foundSol = inner_solver->solve(inner_time_limit, init_ma_sum_lb, MAX_COST);
 	if (screen > 1)
@@ -1405,11 +1453,24 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 
 	runtime_solver += inner_solver->runtime;
 
+	if (!is_solver && screen > 1)
+		for (int tmp_ag = 0; tmp_ag < num_of_agents; tmp_ag++)
+			assert(initial_constraints[tmp_ag]->isCTEmpty());
+
 	// Reset
-	heuristic_helper.setMetaAgents(meta_agents);  // Reset the meta_agent in heuristic helper
-	heuristic_helper.setInitConstraints(initial_constraints);
-	heuristic_helper.type = heuristics_type::WDG;  // Reset the heuristic type to WDG (from None)
-	mdd_helper.setInitConstraints(initial_constraints);
+	heuristic_helper->setMetaAgents(meta_agents);  // Reset the meta_agent in heuristic helper
+	heuristic_helper->setInitConstraints(initial_constraints);
+
+	if (!is_solver && screen > 1)
+		for (int tmp_ag = 0; tmp_ag < num_of_agents; tmp_ag++)
+			assert(initial_constraints[tmp_ag]->isCTEmpty());
+
+	heuristic_helper->type = heuristics_type::WDG;  // Reset the heuristic type to WDG (from None)
+	mdd_helper->setInitConstraints(initial_constraints);
+
+	if (!is_solver && screen > 1)
+		for (int tmp_ag = 0; tmp_ag < num_of_agents; tmp_ag++)
+			assert(initial_constraints[tmp_ag]->isCTEmpty());
 
 	if (foundSol)
 	{
@@ -1441,6 +1502,7 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		{
 			cout << "- new_sum_lb: " << new_sum_lb << endl;
 			cout << "- new_soc: " << inner_solver->solution_cost << endl;
+			assert(inner_solver->getLowerBound() <= inner_solver->solution_cost);
 		}
 
 		node->g_val = node->g_val + max(new_sum_lb - init_ma_sum_lb, 0);
@@ -1648,8 +1710,14 @@ ECBSNode* ECBS::selectNode()
 		}
 
 		// choose the best node
-		if (screen > 1 && cleanup_list.top()->getFVal() > cost_lowerbound)
-			cout << "Lowerbound increases from " << cost_lowerbound << " to " << cleanup_list.top()->getFVal() << endl;
+		if (screen > 1)
+		{
+			cout << "CLEANUP top: " << *cleanup_list.top() << endl;
+			if (!is_solver)
+				assert(cost_lowerbound <= cleanup_list.top()->getFVal());
+			if (cost_lowerbound < cleanup_list.top()->getFVal())
+				cout << "Lowerbound increases from " << cost_lowerbound << " to " << cleanup_list.top()->getFVal() << endl;
+		}
 		cost_lowerbound = max(cleanup_list.top()->getFVal(), cost_lowerbound);
 		if (focal_list.top()->sum_of_costs <= suboptimality * cost_lowerbound)
 		{ // return best d
@@ -1785,7 +1853,7 @@ ECBSNode* ECBS::selectNode()
 			focal_list.clear();
 			for (auto n : cleanup_list)
 			{
-				heuristic_helper.updateInadmissibleHeuristics(*n);
+				heuristic_helper->updateInadmissibleHeuristics(*n);
 				if (n->getFHatVal() <= new_focal_list_threshold)
 					n->focal_handle = focal_list.push(n);
 			}
@@ -2150,8 +2218,8 @@ void ECBS::classifyConflicts(ECBSNode &node)
 			type == constraint_type::VERTEX) // vertex conflict
 		{
 			// TODO: memorize the conflicts location for meta-agent to view it as vertex conflict
-			auto mdd1 = mdd_helper.getMDD(node, a1, paths[a1]->size());
-			auto mdd2 = mdd_helper.getMDD(node, a2, paths[a2]->size());
+			auto mdd1 = mdd_helper->getMDD(node, a1, paths[a1]->size());
+			auto mdd2 = mdd_helper->getMDD(node, a2, paths[a2]->size());
 			if (screen == 2 && is_solver)
 			{
 				printAgentPath(a1, paths[a1]);
@@ -2190,13 +2258,13 @@ void ECBS::computeConflictPriority(shared_ptr<Conflict>& con, ECBSNode& node)
 		cardinal1 = true;
 	else //if (!paths[a1]->at(0).is_single())
 	{
-		mdd1 = mdd_helper.getMDD(node, a1, paths[a1]->size());
+		mdd1 = mdd_helper->getMDD(node, a1, paths[a1]->size());
 	}
 	if (timestep >= (int)paths[a2]->size())
 		cardinal2 = true;
 	else //if (!paths[a2]->at(0).is_single())
 	{
-		mdd2 = mdd_helper.getMDD(node, a2, paths[a2]->size());
+		mdd2 = mdd_helper->getMDD(node, a2, paths[a2]->size());
 	}
 
 	if (type == constraint_type::EDGE) // Edge conflict

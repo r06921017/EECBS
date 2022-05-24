@@ -111,7 +111,7 @@ public:
 	uint64_t num_released_mdds = 0; // number of released MDDs ( to save memory)
 	bool is_init = false;  // debug
 
-	MDDTable(vector<ConstraintTable>& initial_constraints, 
+	MDDTable(vector<ConstraintTable*> initial_constraints, 
 		vector<SingleAgentSolver*>& search_engines):
 		initial_constraints(initial_constraints), search_engines(search_engines) {}
 	
@@ -121,12 +121,12 @@ public:
 		is_init = true;
 	}
 
-	inline void setInitConstraints(vector<ConstraintTable> in_cons_table)
+	inline void setInitConstraints(vector<ConstraintTable*> in_cons_table)
 	{
 		initial_constraints = in_cons_table;
 	}
 
-	inline void setInitConstraints(ConstraintTable in_cons, int agent)
+	inline void setInitConstraints(ConstraintTable* in_cons, int agent)
 	{
 		initial_constraints[agent] = in_cons;
 	}
@@ -143,7 +143,7 @@ private:
 	vector<unordered_map<ConstraintsHasher, MDD*, 
 		ConstraintsHasher::Hasher, ConstraintsHasher::EqNode> >lookupTable;
 
-	vector<ConstraintTable>& initial_constraints;
+	vector<ConstraintTable*> initial_constraints;
 	vector<SingleAgentSolver*>& search_engines;
 	void releaseMDDMemory(int id);
 };

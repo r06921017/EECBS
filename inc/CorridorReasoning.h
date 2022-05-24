@@ -12,7 +12,7 @@ public:
 	double accumulated_runtime = 0;
 
 	CorridorReasoning(const vector<SingleAgentSolver*>& search_engines,
-		const vector<ConstraintTable>& initial_constraints):
+		const vector<ConstraintTable*>& initial_constraints):
 		search_engines(search_engines), initial_constraints(initial_constraints) {}
 	
 	shared_ptr<Conflict> run(const shared_ptr<Conflict>& conflict,
@@ -20,7 +20,7 @@ public:
 
 private:
 	const vector<SingleAgentSolver*>& search_engines;
-	const vector<ConstraintTable>& initial_constraints;
+	const vector<ConstraintTable*>& initial_constraints;
 
 	shared_ptr<Conflict> findCorridorConflict(const shared_ptr<Conflict>& conflict,
 		const vector<Path*>& paths, const HLNode& node);

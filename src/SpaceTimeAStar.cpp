@@ -44,8 +44,19 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 		return {path, 0};
 	}
 
+	// // Debug: print constraint_table of single agent path
+	// cout << "single path of agent " << agent << " with w=" << w << endl; 
+	// constraint_table.printCT();
+	// // end debug
+
 	int holding_time = constraint_table.getHoldingTime(); // the earliest timestep that the agent can hold its goal location. The length_min is considered here.
 	t = clock();
+
+	// // Debug
+	// cout << "goal_location: " << constraint_table.goal_location << endl;
+	// cout << "length_min: " << constraint_table.length_min << endl;
+	// cout << "holding_time: " << holding_time << endl;
+	// // end debug
 
 	// for (int i = 0; i < paths.size(); i++)
 	// {
@@ -64,6 +75,10 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 
 	constraint_table.buildCAT(agent, paths, node.makespan + 1);
 	runtime_build_CAT = (double)(clock() - t) / CLOCKS_PER_SEC;
+
+	// // Debug: print constraints
+	// cout << "constraint_table of agent " << agent << endl;
+	// constraint_table.printCT();
 
     lowerbound =  max(holding_time, lowerbound);
 

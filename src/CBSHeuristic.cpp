@@ -212,8 +212,10 @@ void CBSHeuristic::computeQuickHeuristics(HLNode& node)
 	if (maxWeight < parent->h_val)
 	node->h_val = parent->h_val - maxWeight; // stronger pathmax
 	}*/
-	if (node.parent != nullptr)
-	    node.h_val = max(0, node.parent->g_val + node.parent->h_val - node.g_val); // pathmax
+	if (node.parent != nullptr && !node.h_computed)
+	    node.h_val = max(0, node.parent->getFVal() - node.g_val); // pathmax
+	else if (node.h_computed)
+		node.h_val = node.getFVal() - node.g_val;
 
     //vector<bool> HG(num_of_agents * num_of_agents, false);
     //buildConflictGraph(HG, node);
@@ -294,9 +296,9 @@ bool CBSHeuristic::computeInformedHeuristics(ECBSNode& curr, const vector<int>& 
 	start_time = clock();
 	this->time_limit = _time_limit;
 	int num_of_CGedges;
-	vector<int> ag_fmin = min_f_vals;
-	vector<int> ag_fmax = vector<int>(num_of_agents, 0);
-	AdjEdges WDG = curr.ma_lb;
+	vector<int> ag_fmin = min_f_vals;  // lower bound for the ILP solver
+	vector<int> ag_fmax = vector<int>(num_of_agents, 0);  // upper bound for the ILP solver
+	AdjEdges wdg_edges = curr.ma_lb;  // initialize with the sum of lbs of the meta-agents
 	int h = -1;
 
 	/* compute admissible heuristics */
@@ -307,9 +309,9 @@ bool CBSHeuristic::computeInformedHeuristics(ECBSNode& curr, const vector<int>& 
 		h = 0;
 		break;
 	case heuristics_type::WDG:
-		if (!buildWeightedDependencyGraph(curr, WDG, ag_fmin, ag_fmax))
+		if (!buildWeightedDependencyGraph(curr, wdg_edges, ag_fmin, ag_fmax))
 			return false;
-		h = ILPForEWMVC(WDG, ag_fmin, ag_fmax) - curr.g_val;
+		h = ILPForEWMVC(wdg_edges, ag_fmin, ag_fmax) - curr.g_val;
 		break;
 
 	default:
@@ -578,7 +580,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(CBSNode& node, vector<int>& CG)
 
 // WDG already contains the hyper edges from ECBSNode node, which is node.ma_lb;
 // ag_fmin is initialized to min_f_vals from ECBSNode node
-bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& WDG,
+bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& wdg_edges,
 	vector<int>& ag_fmin, vector<int>& ag_fmax)
 {
 	int a1, a2, edge_weight;
@@ -592,14 +594,18 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& WDG,
 		idx = vector<int>({a1, a2});
 
 		// We have computed the edge weight under the same constraints before
+		// The element of the lookupTable is
+		// <0: f value (SoC of the 2-agent problem),
+		//  1: a1 f at root CT node of CBS (opt path length (f_opt) under the current constraints),
+		//  2: a2 f at root CT node of CBS (opt path length (f_opt) under the current constraints)>
 		auto got = lookupTable[a1][a2].find(DoubleConstraintsHasher(a1, a2, &node));
 		if (got != lookupTable[a1][a2].end()) // check the lookup table first
 		{
 			num_memoization++;
 			edge_weight = get<0>(got->second);
-            WDG[idx]  = edge_weight;  // <0: f value, 1: a1 f at root, 2: a2 f at root>
-			ag_fmax[a1] = max(ag_fmax[a1], edge_weight);
-			ag_fmax[a2] = max(ag_fmax[a2], edge_weight);
+            wdg_edges[idx]  = edge_weight;  // The soc of the 2-agent problem
+			ag_fmax[a1] = max(ag_fmax[a1], edge_weight);  // Always updates the upper bound
+			ag_fmax[a2] = max(ag_fmax[a2], edge_weight);  // Always updates the upper bound
             if (!counted[a1])
             {
 				// Since a1 is not updated yet (counted is false), ag_fmin[a1] == min_f_vals[a1].
@@ -629,8 +635,8 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& WDG,
                 return false;
             }
 
-            edge_weight = get<0>(rst);
-			WDG[idx]  = edge_weight;  // <0: f value, 1: a1 f at root, 2: a2 f at root>
+            edge_weight = get<0>(rst);  // edge weight is the SOC of the 2-agent problem
+			wdg_edges[idx]  = edge_weight;  // <0: f value, 1: a1 f at root, 2: a2 f at root>
 			ag_fmax[a1] = max(ag_fmax[a1], edge_weight);
 			ag_fmax[a2] = max(ag_fmax[a2], edge_weight);
             if (!counted[a1])
@@ -647,7 +653,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& WDG,
             }
 		}
 
-        if (WDG[idx] == MAX_COST) // no solution
+        if (wdg_edges[idx] == MAX_COST) // no solution
             return false;
 	}
     for (const auto& conflict : node.unknownConf)
@@ -657,12 +663,18 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& WDG,
         idx = vector<int>({a1, a2});
 
 		// We have computed the edge weight under the same constraints before
+		// The element of the lookupTable is
+		// <0: f value (SoC of the 2-agent problem),
+		//  1: a1 f at root CT node of CBS (opt path length (f_opt) under the current constraints),
+		//  2: a2 f at root CT node of CBS (opt path length (f_opt) under the current constraints)>
         auto got = lookupTable[a1][a2].find(DoubleConstraintsHasher(a1, a2, &node));
         if (got != lookupTable[a1][a2].end()) // check the lookup table first
         {
+			// if (is_solver)  // debug
+			// 	cout << "get from lookup table" << endl;
             num_memoization++;
             edge_weight = get<0>(got->second);  // <0: h value, 1: a1 f at root, 2: a2 f at root>
-			WDG[idx]  = edge_weight;  // <0: f value, 1: a1 f at root, 2: a2 f at root>
+			wdg_edges[idx]  = edge_weight;  // <0: f value, 1: a1 f at root, 2: a2 f at root>
 			ag_fmax[a1] = max(ag_fmax[a1], edge_weight);
 			ag_fmax[a2] = max(ag_fmax[a2], edge_weight);
             if (!counted[a1])
@@ -680,10 +692,30 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& WDG,
         }
         else
         {
+			// if (is_solver)
+			// 	cout << "solve2Agents" << endl;
 			// rst = < SOC of the 2-agent problem, f_opt(a1), f_opt(a2)>
 			// f_opt is the optimal path cost under the constraint of this CT node, which is
 			// equivalent to the path cost at the root CT node while solving the 2-agent problem.
+
+			// if (a1 == 10 && a2 == 43)  // Debug
+			// {
+			// 	cout << "Constraints of agent " << a1 << endl;
+			// 	node.printConstraints(a1);
+			// 	cout << endl;
+			// 	cout << "Constraints of agent " << a2 << endl;
+			// 	node.printConstraints(a2);
+			// 	cout << endl;
+			// }  // end Debug
+
             tuple<int, int, int> rst = solve2Agents(a1, a2, node);
+			
+			// if (is_solver)
+			// {
+			// 	cout << "rst: <" << get<0>(rst) << ", " << get<1>(rst) << ", " 
+			// 		<< get<2>(rst) << ">" << endl;
+			// }
+
             lookupTable[a1][a2][DoubleConstraintsHasher(a1, a2, &node)] = rst;
             if ((clock() - start_time) / CLOCKS_PER_SEC > time_limit) // run out of time
             {
@@ -692,7 +724,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& WDG,
             }
 
             edge_weight = get<0>(rst);
-			WDG[idx]  = edge_weight;  // <0: f value, 1: a1 f at root, 2: a2 f at root>
+			wdg_edges[idx]  = edge_weight;  // <0: f value, 1: a1 f at root, 2: a2 f at root>
 			ag_fmax[a1] = max(ag_fmax[a1], edge_weight);
 			ag_fmax[a2] = max(ag_fmax[a2], edge_weight);
             if (!counted[a1])
@@ -709,13 +741,30 @@ bool CBSHeuristic::buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& WDG,
             }
         }
 
-        if (WDG[idx] == MAX_COST) // no solution
+        if (wdg_edges[idx] == MAX_COST) // no solution
             return false;
     }
 
 	// Ensure fmax >= fmin for all agents
 	for (int ag = 0; ag < num_of_agents; ag++)
-		ag_fmax[ag] = max(ag_fmin[ag], ag_fmax[ag]);
+	{
+		if (ma_vec[ag])
+		{
+			// Internal agents, which will be calculated
+			// If there is no conflicts for this agent, then ag_fmax is still initialized to 0
+			// Thus, we need to set ag_fmax to ag_fmin for internal agents without conflicts
+			ag_fmax[ag] = max(ag_fmin[ag], ag_fmax[ag]);
+		}
+		else
+		{
+			// External agents, which will be ignored by the inner EECBS
+			assert(ag_fmax[ag] == 0);
+			ag_fmin[ag] = 0;
+		}
+	}
+
+	// if (is_solver)  // debug
+	// 	printEdgeWeights(wdg_edges);
 
 	runtime_build_dependency_graph += (double)(clock() - start_time) / CLOCKS_PER_SEC;
 	return true;
@@ -726,9 +775,10 @@ pair<int, int> CBSHeuristic::solve2Agents(int a1, int a2, const CBSNode& node, b
 {
 	vector<SingleAgentSolver*> engines{search_engines[a1],   search_engines[a2]};
 	vector<vector<PathEntry>> initial_paths{*paths[a1], *paths[a2]};
-	vector<ConstraintTable> constraints{ConstraintTable(initial_constraints[a1]), ConstraintTable(initial_constraints[a2]) };
-	constraints[0].build(node, a1);
-	constraints[1].build(node, a2);
+	vector<ConstraintTable*> constraints{new ConstraintTable(initial_constraints[a1]), 
+		new ConstraintTable(initial_constraints[a2])};
+	constraints[0]->build(node, a1);
+	constraints[1]->build(node, a2);
 	CBS cbs(engines, constraints, initial_paths, screen);
 	// setUpSubSolver(cbs);
 	cbs.setPrioritizeConflicts(PC);
@@ -775,17 +825,39 @@ pair<int, int> CBSHeuristic::solve2Agents(int a1, int a2, const CBSNode& node, b
 // return optimal f and a1_shortestpath * #agents + a2_shortestpath
 tuple<int, int, int> CBSHeuristic::solve2Agents(int a1, int a2, const ECBSNode& node)
 {
+	// Debug
+	// cout << "\n<--- solve2Agent of agents " << a1 << " and " << a2 << " --->" << endl;
+	// end debug
+
 	vector<SingleAgentSolver*> engines{ search_engines[a1],   search_engines[a2] };
-	vector<vector<PathEntry>> initial_paths;
-	vector<ConstraintTable> constraints{ ConstraintTable(initial_constraints[a1]), ConstraintTable(initial_constraints[a2]) };
-	constraints[0].build(node, a1);
-	constraints[1].build(node, a2);
+	vector<Path> initial_paths;
+	vector<ConstraintTable*> constraints{new ConstraintTable(initial_constraints[a1]), 
+		new ConstraintTable(initial_constraints[a2])};
+	constraints[0]->build(node, a1);
+	constraints[1]->build(node, a2);
+
+	// // Debug
+	// cout << "constraints of agent " << a1 << endl;
+	// constraints[0]->printCT();
+	// cout << "constraints of agent " << a2 << endl;
+	// constraints[1]->printCT();
+	// cout << endl;
+	// if (a1 == 10 && a2 == 43)
+	// {
+	// 	cout << "constraints of agent " << a1 << endl;
+	// 	constraints[0]->printCT();
+	// 	cout << "constraints of agent " << a2 << endl;
+	// 	constraints[1]->printCT();
+	// 	cout << endl;
+	// }
+	// end debug
+
 	CBS cbs(engines, constraints, initial_paths, screen);
 	// setUpSubSolver(cbs);
 	cbs.setPrioritizeConflicts(PC);
 	cbs.setHeuristicType(heuristics_type::CG, heuristics_type::ZERO);
 	cbs.setDisjointSplitting(disjoint_splitting);
-	cbs.setBypass(false); // I guess that bypassing does not help two-agent path finding???
+	cbs.setBypass(false);
 	cbs.setRectangleReasoning(rectangle_reasoning);
 	cbs.setCorridorReasoning(corridor_reasoning);
 	cbs.setTargetReasoning(target_reasoning);
@@ -1347,7 +1419,7 @@ int CBSHeuristic::DPForWMVC(std::vector<int>& x, int i, int sum, const std::vect
 
 // Use ILP to solve EWMVC the whole WDG (instead of a connected component)
 // Need to make sure ag_fmax >= ag_fmin for each agent
-int CBSHeuristic::ILPForEWMVC(const AdjEdges& WDG, const vector<int>& ag_fmin, const vector<int>& ag_fmax)
+int CBSHeuristic::ILPForEWMVC(const AdjEdges& wdg_edges, const vector<int>& ag_fmin, const vector<int>& ag_fmax)
 {
 	clock_t t = clock();
 
@@ -1358,14 +1430,16 @@ int CBSHeuristic::ILPForEWMVC(const AdjEdges& WDG, const vector<int>& ag_fmin, c
 	IloModel model = IloModel(env);  // Initialize the model for CPLEX
 
 	// Declare the range of variables and the objective function
+	// Although we take all the agents, we constraint the bounds of non-meta-agents to be [0,0]
+	// Thus, the sum of assignments only takes agents whose ma_vec values are true into account
 	for (int ag = 0; ag < num_of_agents; ag++)
 	{
-		var.add(IloNumVar(env, ag_fmin[ag], ag_fmax[ag] + 1, ILOINT));
+		var.add(IloNumVar(env, ag_fmin[ag], ag_fmax[ag], ILOINT));
 		sum_obj += var[ag];
 	}
 	model.add(IloMinimize(env, sum_obj));
 	
-	for (const auto& _edge_ : WDG)  // Declare the numerical contratins
+	for (const auto& _edge_ : wdg_edges)  // Declare the numerical contratins
  	{
 		IloExpr ma_sum(env);
 		for (const int& ag : _edge_.first)
@@ -1384,6 +1458,17 @@ int CBSHeuristic::ILPForEWMVC(const AdjEdges& WDG, const vector<int>& ag_fmin, c
 	int rst=0;
 	if (cplex.solve())
 		rst = (int)cplex.getObjValue();
+
+	// if (screen == 0)
+	// {
+	// 	cout << "Check all the variables after using CPLEX" << endl;
+	// 	for(int i=0; i<var.getSize(); i++)
+	// 	{
+	// 		cout << cplex.getValue(var[i]) << endl;
+	// 	}
+	// 	cout << "End checking all the variables" << endl;
+	// }
+
 	env.end();
 
 	num_solve_MVC++;
@@ -1511,8 +1596,8 @@ int CBSHeuristic::DPForConstrainedWMVC(std::vector<bool>& x, int i, int sum, con
 
 bool CBSHeuristic::dependent(int a1, int a2, HLNode& node) // return true if the two agents are dependent
 {
-	const MDD* mdd1 = mdd_helper.getMDD(node, a1, paths[a1]->size()); // get mdds
-	const MDD* mdd2 = mdd_helper.getMDD(node, a2, paths[a2]->size());
+	const MDD* mdd1 = mdd_helper->getMDD(node, a1, paths[a1]->size()); // get mdds
+	const MDD* mdd2 = mdd_helper->getMDD(node, a2, paths[a2]->size());
 	if (mdd1->levels.size() > mdd2->levels.size()) // swap
 		std::swap(mdd1, mdd2);
 	num_merge_MDDs++;
@@ -1590,4 +1675,17 @@ bool CBSHeuristic::SyncMDDs(const MDD &mdd, const MDD& other) // assume mdd.leve
 	}
 	copy.clear();
 	return true;
+}
+
+void CBSHeuristic::printEdgeWeights(const AdjEdges& wdg_edges)
+{
+	cout << "WDG edge weights" << endl;
+	for (const auto& _we_ : wdg_edges)
+	{
+		cout << "Agent {";
+		for (const int& ag : _we_.first)
+			cout << ag << ", ";
+		cout << "} -> weight:" << _we_.second << endl;
+	}
+	cout << endl;
 }

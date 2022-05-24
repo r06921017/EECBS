@@ -5,13 +5,13 @@ name="random-32-32-20"
 map="/home/rdaneel/mapf_benchmark/mapf-map/$name.map"
 scen1="even"
 scen="/home/rdaneel/mapf_benchmark/scen-$scen1/$name-$scen1"
-output="/home/rdaneel/my_exp/$name/NEECBS/$name-$scen1"
+output="/home/rdaneel/my_exp/$name/EECBS00/$name-$scen1"
 sid=0
 time=60
-w=1.05
+w=1.02
 b=1
 
-for n in $(seq 40 20 40)
+for n in $(seq 20 20 60)
 do
     for i in $(seq 1 1 25)
     do

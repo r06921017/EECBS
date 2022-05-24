@@ -106,17 +106,17 @@
             "program": "${workspaceFolder}/build/eecbs",
             "args": [
                 "-m/home/rdaneel/mapf_benchmark/mapf-map/random-32-32-20.map",
-                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-5.scen", //22
+                "-a/home/rdaneel/mapf_benchmark/scen-even/random-32-32-20-even-10.scen", //22
                 // "-m/home/rdaneel/mapf_benchmark/mapf-map/den520d.map", 
                 // "-a/home/rdaneel/mapf_benchmark/scen-even/den520d-even-2.scen",
                 "-k60",
                 "-o${workspaceFolder}/result_debug.csv", 
                 "-t60",
-                "-b", "1",
+                "-b", "25",
                 // "--nl", "349",
                 "--highLevelSolver", "EES",  // "A*eps",
-                "--inadmissibleH", "Zero",  // "Zero"
-                "--heuristics", "Zero",  // "Zero"
+                "--heuristics", "WDG",  // "Zero"
+                "--inadmissibleH", "Global",  // "Zero"
                 "--suboptimality","1.02",
                 "--prioritizingConflicts", "false",
                 "--bypass", "false",
@@ -145,22 +145,6 @@
             "program": "${workspaceFolder}/script/data_processor.py",
             // "program": "${workspaceFolder}/script/plot_ins_upperbound.py",
             "args": ["--config", "${workspaceFolder}/script/config.yaml"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python: plot_suboptimality",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/script/plot_suboptimality.py",
-            "args": ["--config", "${workspaceFolder}/script/new_config.yaml"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python: plot_instances",
-            "type": "python",
-            "request": "launch",
-            // "program": "${workspaceFolder}/script/plot_nodes_in_lists.py",
-            "program": "${workspaceFolder}/script/plot_iter.py",
             "console": "integratedTerminal"
         }
     ]

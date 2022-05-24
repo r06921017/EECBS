@@ -155,13 +155,11 @@ public:
 	// stats
 	list<tuple<int, int, const HLNode*, uint64_t, int> > sub_instances; 	// <agent 1, agent 2, node, number of expanded CT nodes, h value> 
 
-	CBSHeuristic(int num_of_agents,
-				vector<Path*>& paths,
-				vector<SingleAgentSolver*>& search_engines,
-				vector<ConstraintTable>& initial_constraints,
-				MDDTable& mdd_helper) : num_of_agents(num_of_agents),
-		paths(paths), search_engines(search_engines), initial_constraints(initial_constraints), mdd_helper(mdd_helper) {}
-	
+	CBSHeuristic(int num_of_agents, vector<Path*> paths, vector<SingleAgentSolver*>& search_engines,
+		vector<ConstraintTable*> initial_constraints, MDDTable* mdd_helper): 
+		num_of_agents(num_of_agents), paths(paths), search_engines(search_engines), 
+		initial_constraints(initial_constraints), mdd_helper(mdd_helper) {}
+
 	void init()
 	{
 		if (type == heuristics_type::DG || type == heuristics_type::WDG)
@@ -193,19 +191,25 @@ public:
 	inline void setMetaAgents(vector<vector<int>> in_ma)
 	{
 		meta_agents = in_ma;
+		ma_vec = vector<bool>(num_of_agents, false);
 		for (const vector<int>& _ma_ : meta_agents)
 			for (const int& _ag_ : _ma_)
 				ma_vec[_ag_] = true;
 	}
 
-	inline void setInitConstraints(vector<ConstraintTable> in_cons_table)
+	inline void setInitConstraints(vector<ConstraintTable*> in_cons_table)
 	{
 		initial_constraints = in_cons_table;
 	}
 
-	inline void setInitConstraints(ConstraintTable in_cons, int agent)
+	inline void setInitConstraints(ConstraintTable* in_cons, int agent)
 	{
 		initial_constraints[agent] = in_cons;
+	}
+
+	inline void setPaths(vector<Path*> in_paths)
+	{
+		paths = in_paths;
 	}
 
 	void setInadmissibleHeuristics(heuristics_type h)
@@ -272,14 +276,15 @@ private:
 	// TODO: run some experiments to pick a good ILP_node_threshold
 	vector<Path*>& paths;
 	const vector<SingleAgentSolver*>& search_engines;
-	vector<ConstraintTable>& initial_constraints;  // This is for solve2agent function
-	MDDTable& mdd_helper;
+	vector<ConstraintTable*> initial_constraints;  // This is for solve2agent function
+	MDDTable* mdd_helper;
 
 	void buildConflictGraph(vector<bool>& HG, const HLNode& curr);
 	void buildCardinalConflictGraph(CBSNode& curr, vector<int>& CG, int& num_of_CGedges);
 	bool buildDependenceGraph(CBSNode& node, vector<int>& CG, int& num_of_CGedges);
 	bool buildWeightedDependencyGraph(CBSNode& curr, vector<int>& CG);
-	bool buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& WDG, vector<int>& ag_fmin, vector<int>& ag_fmax);
+	bool buildWeightedDependencyGraph(ECBSNode& node, AdjEdges& wdg_edges, 
+		vector<int>& ag_fmin, vector<int>& ag_fmax);
 	bool dependent(int a1, int a2, HLNode& node); // return true if the two agents are dependent
 	pair<int, int> solve2Agents(int a1, int a2, const CBSNode& node, bool cardinal); // return h value and num of CT nodes
     tuple<int, int, int> solve2Agents(int a1, int a2, const ECBSNode& node); // return h value and num of CT nodes
@@ -296,11 +301,8 @@ private:
 	int weightedVertexCover(const vector<int>& CG);
 	int DPForWMVC(vector<int>& x, int i, int sum, const vector<int>& CG, const vector<int>& range, int& best_so_far); // dynamic programming
 	// int ILPForWMVC(const vector<int>& CG, const vector<int>& range) const; // Integer linear programming
-	int ILPForEWMVC(const AdjEdges& WDG, const vector<int>& ag_fmin, const vector<int>& ag_fmax);  // Integer linear programming for hyper-edge WMVC
+	int ILPForEWMVC(const AdjEdges& wdg_edges, const vector<int>& ag_fmin, const vector<int>& ag_fmax);  // Integer linear programming for hyper-edge WMVC
 	int ILPForConstrainedWMVC(const std::vector<int>& CG, const std::vector<int>& range);
 	int DPForConstrainedWMVC(vector<bool>& x, int i, int sum, const vector<int>& CG, const vector<int>& range, int& best_so_far);
+	void printEdgeWeights(const AdjEdges& wdg_edges);
 };
-
-
-
-

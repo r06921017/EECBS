@@ -136,20 +136,20 @@ public:
 	// set params
 	void setHeuristicType(heuristics_type h, heuristics_type h_hat, bool is_solver=false)
 	{
-	    heuristic_helper.type = h;
-	    heuristic_helper.setInadmissibleHeuristics(h_hat);
-		heuristic_helper.is_solver = is_solver;
+	    heuristic_helper->type = h;
+	    heuristic_helper->setInadmissibleHeuristics(h_hat);
+		heuristic_helper->is_solver = is_solver;
 	}
-	void setPrioritizeConflicts(bool p) {PC = p;	heuristic_helper.PC = p; }
-	void setRectangleReasoning(bool r) {rectangle_reasoning = r; heuristic_helper.rectangle_reasoning = r; }
-	void setCorridorReasoning(bool c) {corridor_reasoning = c; heuristic_helper.corridor_reasoning = c; }
-	void setTargetReasoning(bool t) {target_reasoning = t; heuristic_helper.target_reasoning = t; }
-	void setMutexReasoning(bool m) {mutex_reasoning = m; heuristic_helper.mutex_reasoning = m; }
-	void setDisjointSplitting(bool d) {disjoint_splitting = d; heuristic_helper.disjoint_splitting = d; }
+	void setPrioritizeConflicts(bool p) {PC = p;	heuristic_helper->PC = p; }
+	void setRectangleReasoning(bool r) {rectangle_reasoning = r; heuristic_helper->rectangle_reasoning = r; }
+	void setCorridorReasoning(bool c) {corridor_reasoning = c; heuristic_helper->corridor_reasoning = c; }
+	void setTargetReasoning(bool t) {target_reasoning = t; heuristic_helper->target_reasoning = t; }
+	void setMutexReasoning(bool m) {mutex_reasoning = m; heuristic_helper->mutex_reasoning = m; }
+	void setDisjointSplitting(bool d) {disjoint_splitting = d; heuristic_helper->disjoint_splitting = d; }
 	void setBypass(bool b) { bypass = b; } // 2-agent solver for heuristic calculation does not need bypass strategy.
-	void setConflictSelectionRule(conflict_selection c) { conflict_selection_rule = c; heuristic_helper.conflict_selection_rule = c; }
-	void setNodeSelectionRule(node_selection n) { node_selection_rule = n; heuristic_helper.node_selection_rule = n; }
-	void setSavingStats(bool s) { save_stats = s; heuristic_helper.save_stats = s; }
+	void setConflictSelectionRule(conflict_selection c) { conflict_selection_rule = c; heuristic_helper->conflict_selection_rule = c; }
+	void setNodeSelectionRule(node_selection n) { node_selection_rule = n; heuristic_helper->node_selection_rule = n; }
+	void setSavingStats(bool s) { save_stats = s; heuristic_helper->save_stats = s; }
 	void setHighLevelSolver(high_level_solver_type s, double w)
 	{
 		solver_type = s;
@@ -160,7 +160,9 @@ public:
 	void setMergeRestart(bool mr) { mr_active = mr; }
 	// void setMASolver(shared_ptr<CBS> in_solver) { inner_solver = in_solver; }
 	void setMAVector(vector<bool> in_ma_vec) { ma_vec = in_ma_vec; }	
-	void setInitConstraints(int agent, ConstraintTable _table) {initial_constraints[agent].init(_table);}
+	void setInitConstraints(int agent, ConstraintTable _table) {
+		initial_constraints[agent]->init(_table);
+	}
 	void setInitSumLB (int _sum_lb) { init_sum_lb = _sum_lb; }
 	void setFlex(double val) {flex = val;}
 	void setTimeLimit(double tl) { time_limit = tl; }
@@ -203,13 +205,13 @@ public:
 
 	CBS(const Instance& instance, bool sipp, int screen);
 	CBS(vector<SingleAgentSolver*>& search_engines,
-		vector<ConstraintTable>& constraints,
-		vector<Path>& paths_found_initially, int screen);
+		vector<ConstraintTable*> constraints,
+		vector<Path>& paths_found_initially, int screen);  // Constructor for the 2-agent problem
 	CBS(vector<SingleAgentSolver*>& search_engines,
-		vector<ConstraintTable>& initial_constraints,
+		vector<ConstraintTable*> initial_constraints,
 		list<Constraint>& root_constraints,
 		vector<Path>& paths_found_initially, int screen,
-		CBSHeuristic& heuristic_helper, MDDTable& mdd_helper);
+		CBSHeuristic* heuristic_helper, MDDTable* mdd_helper);  // Constructor for Inner solver
 	void clearSearchEngines();
 	virtual ~CBS();
 
@@ -233,11 +235,11 @@ protected:
 	conflict_selection conflict_selection_rule;
 	node_selection node_selection_rule;
 
-	MDDTable mdd_helper;	
+	MDDTable* mdd_helper;
 	RectangleReasoning rectangle_helper;
 	CorridorReasoning corridor_helper;
 	MutexReasoning mutex_helper;
-	CBSHeuristic heuristic_helper;
+	CBSHeuristic* heuristic_helper;
 
 	list<HLNode*> allNodes_table; // this is ued for both ECBS and EES
 	unordered_map<uint64_t, HLNode*> mergedNodes_table; // this is for storing nodes that go through merging process
@@ -254,7 +256,7 @@ protected:
 	int node_limit = MAX_NODES;
 	int cost_upperbound = MAX_COST;
 
-	vector<ConstraintTable> initial_constraints;
+	vector<ConstraintTable*> initial_constraints;
 	list<Constraint> root_constraints;
 	clock_t start;
 
