@@ -91,7 +91,6 @@ void CBS::removeInternalConflicts(HLNode* node)
 {
 	for (list<shared_ptr<Conflict>>::const_iterator c_it = node->conflicts.begin(); c_it != node->conflicts.end();)
 	{
-		bool found = false;
 		if (findMetaAgent((*c_it)->a1) == findMetaAgent((*c_it)->a2))
 		{
 			// if (screen > 1)  // Debug: check the conflict is really resolved by the inner solver
@@ -118,7 +117,6 @@ void CBS::removeInternalConflicts(HLNode* node)
 
 	for (list<shared_ptr<Conflict>>::const_iterator c_it = node->unknownConf.begin(); c_it != node->unknownConf.end();)
 	{
-		bool found = false;
 		if (findMetaAgent((*c_it)->a1) == findMetaAgent((*c_it)->a2))
 		{
 			if (screen > 1)  // Debug: check the conflict is really resolved by the inner solver
@@ -146,16 +144,6 @@ void CBS::removeInternalConflicts(HLNode* node)
 
 void CBS::findConflicts(HLNode& curr, int a1, int a2)
 {
-	// // Debug
-	// if (screen > 1 && curr.parent != nullptr && a1 == 4 && a2 == 46)
-	// {
-	// 	cout << "In findConflicts function ^^^^" << endl;
-	// 	printAgentPath(a1, paths[a1]);
-	// 	printAgentPath(a2, paths[a2]);
-	// 	cout << "End findConflicts function ^^^" << endl;
-	// }
-	// // end debug
-
 	int min_path_length = (int) (paths[a1]->size() < paths[a2]->size() ? paths[a1]->size() : paths[a2]->size());
 	for (int timestep = 0; timestep < min_path_length; timestep++)
 	{
@@ -214,6 +202,65 @@ void CBS::findConflicts(HLNode& curr, int a1, int a2)
 	}
 }
 
+void CBS::findConflicts(list<shared_ptr<Conflict>>& tmp_conflicts, int a1, int a2)
+{
+	int min_path_length = (int) (paths[a1]->size() < paths[a2]->size() ? paths[a1]->size() : paths[a2]->size());
+	for (int timestep = 0; timestep < min_path_length; timestep++)
+	{
+		int loc1 = paths[a1]->at(timestep).location;
+		int loc2 = paths[a2]->at(timestep).location;
+		if (loc1 == loc2)
+		{
+			shared_ptr<Conflict> conflict(new Conflict());
+			if (target_reasoning && paths[a1]->size() == timestep + 1)
+			{
+				conflict->targetConflict(a1, a2, loc1, timestep);
+			}
+			else if (target_reasoning && paths[a2]->size() == timestep + 1)
+			{
+				conflict->targetConflict(a2, a1, loc1, timestep);
+			}
+			else
+			{
+				conflict->vertexConflict(a1, a2, loc1, timestep);
+			}
+			assert(!conflict->constraint1.empty());
+			assert(!conflict->constraint2.empty());
+			tmp_conflicts.push_back(conflict);
+		}
+		else if (timestep < min_path_length - 1
+			&& loc1 == paths[a2]->at(timestep + 1).location
+			&& loc2 == paths[a1]->at(timestep + 1).location)
+		{
+			shared_ptr<Conflict> conflict(new Conflict());
+			conflict->edgeConflict(a1, a2, loc1, loc2, timestep + 1);
+			assert(!conflict->constraint1.empty());
+			assert(!conflict->constraint2.empty());
+			tmp_conflicts.push_back(conflict); // edge conflict
+		}
+	}
+	if (paths[a1]->size() != paths[a2]->size())
+	{
+		int a1_ = paths[a1]->size() < paths[a2]->size() ? a1 : a2;
+		int a2_ = paths[a1]->size() < paths[a2]->size() ? a2 : a1;
+		int loc1 = paths[a1_]->back().location;
+		for (int timestep = min_path_length; timestep < (int)paths[a2_]->size(); timestep++)
+		{
+			int loc2 = paths[a2_]->at(timestep).location;
+			if (loc1 == loc2)
+			{
+				shared_ptr<Conflict> conflict(new Conflict());
+				if (target_reasoning)
+					conflict->targetConflict(a1_, a2_, loc1, timestep);
+				else
+					conflict->vertexConflict(a1_, a2_, loc1, timestep);
+				assert(!conflict->constraint1.empty());
+				assert(!conflict->constraint2.empty());
+				tmp_conflicts.push_front(conflict); // It's at least a semi conflict			
+			}
+		}
+	}
+}
 
 void CBS::findConflicts(HLNode& curr)
 {
@@ -221,19 +268,12 @@ void CBS::findConflicts(HLNode& curr)
 	if (curr.parent != nullptr)
 	{
 		// Copy from parent
-		auto new_agents = curr.getReplannedAgents();
-		if (curr.conflicts.size() == 0 && curr.unknownConf.size() == 0)
-		{
-			copyConflicts(curr.parent->conflicts, curr.conflicts, new_agents);
-			copyConflicts(curr.parent->unknownConf, curr.unknownConf, new_agents);
-		}
-		else
-		{
-			removeInternalConflicts(&curr);
-		}
+		list<int> new_agents = curr.getReplannedAgents();
+		copyConflicts(curr.parent->conflicts, curr.conflicts, new_agents);
+		copyConflicts(curr.parent->unknownConf, curr.unknownConf, new_agents);
 
 		// detect new conflicts
-		for (auto it = new_agents.begin(); it != new_agents.end(); ++it)
+		for (list<int>::iterator it = new_agents.begin(); it != new_agents.end(); ++it)
 		{
 			int a1 = *it; assert(ma_vec[a1]);
 			for (int a2 = 0; a2 < num_of_agents; a2++)
@@ -247,7 +287,7 @@ void CBS::findConflicts(HLNode& curr)
 						continue;
 				}
 				bool skip = false;
-				for (auto it2 = new_agents.begin(); it2 != it; ++it2)
+				for (list<int>::iterator it2 = new_agents.begin(); it2 != it; ++it2)
 				{
 					if (*it2 == a2)
 					{
@@ -258,8 +298,16 @@ void CBS::findConflicts(HLNode& curr)
 				findConflicts(curr, a1, a2);
 			}
 		}
+
+		// #ifndef NDEBUG
+		// if (screen > 1)
+		// {
+		// 	cout << "find conflict for node " << curr << endl;
+		// 	validateSolution();
+		// }
+		// #endif
 	}
-	else
+	else  // This is for the root CT node
 	{
 		for (int a1 = 0; a1 < num_of_agents; a1++)
 		{
@@ -278,6 +326,24 @@ void CBS::findConflicts(HLNode& curr)
 	runtime_detect_conflicts += (double)(clock() - t) / CLOCKS_PER_SEC;
 }
 
+list<shared_ptr<Conflict>> CBS::findAllConflicts(void)
+{
+	list<shared_ptr<Conflict>> out_conf;
+	for (int a1 = 0; a1 < num_of_agents; a1++)
+	{
+		if (!ma_vec[a1])
+			continue;
+		for (int a2= a1 + 1; a2 < num_of_agents; a2++)
+		{
+			if (!ma_vec[a2])
+				continue;
+			else if (findMetaAgent(a1) == findMetaAgent(a2))
+				continue;
+			findConflicts(out_conf, a1, a2);
+		}
+	}
+	return out_conf;
+}
 
 shared_ptr<Conflict> CBS::chooseConflict(const HLNode &node) const
 {
@@ -747,9 +813,9 @@ bool CBS::generateChild(CBSNode*  node, CBSNode* parent, int child_idx)
 	}
 	assert(!node->paths.empty());*/
 
-	auto agents = getInvalidAgents(node->constraints);
+	set<int> agents = getInvalidAgents(node->constraints);
 	assert(!agents.empty());
-	for (auto agent : agents)
+	for (int agent : agents)
 	{
 		int lowerbound = (int)paths[agent]->size() - 1;
 		if (!findPathForSingleAgent(node, agent, lowerbound))
@@ -1389,7 +1455,8 @@ void CBS::printConflicts(const HLNode &curr, int a1, int a2)
 				cout << "\t" << *conflict << endl;
 			else if (a2 == -1 && conflict->a1 == a1)
 				cout << "\t" << *conflict << endl;
-			else if (conflict->a1 == a1 && conflict->a2 == a2)
+			else if ((conflict->a1 == a1 && conflict->a2 == a2) || 
+					 (conflict->a1 == a2 && conflict->a2 == a1))
 				cout << "\t" << *conflict << endl;
 		}
 	}
@@ -1411,7 +1478,35 @@ void CBS::printConflicts(const HLNode &curr, int a1, int a2)
 				cout << "\t" << *conflict << endl;
 			else if (a2 == -1 && conflict->a1 == a1)
 				cout << "\t" << *conflict << endl;
-			else if ((conflict->a1 == a1 && conflict->a2 == a2) || (conflict->a1 == a2 && conflict->a2 == a1))
+			else if ((conflict->a1 == a1 && conflict->a2 == a2) ||
+					 (conflict->a1 == a2 && conflict->a2 == a1))
+				cout << "\t" << *conflict << endl;
+		}
+	}
+}
+
+void CBS::printConflicts(const list<shared_ptr<Conflict>>& conf_list, int a1, int a2)
+{
+	cout << "Conflicts:";
+	if (conf_list.empty())
+		cout << "None!" << endl;
+	else
+		cout << endl;
+
+	for (const auto& conflict : conf_list)
+	{
+		if (a1 == -1 && a2 == -1)
+		{
+			cout << "\t" << *conflict << endl;
+		}
+		else
+		{
+			if (a1 == -1 && conflict->a2 == a2)
+				cout << "\t" << *conflict << endl;
+			else if (a2 == -1 && conflict->a1 == a1)
+				cout << "\t" << *conflict << endl;
+			else if ((conflict->a1 == a1 && conflict->a2 == a2) || 
+					 (conflict->a1 == a2 && conflict->a2 == a1))
 				cout << "\t" << *conflict << endl;
 		}
 	}
@@ -2285,6 +2380,11 @@ void CBS::clearSearchEngines()
 
 bool CBS::validateSolution() const
 {
+	#ifndef NDEBUG
+	if (screen > 1)
+		cout << "ValidateSolution start" << endl;
+	#endif
+
 	// check whether the solution cost is within the bound
 	if (solution_cost > cost_lowerbound * suboptimality)
     {
@@ -2346,6 +2446,80 @@ bool CBS::validateSolution() const
 		return false;
 	}
 	return true;
+}
+
+list<shared_ptr<Conflict>> CBS::findConflictsFromPaths(void) const
+{
+	// check whether the paths are feasible
+	list<shared_ptr<Conflict>> rst;
+	size_t soc = 0;
+	for (int a1 = 0; a1 < num_of_agents; a1++)
+	{
+		if (!ma_vec[a1]) continue;
+		soc += paths[a1]->size() - 1;
+		for (int a2 = a1 + 1; a2 < num_of_agents; a2++)
+		{
+			if (!ma_vec[a2])
+				continue;
+			size_t min_path_length = paths[a1]->size() < paths[a2]->size() ? paths[a1]->size() : paths[a2]->size();
+			for (size_t timestep = 0; timestep < min_path_length; timestep++)
+			{
+				int loc1 = paths[a1]->at(timestep).location;
+				int loc2 = paths[a2]->at(timestep).location;
+				if (loc1 == loc2)
+				{
+					shared_ptr<Conflict> conflict(new Conflict());
+					if (target_reasoning && paths[a1]->size() == timestep + 1)
+					{
+						conflict->targetConflict(a1, a2, loc1, timestep);
+					}
+					else if (target_reasoning && paths[a2]->size() == timestep + 1)
+					{
+						conflict->targetConflict(a2, a1, loc1, timestep);
+					}
+					else
+					{
+						conflict->vertexConflict(a1, a2, loc1, timestep);
+					}
+					assert(!conflict->constraint1.empty());
+					assert(!conflict->constraint2.empty());
+					rst.push_back(conflict);
+				}
+				else if (timestep < min_path_length - 1
+					&& loc1 == paths[a2]->at(timestep + 1).location
+					&& loc2 == paths[a1]->at(timestep + 1).location)
+				{
+					shared_ptr<Conflict> conflict(new Conflict());
+					conflict->edgeConflict(a1, a2, loc1, loc2, timestep + 1);
+					assert(!conflict->constraint1.empty());
+					assert(!conflict->constraint2.empty());
+					rst.push_back(conflict); // edge conflict
+				}
+			}
+			if (paths[a1]->size() != paths[a2]->size())
+			{
+				int a1_ = paths[a1]->size() < paths[a2]->size() ? a1 : a2;
+				int a2_ = paths[a1]->size() < paths[a2]->size() ? a2 : a1;
+				int loc1 = paths[a1_]->back().location;
+				for (size_t timestep = min_path_length; timestep < paths[a2_]->size(); timestep++)
+				{
+					int loc2 = paths[a2_]->at(timestep).location;
+					if (loc1 == loc2)
+					{
+						shared_ptr<Conflict> conflict(new Conflict());
+						if (target_reasoning)
+							conflict->targetConflict(a1_, a2_, loc1, timestep);
+						else
+							conflict->vertexConflict(a1_, a2_, loc1, timestep);
+						assert(!conflict->constraint1.empty());
+						assert(!conflict->constraint2.empty());
+						rst.push_front(conflict); // It's at least a semi conflict			
+					}
+				}
+			}
+		}
+	}
+	return rst;
 }
 
 inline int CBS::getAgentLocation(int agent_id, size_t timestep) const

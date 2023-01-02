@@ -360,6 +360,8 @@ protected:
 	//conflicts
 	void findConflicts(HLNode& curr);
 	void findConflicts(HLNode& curr, int a1, int a2);
+	void findConflicts(list<shared_ptr<Conflict>>& tmp_conflicts, int a1, int a2);
+	list<shared_ptr<Conflict>> findAllConflicts(void);
 	shared_ptr<Conflict> chooseConflict(const HLNode &node) const;
 	void copyConflicts(const list<shared_ptr<Conflict>>& conflicts,
 		list<shared_ptr<Conflict>>& copy, const list<int>& excluded_agent) ;
@@ -375,8 +377,10 @@ protected:
 	void initializeIterAnalysis(void);
 	void printResults() const;
 	static void printConflicts(const HLNode &curr, int a1=-1, int a2=-1) ;
+	static void printConflicts(const list<shared_ptr<Conflict>>& conf_list, int a1=-1, int a2=-1) ;
 
 	bool validateSolution() const;
+	list<shared_ptr<Conflict>> findConflictsFromPaths(void) const;
 	inline int getAgentLocation(int agent_id, size_t timestep) const;
 
 	vector<int> shuffleAgents() const;  //generate random permuattion of agent indices

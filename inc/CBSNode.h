@@ -10,7 +10,6 @@ class HLNode // a virtual base class for high-level node
 public:
 	// The agents that are afftected by the constraints of the CT node
 	// Root node of inner EECBS may have multiple constrainted agents
-	list<int> constrainted_ags;
 	list<Constraint> constraints; // new constraints
 
 	int g_val = 0; // sum of costs for CBS, and sum of min f for ECBS

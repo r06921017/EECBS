@@ -20,7 +20,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		start = clock();
 	}
 
-	if (is_solver && screen > 1)  // Debug: check initial constraints
+	#ifndef NDEBUG // Debug: check initial constraints
+	if (is_solver && screen > 1)
 	{
 		cout << "\n**********************" << endl;
 		cout << "Inner EECBS:" << endl;
@@ -36,12 +37,13 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		}
 		cout << "**********************" << endl;
 	}
+	#endif
 
 	generateRoot();
 
 	while (!cleanup_list.empty() && !solution_found)
 	{
-		// Debug
+		#ifndef NDEBUG // Debug
 		auto cleanup_head = cleanup_list.top();
 		cleanup_head_lb = cleanup_list.top()->g_val;
 		if (screen > 3)
@@ -60,11 +62,13 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 				iter_num_cleanup->push_back(cleanup_list.size());
 			}
 		}
-		// End debug
+		#endif // End debug
 
 		auto curr = selectNode();  // update focal list and select the CT node
 
-		// Debug
+		#ifndef NDEBUG // Debug
+		cout << "Current Node: " << *curr << endl;
+		// printConflicts(*curr);
 		assert(curr->g_val <= curr->sum_of_costs);
 		assert((double) curr->sum_of_costs <= suboptimality * max(curr->getFVal(), init_sum_lb));
 		assert((double) curr->sum_of_costs <= suboptimality * max(cleanup_head->getFVal(), init_sum_lb));
@@ -102,10 +106,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					iter_node_type->push_back(2);
 			}
 		}
-		// End debug
+		#endif // End debug
 
 		if (terminate(curr))
 		{
+			#ifndef NDEBUG
 			if (screen > 1)
 			{
 				// debug, update individual fmin according to open_head
@@ -148,8 +153,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 						}
 					}
 				}
-				// end debug
 			}
+			#endif // end debug
 			return solution_found;
 		}
 
@@ -216,7 +221,10 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 
 				addConstraints(curr, child[0], child[1]);
 				if (screen > 1)
+				{
+					cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
 					cout << "	Expand " << *curr << endl << 	"	on " << *(curr->conflict) << endl;
+				}
 
 				bool solved[2] = { false, false };
 				vector<Path*> path_copy(paths);
@@ -292,6 +300,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 						curr->meta_agents = meta_agents;
 						curr->ma_vec =ma_vec;
 						curr->is_merged = true;
+						curr->conflicts.clear();
+						curr->unknownConf.clear();
 
 						findConflicts(*curr);
 						heuristic_helper->computeQuickHeuristics(*curr);
@@ -325,6 +335,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 						{
 							pushNode(child[i]);
 							curr->children.push_back(child[i]);
+							#ifndef NDEBUG
 							if (screen > 1)
 							{
 								cout << "		Generate " << *child[i] << endl;
@@ -340,6 +351,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 								all_subopt->push_back((double) child[i]->sum_of_costs / (double) child[i]->getFVal());
 								all_sum_ll_generate->push_back(child[i]->ll_generated);
 							}
+							#endif
 						}
 					}
 				}
@@ -347,7 +359,6 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 		}
 		else // no bypass
 		{
-			ECBSNode* child[2] = { new ECBSNode() , new ECBSNode() };
 			curr->conflict = chooseConflict(*curr);
 
 			// update conflict_matrix and joint meta_agent
@@ -376,15 +387,33 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					curr->meta_agents = meta_agents;
 					curr->ma_vec = ma_vec;
 					curr->is_merged = true;
+					curr->conflicts.clear();
+					curr->unknownConf.clear();
 
 					findConflicts(*curr);
-					// if (screen > 1)
-					// {
-					// 	cout << "After replanning the meta-agent" << endl;
-					// 	printConflicts(*curr, 8, 72);
-					// 	cout << endl;
-					// }
 					heuristic_helper->computeQuickHeuristics(*curr);
+
+					if (screen > 1)
+					{
+						list<shared_ptr<Conflict>> debug_conf = findAllConflicts();
+						set<pair<int,int>> conf_ags;
+						for (const auto& conf : debug_conf)
+						{
+							pair<int,int> tmp_ag_pair = make_pair(min(conf->a1, conf->a2), max(conf->a1, conf->a2));
+							if (conf_ags.find(tmp_ag_pair) == conf_ags.end())
+								conf_ags.insert(tmp_ag_pair);
+						}
+						if (curr->distance_to_go != conf_ags.size())
+						{
+							cout << "Print conflicts of " << *curr << endl;
+							printConflicts(*curr);
+							cout << "#################################################" << endl;
+							printConflicts(debug_conf);
+							cout << "Print conflicts end" << endl;
+						}
+						assert(curr->distance_to_go == conf_ags.size());
+					}
+
 					pushNode(curr);
 
 					// // Debug
@@ -420,10 +449,14 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 
 			else
 			{
+				ECBSNode* child[2] = { new ECBSNode() , new ECBSNode() };
 				addConstraints(curr, child[0], child[1]);
 
 				if (screen > 1)
+				{
+					cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
 					cout << "	Expand " << *curr << endl << "	on " << *(curr->conflict) << endl;
+				}
 
 				bool solved[2] = { false, false };
 				vector<vector<PathEntry>*> path_copy(paths);
@@ -445,6 +478,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 					curr->children.push_back(child[i]);
 					if (screen > 1)
 						cout << "		Generate " << *child[i] << endl;
+					#ifndef NDEBUG
 					if (screen > 3)
 					{
 						all_node_idx->push_back(child[i]->time_generated);
@@ -456,6 +490,7 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound, int _cost_upperbound)
 						all_subopt->push_back((double) child[i]->sum_of_costs / (double) child[i]->getFVal());
 						all_sum_ll_generate->push_back(child[i]->ll_generated);
 					}
+					#endif
 				}
 			}
 		}
@@ -839,7 +874,7 @@ bool ECBS::generateRoot()
 }
 
 
-bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
+bool ECBS::generateChild(ECBSNode* node, ECBSNode* parent, int child_idx)
 {
 	clock_t t1 = clock();
 	node->parent = parent;
@@ -869,6 +904,26 @@ bool ECBS::generateChild(ECBSNode*  node, ECBSNode* parent, int child_idx)
 		}
 		else  // Replan the meta-agent
 		{
+			#ifndef NDEBUG
+			if (screen > 1)
+			{
+				vector<pair<Path*, int>> parent_paths = collectPaths(parent);
+				cout << "parent conflicts:" << endl;
+				for (const auto& conf : parent->conflicts)
+					cout << "\t" << *conf << endl;
+				cout << "parent chosen conflict: " << *parent->conflict << endl;
+				cout << "====================" << endl;
+				cout << "constraints:" << endl;
+				for (const auto& ccc : node->constraints)
+					cout << "\t" << ccc << endl;
+				cout << "====================" << endl;
+				cout << "paths:" << endl;
+				printAgentPath(parent->conflict->a1, parent_paths[parent->conflict->a1].first);
+				printAgentPath(parent->conflict->a2, parent_paths[parent->conflict->a2].first);
+				cout << "====================" << endl;
+			}
+			#endif
+
 			if (!findPathForMetaAgent(node, invalid_ma))
 			{
 				if (screen > 1)
@@ -1033,16 +1088,13 @@ bool ECBS::findPathForSingleAgent(ECBSNode* node, int ag)
 
 	assert(node->sum_of_costs <= suboptimality * max(node->getFVal(), init_sum_lb));
 	assert(node->getFVal() >= node->parent->getFVal());
-	if (screen > 1)
-		collectPaths(node);
-
 	return true;
 }
 
 
 // Plan a path for the meta agent in a child node
 // Collect constraints outside the function. 
-bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const vector<int>& ma2)
+bool ECBS::findPathForMetaAgent(ECBSNode* node, const vector<int>& ma1, const vector<int>& ma2)
 {
 	if (screen > 1)
 	{
@@ -1118,16 +1170,19 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 			cout << ", lb: " << min_f_vals[_a1_] << endl;
 			_tmp_cost_ += paths[_a1_]->size() - 1;
 		}
-		cout << "\tSoC: " << _tmp_cost_ << endl;
+		cout << "\tSoC of ma1: " << _tmp_cost_ << endl;
 
-		_tmp_cost_ = 0;
-		for (const int& _a2_ : ma2)
+		if (!ma2.empty())
 		{
-			cout << "\t[" << _a2_ << "] cost: " << paths[_a2_]->size() - 1;
-			cout << ", lb: " << min_f_vals[_a2_] << endl;
-			_tmp_cost_ += paths[_a2_]->size() - 1;
+			_tmp_cost_ = 0;
+			for (const int& _a2_ : ma2)
+			{
+				cout << "\t[" << _a2_ << "] cost: " << paths[_a2_]->size() - 1;
+				cout << ", lb: " << min_f_vals[_a2_] << endl;
+				_tmp_cost_ += paths[_a2_]->size() - 1;
+			}
+			cout << "\tSoC of ma2: " << _tmp_cost_ << endl;
 		}
-		cout << "\tSoC: " << _tmp_cost_ << endl;
 
 		cout << "\tnode->g_val: " << node->g_val << endl;
 		cout << "\tnode->sum_of_costs: " << node->sum_of_costs << endl;
@@ -1549,9 +1604,6 @@ bool ECBS::findPathForMetaAgent(ECBSNode*  node, const vector<int>& ma1, const v
 		// inner_solver.setInitSumLB(0);  // Reset sum of fmin
 		// inner_solver.setFlex(0);  // Reset flex
 
-		if (screen > 1)
-			collectPaths(node);
-
 		runtime_ma_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
 		return true;
 	}
@@ -1710,14 +1762,14 @@ ECBSNode* ECBS::selectNode()
 		}
 
 		// choose the best node
-		if (screen > 1)
-		{
-			cout << "CLEANUP top: " << *cleanup_list.top() << endl;
-			if (!is_solver)
-				assert(cost_lowerbound <= cleanup_list.top()->getFVal());
-			if (cost_lowerbound < cleanup_list.top()->getFVal())
-				cout << "Lowerbound increases from " << cost_lowerbound << " to " << cleanup_list.top()->getFVal() << endl;
-		}
+		// if (screen > 1)
+		// {
+		// 	cout << "CLEANUP top: " << *cleanup_list.top() << endl;
+		// 	if (!is_solver)
+		// 		assert(cost_lowerbound <= cleanup_list.top()->getFVal());
+		// 	if (cost_lowerbound < cleanup_list.top()->getFVal())
+		// 		cout << "Lowerbound increases from " << cost_lowerbound << " to " << cleanup_list.top()->getFVal() << endl;
+		// }
 		cost_lowerbound = max(cleanup_list.top()->getFVal(), cost_lowerbound);
 		if (focal_list.top()->sum_of_costs <= suboptimality * cost_lowerbound)
 		{ // return best d
